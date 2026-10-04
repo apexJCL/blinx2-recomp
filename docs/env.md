@@ -2,15 +2,15 @@
 
 Every variable the runtime reads goes through one table, `RECOMP_ENV_KEYS` in toolkit `src/platform/recomp_env.h`, and is read once at startup (`recomp_env_init`, called first in `main`) and cached. A lookup is an array load, so call sites in hot paths cost nothing. There are three tiers:
 
-- **Config** (24): documented knobs, each its own variable (`RECOMP_PB_BACKEND=d3d11`).
-- **Trace** (46): log and report toggles, one comma list: `RECOMP_TRACE=flip,tex,heap=0x80123000`. Printing only; nothing changes behaviour.
-- **Debug** (65): hacks, A/B switches, experiments, dumps, watchpoints, one comma list: `RECOMP_DEBUG=pb_fast=0,fb_dump=/tmp/f_,fb_dump_at=61,121`. Anything that changes behaviour, writes files or installs machinery (a watchdog, a thread dumper) is here.
+- **Config** (25): documented knobs, each its own variable (`RECOMP_PB_BACKEND=d3d11`).
+- **Trace** (47): log and report toggles, one comma list: `RECOMP_TRACE=flip,tex,heap=0x80123000`. Printing only; nothing changes behaviour.
+- **Debug** (67): hacks, A/B switches, experiments, dumps, watchpoints, one comma list: `RECOMP_DEBUG=pb_fast=0,fb_dump=/tmp/f_,fb_dump_at=61,121`. Anything that changes behaviour, writes files or installs machinery (a watchdog, a thread dumper) is here.
 
-List syntax: `key` means `1`, `key=value` sets a value, and a later entry wins. Only keys whose values hold commas (`fb_dump_at`, `peek`, `peek_chain`, `px`, `px_consts`, `dsp_ack`, `apu_dsp_ack`, `poke`, `window_shot`, and the game's `mem_dump`) take the fragments after them as part of the value, so `fb_dump_at=61,121,181`, `peek_chain=0x1315A8,8,0x10,0` and `px=10,20;30,40` each read as one value. After any other key, a fragment that is not a key gets the unknown-key warning, so a typo such as `d3d11_dump=Z:\d,pb_fsatt=0` is reported, not glued onto the path. `RECOMP_TRACE=help` (or `RECOMP_DEBUG=help`) prints the table. A key given in the wrong list is accepted with a note. An unknown key is ignored with a warning.
+List syntax: `key` means `1`, `key=value` sets a value, and a later entry wins. Only keys whose values hold commas (`fb_dump_at`, `peek`, `peek_chain`, `px`, `px_consts`, `dsp_ack`, `apu_dsp_ack`, `poke`, `window_shot`, `pad_script`, and the game's `mem_dump`) take the fragments after them as part of the value, so `fb_dump_at=61,121,181`, `peek_chain=0x1315A8,8,0x10,0` and `px=10,20;30,40` each read as one value. After any other key, a fragment that is not a key gets the unknown-key warning, so a typo such as `d3d11_dump=Z:\d,pb_fsatt=0` is reported, not glued onto the path. `RECOMP_TRACE=help` (or `RECOMP_DEBUG=help`) prints the table. A key given in the wrong list is accepted with a note. An unknown key is ignored with a warning.
 
 Rows marked (game) are this game's own keys. They are defined in `cat:src/env/recomp_env_game.h`, which the toolkit table pulls in through its `RECOMP_ENV_GAME_KEYS` hook (CMakeLists.txt sets `RECOMP_ENV_HAVE_GAME_KEYS`); the toolkit itself no longer knows them.
 
-**Old names still work.** Each replaced variable is an alias that prints one line at startup, e.g. `[ENV] RECOMP_FLIP_LOG is deprecated; use RECOMP_TRACE=flip`. When both spellings are set, the new one wins. Defaults are unchanged except two config knobs that now default on: `RECOMP_PB_EXEC` and `RECOMP_AC97_READY` (x86-64 Windows/Proton, and macOS/Linux arm64); `=0` turns either off. The game also defaults `apu_dsp_ack` to the GP doorbell `0x80A1C810` (see below). Keys whose old variable defaulted on (`pb_vsh`, `pb_rc`, `pb_fast`, `pb_bilinear`, `pb_clip`, `fast_kick`, `d3d11_memo`, `apu_mixdown_all`) are still switched off with `=0`.
+**Old names still work.** Each replaced variable is an alias that prints one line at startup, e.g. `[ENV] RECOMP_FLIP_LOG is deprecated; use RECOMP_TRACE=flip`. When both spellings are set, the new one wins. Defaults are unchanged except two config knobs that now default on: `RECOMP_PB_EXEC` and `RECOMP_AC97_READY` (x86-64 Windows/Proton, and macOS/Linux arm64); `=0` turns either off. The game also defaults `apu_dsp_ack` to `auto`, the GP doorbell found from `GPSADDR` (see below). Keys whose old variable defaulted on (`pb_vsh`, `pb_rc`, `pb_fast`, `pb_bilinear`, `pb_clip`, `fast_kick`, `d3d11_memo`, `apu_mixdown_all`) are still switched off with `=0`.
 
 Scripts: `bench.sh` and `golden.py plan` merge `RECOMP_TRACE` / `RECOMP_DEBUG` from several sources (a scenario's pins, `BENCH_ENV`, `BENCH_FRAMES`) by joining them with commas. Any other variable is replaced, as before.
 
@@ -46,6 +46,7 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_CMDLINE` | `RECOMP_CMDLINE` (unchanged) | launch-data command line handed to the title | `toolkit:src/kernel/kernel_bridge.c:243` |
 | `RECOMP_FMV_HOST` | `RECOMP_FMV_HOST` (unchanged) | play the title's movies through the host player | `toolkit:src/kernel/kernel_bridge.c:3478` |
 | `RECOMP_RASTER_THREADS` | `RECOMP_RASTER_THREADS` (unchanged) | CPU raster threads, 1..16 (default: cores - 4; 1 = serial) | `toolkit:src/kernel/nv2a_pb_exec.c:3527` |
+| `RECOMP_USB_PADS` | `RECOMP_USB_PADS` (unchanged; from upstream) | emulated USB pads plugged in, 1..4 (default 1; Burnout 3 sets 2 in its game defaults) | `toolkit:src/usb/ohci.c:1281` |
 
 ## Trace (`RECOMP_TRACE=`)
 
@@ -97,6 +98,7 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_D3D11_PX_CONSTS` | `px_consts` | =a-b,c: px also prints these constants | `toolkit:src/d3d/nv2a_pb_d3d11.c:2057` |
 | `RECOMP_D3D11_PX_VERTS` | `px_verts` | px also prints program and vertices | `toolkit:src/d3d/nv2a_pb_d3d11.c:2077` |
 | `RECOMP_STUB_LOG` | `stub` | name each unresolved stub reached | generated `src/recomp/gen/recomp_stubs_unresolved.c` (via the exported variable) |
+| `RECOMP_PB_REPORT_MS` | `pb_report_ms` | =ms: [PB] report / fb_dump interval (10000, min 100; from upstream) | `toolkit:src/kernel/xbox_memory_layout.c:1638` |
 
 ## Debug (`RECOMP_DEBUG=`)
 
@@ -119,7 +121,7 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_FORCE_RETURN` | `force_return` | honour forced returns in the build | `toolkit:src/kernel/xbox_memory_layout.c:2448` |
 | `RECOMP_TRAP_NULL` | `trap_null` | guest page zero faults | `toolkit:src/kernel/xbox_memory_layout.c:2611`, `toolkit:tests/memory_layout_posix/test_main.c:267`, `toolkit:tests/memory_layout_posix/test_main.c:294` |
 | `RECOMP_DSP_ACK` | `dsp_ack` | =va,...: zero these words (no APU) | `toolkit:src/kernel/xbox_memory_layout.c:678` |
-| `RECOMP_APU_DSP_ACK` | `apu_dsp_ack` | =va,...: APU DSP acks these words. **Game default** `0x80A1C810` (GP doorbell, `RECOMP_ENV_GAME_DEFAULTS` in `cat:src/env/recomp_env_game.h`); `=0` turns it off | `toolkit:src/apu/apu_dsp.c:62` |
+| `RECOMP_APU_DSP_ACK` | `apu_dsp_ack` | =auto\|va,...: APU DSP acks the GP doorbell, or these words. **Game default** `auto` (`RECOMP_ENV_GAME_DEFAULTS` in `cat:src/env/recomp_env_game.h`): the doorbell is GP scratch page 0 + 0x810, the page read from the `GPSADDR` scatter-gather table the title programs, so it follows the contiguous allocator (it was the constant `0x80A1C810`; upstream's page-0 reservation moved it to `0x80A20810`); `=0` turns it off | `toolkit:src/apu/apu_dsp.c` |
 | `RECOMP_APU_SOLO` | `apu_solo` | =voice: mix only this APU voice | `toolkit:src/apu/apu_core.c` |
 | `RECOMP_APU_VOICE_DUMP` | `apu_voice_dump` | =voice\|all: raw s16 stereo samples of one APU voice to a file; `all` writes `<file>.<voice>.raw` for every voice that renders (slots differ between runs). `audio_check.py --voice-dump` finds replays in them | `toolkit:src/apu/apu_vp.c:768` |
 | `RECOMP_APU_VOICE_DUMP_FILE` | `apu_voice_dump_file` | =path: apu_voice_dump output, default voice_dump.raw | `toolkit:src/apu/apu_vp.c` |
@@ -170,6 +172,8 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_WATCH_DEPTH` | `watch_depth` | =n: watch stack depth (14) | `toolkit:src/kernel/xbox_memory_layout.c:2008` |
 | `RECOMP_WATCH_LEN` | `watch_len` | =bytes: watch range | `toolkit:src/kernel/xbox_memory_layout.c:2103` |
 | `RECOMP_WATCHDOG_SECS` | `watchdog` | =s: dump and exit after s seconds | `toolkit:src/kernel/xbox_memory_layout.c:2400` |
+| `RECOMP_PAD_SCRIPT` | `pad_script` | =ms:btn[+btn][:hold],... or =@file: timed pad presses (from upstream; takes commas) | `toolkit:src/usb/usb_gamepad.c:412` |
+| `RECOMP_PAD_LIVE` | `pad_live` | =file: press each line appended to it, btn[+btn][:hold] (from upstream) | `toolkit:src/usb/usb_gamepad.c:462` |
 
 ## Deleted
 

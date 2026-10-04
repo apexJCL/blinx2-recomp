@@ -73,7 +73,7 @@ Audio, real-device input, saves and FMV playback are in progress. See
   provide or link to them.
 - [ ] The game files placed in `game_files/` (git ignores it).
 - [ ] A clone of the xboxrecomp toolkit fork, branch `blinx2/portability`, at
-  commit `d54e083` (see [Getting started](#getting-started)).
+  commit `09abd3c` (see [Getting started](#getting-started)).
 - [ ] Python, for the toolkit's pipeline tools (macOS: run
   `tools/macos/setup.sh` in the toolkit once to create its `.venv`).
 - [ ] The platform tools below.
@@ -111,11 +111,11 @@ cat/game_files/      your disc dump: default.xbe and the game's files
 
 ### 1. Get the toolkit
 
-This release was built against commit `d54e083`:
+This release was built against commit `09abd3c`:
 
 ```sh
 git clone -b blinx2/portability https://github.com/apexJCL/xboxrecomp.git
-git -C xboxrecomp checkout d54e083b65315735bbce1f772672d0d465f03265
+git -C xboxrecomp checkout 09abd3cd99853efb20e25d78847235ed52808bc1
 ```
 
 CMake, `scripts/pipeline.sh` and `scripts/bench.sh` look for the toolkit in

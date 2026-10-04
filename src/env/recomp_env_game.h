@@ -24,11 +24,16 @@
 #define RECOMP_ENV_GAME_COMMA_KEYS "mem_dump",
 
 /* Defaults this game gives toolkit keys, D(ID, "value"): used when neither
- * the key nor its old variable is set. The GP doorbell (<GP block> + 0x810):
- * the toolkit's APU frame thread clears it on every pass, which ends the
- * XDK DSOUND submit's spin at loc_00334325 (sub_003341BE) as the GP program
- * would. RECOMP_DEBUG=apu_dsp_ack=0 turns it off. */
+ * the key nor its old variable is set. The GP doorbell (GP scratch page 0 +
+ * 0x810): the toolkit's APU frame thread clears it on every pass, which
+ * ends the XDK DSOUND submit's spin at loc_00334325 (sub_003341BE) as the
+ * GP program would. `auto` derives the page from the GPSADDR scatter-gather
+ * table the title programs (toolkit src/apu/apu_dsp.c), so the address
+ * follows the contiguous allocator: it was 0x80A1C810, and reserving
+ * physical page 0 (upstream 423263b) moved it to 0x80A20810. A fixed
+ * address can still be given instead. RECOMP_DEBUG=apu_dsp_ack=0 turns it
+ * off. */
 #define RECOMP_ENV_GAME_DEFAULTS(D) \
-    D(APU_DSP_ACK, "0x80A1C810")
+    D(APU_DSP_ACK, "auto")
 
 #endif /* RECOMP_ENV_GAME_H */
