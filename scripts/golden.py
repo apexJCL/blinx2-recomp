@@ -65,6 +65,22 @@ with no flip dumps, no anchor in its log, or not the target flip is
 INCOMPLETE (exit 2) for that frame, never compared at the plain dump. --window K (default 2) also
 compares the flips within K of the target and prints the best one: a
 diagnostic, the verdict is the target's.
+
+Pace. Some content follows wall time, not flips (the title's cloud movie),
+so a run flipping at another rate lands elsewhere in it. The run's pace
+(flips per wall second from its anchor to the target, from the "[GPU] flip
+N T ms" lines) is compared with the reference run's over the same span (the
+anchor's "ref_pace", or a reference's "pace"; written by record/reference).
+Off by more than max_pace_diff (frame, scenario or compare; default 0.10),
+an EXACT or in-limits frame still passes (CLOSE notes the mismatch); one
+outside its limits is INCOMPLETE "pace mismatch (run X fps vs ref Y fps)",
+not FAIL, unless every reference is off by pace_fail_bad (default 0.5) of
+its pixels or more: a wrong screen at any pace, FAIL. No recorded pace, a
+target not after the anchor, or max_pace_diff null is no check. The limit
+is a ratio, but the harm is drift (span x ratio): a long span drifts
+further at the same ratio, so set a frame's max_pace_diff to its span.
+
+The verdict: exit 1 on any FAIL, else 2 on any INCOMPLETE (counts printed).
 golden.json names, per scenario, the frames to check (by dump index) and the
 thresholds; it holds hashes and metrics only. The reference PNGs live in
 analysis/golden/frames/, which is gitignored: they are game frames.
@@ -93,7 +109,9 @@ background matches. A view not seen before is NEWVIEW, which is
 INCOMPLETE: someone looks at it and records it. See "split frames" below.
 """
 
+import contextlib
 import hashlib
+import io
 import json
 import os
 import struct
@@ -679,6 +697,113 @@ def flip_batches(log):
     return out or None
 
 
+TIME_RE = None
+
+
+def flip_times(log):
+    """{flip: wall ms} from the walker's "[GPU] flip N T ms" lines, which
+    every backend prints under RECOMP_TRACE=flip, or None."""
+    global TIME_RE
+    import re
+    if TIME_RE is None:
+        TIME_RE = re.compile(r"^\[GPU\] flip (\d+) (\d+) ms\b")
+    out = {}
+    try:
+        with open(log, errors="replace") as f:
+            for line in f:
+                m = TIME_RE.match(line)
+                if m:
+                    out.setdefault(int(m.group(1)), int(m.group(2)))
+    except (OSError, TypeError):
+        return None
+    return out or None
+
+
+def pace(times, a, b):
+    """Flips per wall second from flip a to flip b, or None if either flip
+    has no time in the log or b is not after a."""
+    if not times or a not in times or b not in times or b <= a:
+        return None
+    dt = times[b] - times[a]
+    return (b - a) * 1000.0 / dt if dt > 0 else None
+
+
+DEFAULT_MAX_PACE_DIFF = 0.10
+
+
+def ref_pace(fr, label):
+    """The reference run's pace (flips/s from its anchor to the frame) for
+    reference `label` of frame fr, or None when not recorded."""
+    for r in fr.get("references", []):
+        if r["label"] == label and "anchor_flip" in r:
+            return r.get("pace")
+    return fr["anchor"].get("ref_pace")
+
+
+def pace_report(fr, sc, th, batches, times):
+    """For an anchored frame: (mismatch, notes). Each reference with a
+    recorded pace is compared with the run's pace over the same span (its
+    anchor to its target flip); mismatch is the first "pace mismatch (run X
+    fps vs ref Y fps)" reason past max_pace_diff, or None. An unknown pace
+    on either side is no check."""
+    if "anchor" not in fr or not batches:
+        return None, []
+    ev = sc.get("anchors", {}).get(fr["anchor"]["event"])
+    A = find_anchor(batches, ev) if ev else None
+    if A is None:
+        return None, []
+    lim = DEFAULT_MAX_PACE_DIFF
+    for src in (fr, sc, th):
+        if "max_pace_diff" in src:
+            lim = src["max_pace_diff"]
+            break
+    if lim is None:   # the frame follows flips, not wall time: no pace check
+        return None, []
+    mismatch, notes = None, []
+    for label, _, _ in frame_refs(fr):
+        target = A + 60 * fr["dump"] + 1 - ref_anchor_flip(fr, label)
+        run = pace(times, A, target)
+        ref = ref_pace(fr, label)
+        who = "" if label is None else " (%s)" % label
+        if target <= A:
+            notes.append("pace%s: target flip %d not after anchor %d; not checked" % (
+                who, target, A))
+        elif run is None:
+            notes.append("pace%s: flips %d-%d not timed in the run's log; not checked" % (
+                who, A, target))
+        elif ref is None:
+            notes.append("pace%s: run %.1f fps over flips %d-%d, reference unknown; not checked"
+                         % (who, run, A, target))
+        else:
+            notes.append("pace%s: run %.1f fps vs ref %.1f fps over flips %d-%d (limit +-%.0f%%)"
+                         % (who, run, ref, A, target, 100 * lim))
+            if mismatch is None and abs(run / ref - 1) > lim:
+                mismatch = "pace mismatch (run %.1f fps vs ref %.1f fps)" % (run, ref)
+    return mismatch, notes
+
+
+DEFAULT_PACE_FAIL_BAD = 0.5
+
+
+def pace_fail_bad(fr, sc, th):
+    """The bad-pixel share at which a pace-mismatched frame FAILs anyway."""
+    for src in (fr, sc, th):
+        if "pace_fail_bad" in src:
+            return src["pace_fail_bad"]
+    return DEFAULT_PACE_FAIL_BAD
+
+
+def raw_compares(refs, have, imgs, fr, th):
+    """[(label, whole-frame stats)] against each reference with a PNG."""
+    out = []
+    for lab, _, rp in refs:
+        if lab in have and os.path.exists(rp):
+            _, st, _ = compare(imgs[have[lab]], rp, fr, th)
+            if st is not None:
+                out.append((lab, st))
+    return out
+
+
 def run_backend(log):
     """The run's render backend from its flip log: d3d11 or metal when that
     backend printed flip lines, cpu when only the walker did, None without a
@@ -837,13 +962,14 @@ def cmd_check(args):
         else:
             rest.append(a)
     dirs = parse_scen_args(rest)
-    worst = 0
+    rcs = []   # per frame: 1 FAIL, 2 INCOMPLETE (MISSING, NEWVIEW too)
     for scen, d in dirs.items():
         sc = g["scenarios"].get(scen)
         if sc is None:
             sys.exit(f"golden: no scenario {scen} in {GOLDEN_JSON}")
         log = run_log(d, logs, scen)
         batches = flip_batches(log) if log else None
+        times = flip_times(log) if log else None
         backend = run_backend(log) if log else None
         for fr in sc["frames"]:
             tag = f"{scen}/{fr['name']} (dump {fr['dump']}, present {fr['dump'] * 60 + 1})"
@@ -860,7 +986,7 @@ def cmd_check(args):
                 print(f"INCOMPLETE {tag}: the anchored flip is not checkable in this run")
                 for n in notes:
                     print("         " + n)
-                worst = max(worst, 2)
+                rcs.append(2)
                 continue
             have = {lab: p for lab, (p, _) in targets.items() if os.path.exists(p)}
             if not have:
@@ -868,19 +994,48 @@ def cmd_check(args):
                 print(f"MISSING  {tag}: {p} not dumped (run too short or crashed?)")
                 for n in notes:
                     print("         " + n)
-                worst = max(worst, 2)
+                rcs.append(2)
                 continue
             imgs = {p: read_image(p) for p in set(have.values())}
+            mismatch, pnotes = pace_report(fr, sc, th, batches, times)
+            notes += pnotes
             hit = [r for r in refs if r[0] in have and pixel_sha(imgs[have[r[0]]]) == r[1]]
             if hit:
                 print(f"EXACT    {tag}" + (f" = {hit[0][0]}" if multi else ""))
                 for n in notes:
                     print("         " + n)
                 continue
+            floor = pace_fail_bad(fr, sc, th)
             if "split" in fr:
-                worst = max(worst, check_split(tag, fr, th, refs, have, imgs))
+                if not mismatch:
+                    rcs.append(check_split(tag, fr, th, refs, have, imgs))
+                    for n in notes:
+                        print("         " + n)
+                    continue
+                # Pace mismatch: the split verdict stands when it passes
+                # (CLOSE) or is already INCOMPLETE (NEWVIEW); a FAIL is
+                # INCOMPLETE unless the frame is a wrong screen at any pace.
+                buf = io.StringIO()
+                with contextlib.redirect_stdout(buf):
+                    rc = check_split(tag, fr, th, refs, have, imgs)
+                raw = raw_compares(refs, have, imgs, fr, th)
+                if rc == 1:
+                    gross = bool(raw) and min(st["bad_fraction"] for _, st in raw) >= floor
+                    rc = 1 if gross else 2
+                    print((f"FAIL     {tag}: wrong screen at any pace ({mismatch}): "
+                           f"every reference off by {100 * floor:.0f}%+ of pixels") if gross else
+                          f"INCOMPLETE {tag}: {mismatch}; the split compare failed, not judged")
+                    for line in buf.getvalue().splitlines():
+                        print("         for information: " + line.strip())
+                else:
+                    sys.stdout.write(buf.getvalue())
+                    if rc == 0:
+                        print(f"         {mismatch}, but within limits")
                 for n in notes:
                     print("         " + n)
+                for lab, st in raw:
+                    print("         for information, whole frame vs %s: %s" % (lab, fmt(st)))
+                rcs.append(rc)
                 continue
             tol = fr.get("pixel_tol", th["pixel_tol"])
             mae_lim = fr.get("max_channel_mae", th["max_channel_mae"])
@@ -903,7 +1058,7 @@ def cmd_check(args):
                       f"(got {sha[:16]}, want {ref[1][:16]})")
                 print("         " + missing_ref_hint(fr, ref))
             if not results:
-                worst = max(worst, 1)
+                rcs.append(1)
                 continue
             # Report the passing reference, else the closest one.
             ok, s, tv, label = max(results, key=lambda r: (r[0], r[1] is not None,
@@ -912,9 +1067,25 @@ def cmd_check(args):
             if s is None:
                 img = imgs[have[label]]
                 print(f"FAIL     {tag}{name}: size {img[0]}x{img[1]} differs from the reference")
-                worst = max(worst, 1)
+                rcs.append(1)
                 continue
-            print(f"{'CLOSE   ' if ok else 'FAIL    '} {tag}{name}: {fmt(s)} {lims}")
+            rc, why = (0 if ok else 1), ""
+            if ok:
+                head = "CLOSE   "
+                if mismatch:
+                    notes.append(f"{mismatch}, but within limits")
+            elif not mismatch:
+                head = "FAIL    "
+            elif min(r[1]["bad_fraction"] for r in results if r[1] is not None) >= floor:
+                # Off at every reference by this much: a wrong screen, which
+                # no flip rate explains.
+                head, why = "FAIL    ", f"wrong screen at any pace ({mismatch}): "
+            else:
+                # Wall-time content (the title's cloud movie) sits elsewhere
+                # at another flip rate: not a verdict on the rendering.
+                head, rc = "INCOMPLETE", 2
+                why = f"{mismatch}; outside limits, not judged: "
+            print(f"{head} {tag}{name}: {why}{fmt(s)} {lims}")
             for n in notes:
                 print("         " + n)
             if multi and not ok:
@@ -938,10 +1109,25 @@ def cmd_check(args):
             if best is not None:
                 print("         window +-%d: best flip offset %+d: %s%s" % (
                     window, best[0], fmt(best[2]), "" if best[1] else " (outside limits)"))
-            if not ok:
-                worst = max(worst, 1)
-    print("golden: " + {0: "pass", 1: "REGRESSION", 2: "INCOMPLETE"}[worst])
-    return worst
+            if rc:
+                rcs.append(rc)
+    return verdict(rcs)
+
+
+def verdict(rcs):
+    """Print the run's verdict; exit 1 on any FAIL, else 2 on any
+    INCOMPLETE, else 0. A FAIL is never hidden behind an INCOMPLETE."""
+    nf, ni = rcs.count(1), rcs.count(2)
+    counts = ", ".join(c for c in ("%d FAIL" % nf if nf else "",
+                                   "%d INCOMPLETE" % ni if ni else "") if c)
+    if nf:
+        print("golden: REGRESSION (%s)" % counts)
+        return 1
+    if ni:
+        print("golden: INCOMPLETE (%s)" % counts)
+        return 2
+    print("golden: pass")
+    return 0
 
 
 def cmd_dumpat(args):
@@ -1052,6 +1238,16 @@ def record_anchor(fr, sc, d, scen):
     return A
 
 
+def record_pace(fr, sc, d, scen, A):
+    """The recording run's pace from its anchor flip A to the recorded
+    flip (60*dump + 1), rounded, or None if its log has no flip times."""
+    if A is None:
+        return None
+    log = run_log(d, {}, scen)
+    p = pace(flip_times(log) if log else None, A, 60 * fr["dump"] + 1)
+    return None if p is None else round(p, 2)
+
+
 def cmd_record(args):
     """All or nothing: every frame must exist and decode before any reference
     changes; PNGs and the JSON are written as .tmp files and renamed last, so
@@ -1099,6 +1295,11 @@ def cmd_record(args):
                 fr["anchor"]["ref_flip"] = A
                 fr["anchor"]["why"] = "the recording run's anchor (golden.py record, %s)" % (
                     os.path.basename(os.path.dirname(os.path.dirname(os.path.abspath(p)))))
+                P = record_pace(fr, g["scenarios"][scen], os.path.dirname(p), scen, A)
+                if P is None:
+                    fr["anchor"].pop("ref_pace", None)
+                else:
+                    fr["anchor"]["ref_pace"] = P
             dst = os.path.join(FRAMES_DIR, fr["name"] + ".png")
             write_png(dst + ".tmp", *img)
             renames.append((dst + ".tmp", dst))
@@ -1145,6 +1346,9 @@ def cmd_reference(args):
     entry = {"label": label, "sha256": pixel_sha(img), "size": [img[0], img[1]]}
     if A is not None:
         entry["anchor_flip"] = A
+        P = record_pace(fr, sc, d, scen, A)
+        if P is not None:
+            entry["pace"] = P
     refs = [r for r in fr.get("references", []) if r["label"] != label]
     refs.append(entry)
     refs.sort(key=lambda r: r["label"])

@@ -1,0 +1,40 @@
+wait open logo_mgs.sfd
+tap START until open blinx2_opening.sfd
+tap START until open title_movie
+wait mem 0x5eb5f4 == 0x5eb620
+wait mem 0x5eb620 == 0
+poke 0xb22e3c 1
+poke 0xae7a10 0
+poke 0x5eb630 0
+poke 0x5eb638 0x10
+poke 0x5eb620 1
+wait 4
+tap A until mem 0x5eb620 == 0xb
+wait 3
+poke 0x5eb638 0x10
+wait 1
+tap A until mem 0x5eb620 == 0x13
+wait 25
+wait 20
+tap A every 3 until mem 0xae73fc == 1
+wait 2
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1
+LX=20000,LY=20000;X/0.3;wait 1;A/0.3;wait 1;LX=-20000,LY=12000;X/0.3;wait 1;B/0.3;wait 1;LX=0,LY=-20000;A/0.3;wait 1;X/0.3;wait 1

@@ -1,111 +1,138 @@
 [
   {
     "start": "0x002D702E",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x0032401D",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x00324029",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x00324035",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x003340D7",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x003340E2",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x003355DF",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x003355EA",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x0033CE20",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x0033CE50",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x0033CE80",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x0033CEB0",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x0033CEE0",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x0033CF10",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x0033CF40",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x0033CF70",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x0033CFA0",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x0033CFD0",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x0033D000",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x0033D030",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x0033D090",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x0033D0C0",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x00367E8D",
-    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x0033A340",
-    "source": "ICALL failure, boot log hle-11.err (local analysis, not published) (PSFD_I section start)"
+    "source": "ICALL failure, boot log hle-11.err (local analysis, not published) (PSFD_I section start)",
+    "observed": true
   },
   {
     "start": "0x00366CBC",
-    "source": "ICALL failure, boot log hle-6.err (local analysis, not published) (XPP)"
+    "source": "ICALL failure, boot log hle-6.err (local analysis, not published) (XPP)",
+    "observed": true
   },
   {
     "start": "0x003674FA",
-    "source": "ICALL failure, boot log hle-6.err (local analysis, not published) (XPP)"
+    "source": "ICALL failure, boot log hle-6.err (local analysis, not published) (XPP)",
+    "observed": true
   },
   {
     "start": "0x0033B040",
-    "source": "ICALL failure, boot log hle-12.err (local analysis, not published) (PSFD_P section start)"
+    "source": "ICALL failure, boot log hle-12.err (local analysis, not published) (PSFD_P section start)",
+    "observed": true
   },
   {
     "start": "0x0008FB40",
@@ -169,7 +196,8 @@
   },
   {
     "start": "0x002D0450",
-    "source": "ICALL failure, boot log hle-13.err (local analysis, not published)"
+    "source": "ICALL failure, boot log hle-13.err (local analysis, not published)",
+    "observed": true
   },
   {
     "start": "0x002E0851",
@@ -189,10 +217,38 @@
   },
   {
     "start": "0x0009D970",
-    "source": "ICALL failure on Proton, bench run 20261001-232633 (local log, not published) (2982 hits); stored as MEM32(obj+0x6C) callback in sub_0009F390/F5A0/F640, decodes as function body"
+    "source": "ICALL failure on Proton, bench run 20261001-232633 (local log, not published) (2982 hits); stored as MEM32(obj+0x6C) callback in sub_0009F390/F5A0/F640, decodes as function body",
+    "observed": true
   },
   {
     "start": "0x000EF540",
-    "source": "ICALL failure on macOS (4 hits at boot, not blocking), ecx=0xEF540 passed to sub_0015FD70 in recomp_0027; decodes as function body, follows sub_000EF500. NOT regen-tested"
+    "source": "ICALL failure on macOS (4 hits at boot, not blocking), ecx=0xEF540 passed to sub_0015FD70 in recomp_0027; decodes as function body, follows sub_000EF500. NOT regen-tested",
+    "observed": true
+  },
+  {
+    "start": "0x000AEC20",
+    "source": "ICALL failure on macOS Metal, debug stage select St1-4 BOSS1 and St1-4 VS (screenshot runs, local logs); decodes as a function body after a jump-table/padding run that disasm had folded into sub_000AEC0E",
+    "observed": true
+  },
+  {
+    "start": "0x000D09F0",
+    "source": "ICALL failure on macOS Metal, debug stage select St4-1&2 SWEEPER (screenshot run, local log; fatal); decodes as a function body (push ebx/push esi, stores callbacks 0xD0B50/0xD0EC0/0xD1A30) after data at 0xD09E0",
+    "observed": true
+  },
+  {
+    "start": "0x00158BE0",
+    "source": "code pointer in .data at 0x4114CC (static check, Fable review of shots/suite): follows ret at 0x158BDF, decodes as a function body with branches to 0x158CB5 and 0x158D87, rets at 0x158CB4/0x158CFB/0x158D86/0x158D8E, then int3 padding; lies in the gap after sub_00158AF3, so it splits nothing. NOT regen-tested"
+  },
+  {
+    "start": "0x002E0888",
+    "source": "constant thunk `mov eax, 0x3E12E0; jmp 0x2D6AE4` after int3 padding, same shape as the seeded siblings 0x2E0851/0x2E086B/0x2E08AB (static check, Fable review of shots/suite); in the gap after the preceding funclet. NOT regen-tested"
+  },
+  {
+    "start": "0x002E08C8",
+    "source": "constant thunk `mov eax, 0x3E1400; jmp 0x2D6AE4` after int3 padding, same shape as the seeded siblings 0x2E0851/0x2E086B/0x2E08AB (static check, Fable review of shots/suite); in the gap after the preceding funclet. NOT regen-tested"
+  },
+  {
+    "start": "0x002E08E8",
+    "source": "constant thunk `mov eax, 0x3E146C; jmp 0x2D6AE4` after int3 padding, same shape as the seeded siblings 0x2E0851/0x2E086B/0x2E08AB (static check, Fable review of shots/suite); in the gap after the preceding funclet. NOT regen-tested"
   }
 ]
