@@ -1,0 +1,39 @@
+BLiNX 2 static recompilation: notices
+=====================================
+
+This repository's own code is MIT licensed (see LICENSE).
+
+
+The xboxrecomp toolkit
+----------------------
+
+The build compiles in the xboxrecomp toolkit (https://github.com/apexJCL/xboxrecomp,
+a fork of https://github.com/sp00nznet/xboxrecomp). The toolkit is not part of
+this repository. It is MIT licensed, except for the files listed in its own
+NOTICE.
+
+Those exceptions include LGPL-2.1-or-later code extracted from xemu
+(https://github.com/xemu-project/xemu): the MCPX APU sources under src/apu/
+(apu_core.c, apu_dsp.c, apu_vp.c and their headers) and src/nv2a/nv2a_regs.h,
+copyright espes, Jannik Vogel and Matt Borgerson. The toolkit's
+LICENSES/LGPL-2.1.txt has the full licence text.
+
+The toolkit's libraries are linked statically into cat_recomp. This matters if
+you distribute a built binary. The LGPL then requires you to do the following:
+
+  - keep the copyright notices and the LGPL text with the binary;
+  - make the source of the LGPL parts available, including your changes to them;
+  - let recipients relink the program against a modified version of those parts,
+    for example by providing the object files of the rest of the program, or all
+    of its source.
+
+Distributing this repository and the toolkit as source meets these terms. A
+binary distribution must meet them separately.
+
+
+Game data
+---------
+
+BLiNX 2: Masters of Time & Space is not part of this repository. No game files,
+assets, saves or recompiled game code are included. You need your own copy of
+the game to build and run it.

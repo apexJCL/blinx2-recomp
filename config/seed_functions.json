@@ -1,0 +1,198 @@
+[
+  {
+    "start": "0x002D702E",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x0032401D",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x00324029",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x00324035",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x003340D7",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x003340E2",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x003355DF",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x003355EA",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x0033CE20",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x0033CE50",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x0033CE80",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x0033CEB0",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x0033CEE0",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x0033CF10",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x0033CF40",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x0033CF70",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x0033CFA0",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x0033CFD0",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x0033D000",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x0033D030",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x0033D090",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x0033D0C0",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x00367E8D",
+    "source": "ICALL failure, boot log layout-1.err (local analysis, not published)"
+  },
+  {
+    "start": "0x0033A340",
+    "source": "ICALL failure, boot log hle-11.err (local analysis, not published) (PSFD_I section start)"
+  },
+  {
+    "start": "0x00366CBC",
+    "source": "ICALL failure, boot log hle-6.err (local analysis, not published) (XPP)"
+  },
+  {
+    "start": "0x003674FA",
+    "source": "ICALL failure, boot log hle-6.err (local analysis, not published) (XPP)"
+  },
+  {
+    "start": "0x0033B040",
+    "source": "ICALL failure, boot log hle-12.err (local analysis, not published) (PSFD_P section start)"
+  },
+  {
+    "start": "0x0008FB40",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x000A6E10",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x000AACB0",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x000AC0F0",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x000B6C10",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x000C15C0",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x000C6390",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x000CA090",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x000CCC00",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x000CEBD0",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x000D86E0",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x000EF390",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x0016A870",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x00193BC0",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x002CC9D0",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x002D0450",
+    "source": "ICALL failure, boot log hle-13.err (local analysis, not published)"
+  },
+  {
+    "start": "0x002E0851",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x002E086B",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x002E08AB",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x003050FB",
+    "source": "code-pointer immediate stored to memory, after int3/ret padding (scan of gen/, hle-13)"
+  },
+  {
+    "start": "0x0009D970",
+    "source": "ICALL failure on Proton, bench run 20261001-232633 (local log, not published) (2982 hits); stored as MEM32(obj+0x6C) callback in sub_0009F390/F5A0/F640, decodes as function body"
+  },
+  {
+    "start": "0x000EF540",
+    "source": "ICALL failure on macOS (4 hits at boot, not blocking), ecx=0xEF540 passed to sub_0015FD70 in recomp_0027; decodes as function body, follows sub_000EF500. NOT regen-tested"
+  }
+]

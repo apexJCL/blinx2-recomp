@@ -1,0 +1,129 @@
+## Context
+
+See proposal.md for motivation. The facts the design rests on, from reading the lifted game, `src/pad_input.c`, `src/recomp_manual.c` and the toolkit at `1405dfa`:
+
+**The game side.** The input module is `sub_0021C190` (init), `sub_0021C290` (poll) and `sub_0021C710` (rumble), in `gen/recomp_0057.c`. Pads live at `0xEBD278`, stride `0x1E4`, four of them; the active pointer is `[0xADC794]`. The poll runs once per game frame from the main loop `sub_0005F960`, at frame start: `sub_0005C930` (poll) → `sub_00062FB0` (update; the title state machine `sub_000133E0` is under it) → D3D → the vblank busy-wait at `loc_00060475` on `[0xAE7388] < [0x3FD344]` (1 or 2 vblanks, 60 or 30 Hz; `[0x4AC760]` is the divisor) → `sub_002E6FE0` → next frame. It calls `XGetDeviceChanges` every frame and opens/closes ports itself on the insert/remove masks; it never checks `XInputGetState`'s return, and never calls `XInputPoll` (handles are opened with no polling parameters). It normalises each stick as `f = (s + c1) * c2` and zeroes `|f|` below a double constant, and turns sticks into d-pad directions at `|s| >= 0x6000`; analog buttons count as pressed at `>= 30`, and their magnitude is otherwise stored but not used in that module. Rumble is `XInputSetState(handle, pad+0x19C)` with the motors at `+0x1DE/+0x1E0`, and `sub_0005E060`/`sub_0005E0B0` busy-spin while `dwStatus == 0x3E5`. The lifted RY normalisation at `0x0021C457` reads `LO16(ebp)` where the original is `movsx eax, bp`; LX, LY and RX use `SX16`. Memory units are enumerated with `XGetDevices(0x366B10)` from `sub_001B7B60` and mounted with `sub_00367FDD`/`sub_0036810F`.
+
+**The host side.** The overrides in `recomp_manual.c` compute insert/remove masks from `cat_pad_connected_mask()` and hand state to `cat_pad_get_state()`. `pad_input.c` merges a script (port 0) with the toolkit's `xbox_input`, and reports port 0 connected whenever the host pad is on, even with no device. On Windows the host pad defaults on. The toolkit's XInput backend calls `XInputGetState` synchronously on the caller's thread, maps BLACK to the left shoulder and WHITE to the right (its README says the opposite), copies sticks and triggers raw, and merges the keyboard on port 0 when `RECOMP_KEYBOARD` is set, reading keys from the GDI framebuffer window only; the D3D11 window's `wnd_proc` handles `WM_CLOSE` alone. The SDL2 backend opens controllers once at init, has no hotplug, inverts Y as `-1 - v` and shifts triggers `>> 7`; on macOS the process main thread owns the SDL window with `SDL_WaitEventTimeout(…, 100)` and handles no key or controller events. The vblank counter is a static in `kernel_bridge.c` with no getter. The OHCI/XID emulation in `src/usb/` is Windows-only, single device, plugs once, discards rumble, and nothing calls it. `RECOMP_HOST_PAD` exists only in cat.
+
+**The bench.** `bench.sh golden` runs scenarios from `analysis/golden/golden.json` (global env `RECOMP_PB_EXEC=1 RECOMP_PB_BACKEND=d3d11 RECOMP_FLIP_LOG=1`, per-scenario `RECOMP_INPUT_SCRIPT`, fixed-present frame dumps, limits), under `flock ~/.recomp-run.lock`; `run-info.txt` records the environment. `scripts/xemu_ref.py` already drives xemu with a uinput virtual Xbox 360 pad and reads guest memory over gdb; its rules protect the user's own xemu instance. Saves live under `$XDG_DATA_HOME/xboxrecomp/UDATA` (POSIX) and `%LOCALAPPDATA%\xboxrecomp\UDATA` (Wine), with no override. The story route observed on macOS: START → `R0_opening.sfd` → tsedit (team editor) → title → Story Mode / SAVE GAME (slot, 1P, NOW SAVING, `U:\13C91777168C\blinx2data.bin`) → hub (`song_HUBsw.adx`) → CHALLENGE drill "Test 1 of 7"; with a save present, LOAD GAME leads into the same drill.
+
+## Goals / Non-Goals
+
+**Goals:**
+- A controller plugged into the Linux/Proton host plays the game under Proton with the Duke's semantics, four ports, hotplug and rumble, and this is proven early with a virtual pad before anyone depends on a person at the machine.
+- Scripted runs are deterministic and can never see a host device unless asked to.
+- The normal route is a regression check and a hand-walked checklist, with the save step and the menu prompts covered.
+- Every claim about latency is measured, not assumed.
+
+**Non-Goals:**
+- Mouse input: the title has no pointer. Nothing is built.
+- Bringing up the OHCI/XID USB path. The overrides stay; `RECOMP_USB` stays off (recorded as a deviation).
+- Memory units. None is reported; the save menus use the hard disk.
+- Remapping UI or per-game profiles. One documented mapping and two environment knobs (deadzone, rumble).
+- Steam Input configuration itself. We observe which path Proton gives us and document it.
+- Fixing save-path bugs the SAVE GAME step may expose. They go to the `saves` change.
+
+## Decisions
+
+### D1. A new change, archived after `input`
+`input` is archived first, so its delta becomes the main `input` spec and this change's delta can MODIFY two of its requirements. Its open 3.2 and 3.3 are marked as moved (to 1.4 and 9.2 here). Alternative: extend `input`. Rejected in the proposal: it would hold a golden-covered feature open and mix it with toolkit and recompiler work.
+
+### D2. Keep the XInput overrides; do not emulate USB
+The game needs seven entry points and gets exactly the Duke semantics it expects from them. The XID path would add a 4 ms transfer cadence, a Windows-only controller thread, a single device on a fixed port and no rumble, and would still need a host backend behind it. Fidelity is better served by making the overrides honest: real connection state per port, Duke capabilities, synchronous `SetState`. Alternative: `RECOMP_USB=1` with `src/usb/` fixed up. Rejected for cost and because nothing the game does needs the USB stack's timing.
+
+### D3. Ports are XInput user indices; connection state is real; hotplug is the game's job
+The game already reopens and closes ports from `XGetDeviceChanges` every frame, so the host only has to report the truth. `cat_pad_connected_mask()` becomes: bit 0 if a script is on; bit 0 if the keyboard is on; bit N if host device N is connected. The "port 0 is always connected when the host pad is on" shortcut goes: it hid disconnects and made golden runs report a phantom pad. Disconnected ports are probed at most once a second (XInput's own guidance; under Wine the call is cheap but the rule costs nothing), connected ports at every poll. On SDL hosts the device-added/removed events are the signal and slots are keyed by instance id. A spike question (D12) is whether Wine reports phantom connected pads; if it does, `XInputGetCapabilities` failing is the disconnect signal.
+
+### D4. Sticks and triggers raw; no host deadzone by default
+The Duke reported raw values and the XDK applied no deadzone; the game does its own (the float deadzone and the 0x6000 d-pad threshold). A host deadzone on top would double-filter and change the feel the game was tuned for. `RECOMP_PAD_DEADZONE=N` (radial, rescaled so full deflection still reaches 32767) exists for pads that drift past the game's own zone. Y is up-positive as on XInput and the Duke; the SDL backend's `-1 - v` inversion stays. Triggers are 0..255 on both backends (SDL `>> 7`). Alternative: a default 7849/8689 deadzone as XInput docs suggest for Windows games. Rejected: that advice is for games without their own, and this one has one.
+
+### D5. Face buttons are 0 or 255; Black = RB, White = LB
+Host pads have digital A/B/X/Y and shoulders. The game thresholds at 30, so 255 is "pressed" and nothing is lost in the module read; whether any other code uses the magnitude (triggers in play, for example) is audited in 3.7, and the loss of pressure sensitivity is recorded in `deviations-register`. Black/White follow Microsoft's own Xbox 360 convention and xemu's default: White on the left shoulder, Black on the right. The toolkit code is changed to match its README, and the mapping becomes one table that a ctest checks against the README so they cannot drift again.
+
+### D6. Isolation by precedence, pinned by the bench
+Rule: a script set ⇒ host and keyboard off unless `RECOMP_HOST_PAD=1` is explicit; `RECOMP_HOST_PAD=0` always wins; no script ⇒ host on by default on every host with a backend (today macOS needs `=1`; after 9.3 it follows the same rule). The bench pins `RECOMP_HOST_PAD=0 RECOMP_KEYBOARD=0 RECOMP_INPUT_STRICT=1` in `golden.json`'s global env and records them, so the result is the same whether or not a pad is on the bench. Strict mode makes a mistyped preset fail the run instead of recording an empty-input golden. Poll-counted tap periods (`every Np`, `BUTTON/Np`) are added so presets can shed their remaining wall-clock dependence; converting the existing presets is the golden agent's call because it re-records frames.
+
+### D7. No input thread; sample inside the game's poll; measure
+The game polls at frame start, right after its vblank wait, so a synchronous host read there is the freshest possible: latency = host backend update interval + time until the game's next poll (≤ 1 frame) + the game's own update-to-render. A host thread would add a buffer and a lock without reducing that. What is measured: `RECOMP_INPUT_TRACE=1` logs per poll the vblank count (new toolkit getter `xbox_VblankCount()`), µs since the last vblank tick, host call µs and the port mask, with a p50/p95 summary; end-to-end, the virtual pad records each press with `CLOCK_REALTIME` and the `[INPUT] host` line carries the same clock, so press-to-poll latency is a subtraction on one machine. On macOS the SDL main loop's 100 ms wait is checked against the controller update: if the state is older than a frame, the loop pumps at ≥ 125 Hz.
+
+### D8. Rumble stays synchronous and is forwarded per port
+The game busy-spins on `ERROR_IO_PENDING`, so `dwStatus = 0` immediately is required, not a shortcut. Motor words go to `xbox_InputSetState` for the port's host device (XInput ↔ Wine ↔ SDL rumble; SDL rumble on macOS). `RECOMP_RUMBLE=0` disables it; shutdown zeroes the motors so a crash does not leave a pad buzzing. The virtual pad reports force-feedback uploads if uinput lets it, otherwise rumble is a checklist item.
+
+### D9. Keyboard through one shared key table
+The GDI window's `s_key_down[256]` moves into `src/input/keyboard.c` with `xbox_FramebufferKeyDown()` kept as the accessor. The D3D11 window's `wnd_proc` and the SDL main loop feed it (SDL scancodes mapped to VKs). Port 0, merged on top of a pad, off by default, counted as a source only when on. The key map stays as documented in the toolkit. Alternative: SDL for input on Windows too. Rejected: the Windows build has no SDL dependency and should not gain one for this.
+
+### D10. The lifter bug is fixed at the source and `gen/` regenerated once
+`movsx eax, bp` lifted as a zero-extend is a recompiler rule bug for 16-bit sources that are also base/index registers, not a game quirk, so it is fixed in the toolkit's lifter with a unit test, and cat regenerates (`pipeline.sh recomp`, marker honoured, 8 exclusions unchanged). The regen is isolated in its own commit, and the diff of `gen/` is reviewed to be only `movsx` sites. Alternative: patch RY in the override. Rejected: it would hide the same bug anywhere else it occurs.
+
+### D11. The normal route in two milestones, on events, from an empty save
+`@story-hub` (R1) ends at the hub load; each step waits on a file open or a title-state value, and the menus are catalogued first so each tap cites a known state. It needs a clean save per run, hence `RECOMP_SAVE_DIR` in `kernel_path.c` (one lookup, both path tables) and a per-run directory from `bench.sh`. `@story-stage1` (R2) is gated on mapping the hub → stage 1-1 path; the drill "Test 1 of 7" wants real stick play, so if it cannot be scripted deterministically, the fallback is `RECOMP_SAVE_SEED=<dir>`: a tutorial-complete save the user makes once and keeps locally, copied into the run's save dir. Alternative: poke a "tutorial done" flag. Rejected: the route is meant to prove the front door, and pokes are what `@stage1` already does.
+
+Decision (7.1, 2026-10-03): seed = a community save, re-signed locally (the user ran resign.py, 2026-10-03); never committed. It is copied into a fresh `RECOMP_SAVE_DIR` by `RECOMP_SAVE_SEED=<dir>` (`src/save_seed.c`), and `@story-load` takes it through LOAD GAME to the hub on events: title state 0xD (`title_movie_2a.sfd`), A on slot 1 → state 0x13 with next scene 0x1B (the round-2 intermission `IM_sw2_1_4.sfd`, A skips it), next scene 0xA, `song_HUBsw.adx` (macOS, 43 s). Foreign saves fail the title's signature check (HMAC-SHA1 over `blinx2data.bin[0, 33972)`, digest at 33972; the recomp's effective key is 16 zero bytes), hence the re-sign. The hub does not lead on to a stage from this seed: the gatekeeper at the foot of the stairs to the world gate stops Stick ("Looks like there's some stuff you still need to learn. Train by taking the rank exams.") until the next rank exam is passed, and the exam is stick play like the fresh save's drill. So `@story-stage1` still needs either that exam scripted on events or a seed saved after it (or one whose next step is stg0101); stg0101 itself was not reached. Where the exam is (macOS run `save/s9`, 2026-10-03): an NPC by the stairs says "You need to take a rank exam at Jimmy's shop. Pass the exam and the gate will open."; the SHOP door is on the ring ledge next to the round green/black door (from the spawn: RX right three times, then walk up-left; the door opens on approach) → next scene 0x7, SHOP menu (BUY / SELL / TALK WITH JIMMY) → TALK WITH JIMMY → Rank-up Exam ("Pass this exam and I'll give you a Rank 2 Badge. With it the next gate will open right up." ... "you'll be able to use SLOW and FF") → next scene 0xA, the hub reloads as a CHALLENGE: "This one will test your skills with the Time Control SLOW. First, collect the SLOW time crystals." / "Collect 3 SLOW crystals!" (TS-5000X LV2, timer). Reaching the shop and starting the exam is scriptable on events (0x7, then 0xA); the exam itself is free-roam crystal collection plus a SLOW task, with no position or crystal-count address found, at 3-10 fps on the CPU walker, so it is not scripted. Alternative (adopted for `@story-stage1`): the user saves a seed after the rank exam (Rank 2 badge, gate open), local only like the first seed; the preset then walks from the hub spawn up the stairs through the world gate. A one-off research poke was not needed and none is in any preset.
+
+Golden `story` (task 6.5, 2026-10-03, Proton). A skips R0_opening at a varying moment (4-9 s in), so the preset waits until t=24 (`wait until T`) and holds AUTO SELECT and the SAVE GAME slot list; the editor, state 0xD and the hub then land within 0.2 frame dumps from run to run. Two things stay random: AUTO SELECT's team (no frame shows it) and the hub camera, which opens on one of three views (dish, staircase, drill wall; 9/6/1 of 16 runs). Decision: `golden.py` frames may list several references (`references`, each a label, hash and PNG) and pass if they match any one within the frame's unchanged limits; story-hub has hub-a, hub-b and hub-c. story-menu has menu-a and menu-b for a different reason: its backdrop animates steadily, and the menu opens 231-255 flips before the dump depending on the run, so the frame catches the backdrop at varying phases. One reference left the latest phase at bad 10.4% against an 8% limit (fix/golden-menu); two references keep every run within 3.6%. The real fix is a dump anchored to the menu event. Alternative: seed the game's clock or RNG so the view is fixed. Rejected for now as too invasive (a toolkit change under every title's timing, for one frame); multi-reference is the chosen approach.
+
+### D12. A virtual pad is the spike vehicle and the automated real-device test
+`xemu_ref.py` already creates a uinput "Microsoft X-Box 360 pad" on the Linux/Proton host and taps buttons; `scripts/vpad.py` extracts it as a CLI. Under Proton that device reaches Wine's xinput through winebus (SDL or hidraw), the same path a real pad takes without Steam Input. So the spike (phase 1) proves "pad state reaches the guest" with no one at the machine, and mapping, hotplug and latency are checked the same way; the user's real pad then confirms the Steam Input / Bluetooth variants. The virtual pad exists only for the duration of a run, is never created by `bench.sh golden`, and golden runs pin the host pad off anyway. Two things the spike must record: which backend Wine used (`console.log`), and whether `XInputGetState` succeeds on empty user indices under this Proton (the toolkit comment says it did once).
+
+### D13. Runs on the Linux/Proton host are serialised and never by the spec author
+Every run holds `~/.recomp-run.lock` through `bench.sh`; `vpad.py` runs beside it from a second shell and never takes the lock itself. Only the bench agent and the user run the game there.
+
+### Spike result (tasks 1.3 and 1.4, 2026-10-02/03)
+Setup: the Linux/Proton host, GE-Proton11-7 (PROTON_ENABLE_HIDRAW unset), D3D11, bare `umu-run` while the desktop Steam client runs. Both a uinput pad (`vpad.py`) and the real 8BitDo pad reach XInput through winebus's SDL backend (`WINEBUS\VID_045E&PID_028E`). With no pad, `XInputGetState` fails on every user index (`ports=0x0`), so Wine itself reports no phantom pads.
+
+Phantom ports: yes, but only as a test-harness artifact. A Steam client running alongside adds a Steam virtual pad (28de:11ff) for each Xbox-style device, uinput ones included. Wine exposes it through its hidraw path on the low user indices. For a uinput device the Steam pad is inert, because Steam wraps the vpad but relays none of its input: one vpad gave `ports=0x3` with START on port 1, two gave `0xF`. For a real pad under Steam Input, this 28de:11ff pad is the user's pad, and port 0 is correct (1.4).
+
+How bench runs avoid it: a vpad run sets `PROTON_NO_STEAMINPUT=1`, and Proton then leaves Steam's virtual pads out. `SDL_GAMECONTROLLER_IGNORE_DEVICES=0x28de/0x11ff` and winebus `DisableHidraw=1` do not remove it. With that variable set, 0, 1 and 2 vpads give `ports` 0x0, 0x1 and 0x3, START arrives on port 0, and R0_opening opens from an empty save (runs `20261003-024816`, `-024007`, `-024509`). Neither the game nor the player's setup changes.
+
+Disconnect test for D3: `XInputGetState` returning `ERROR_DEVICE_NOT_CONNECTED`, with the 1 s probe backoff. `XInputGetCapabilities` is not used: no phantom pad needs dropping (3.4 amended).
+
+## Menu catalogue
+
+Observed on macOS (task 6.1, runs `analysis/bringup/input/route/r1`-`r4`, local; CPU walker, an empty `RECOMP_SAVE_DIR` except r3), with the title state `[0x5EB620]`, the next scene `[0xAE7424]` and the stage index `[0xB871AC]` logged at every pad poll. Details and timings: `analysis/research/blinx2-story-route.md` (local). Each row names the event `@story-hub` waits on there.
+
+| Screen | Title state | Next scene / other | Files opened on entry | Buttons taken | Prompt | Event to wait on |
+|---|---|---|---|---|---|---|
+| Logos (MGS, Artoon) | -1, 3 | 0 | `logo_mgs.sfd` | START skips both | — | `open logo_mgs.sfd`, then `open blinx2_opening.sfd` |
+| Opening movie | -1, then 5 | 1 | `blinx2_opening.sfd` | START skips | — | `open title_movie` |
+| Title, "press start" | 0 | 1 | `title_tex_us`, `uniform_tex`, `title_movie_1a.sfd` | START (ignored for about the first second on macOS; 10 s seen earlier with a cold cache) | "Press START" | `mem 0x5eb620 == 0` |
+| START taken | 2, 0x15 | — | `gamestart_adx.adx` | — | — | (transient) |
+| New game (no save) | 0xC, 0x14 | 0x1B | `R0_opening.sfd`, `mov00_mix.adx` | A skips; START ignored | — | `open R0_opening.sfd` |
+| LOCKER ROOM (team editor) | 0x14 (title not running) | 0x16 | `tsedit_tex_us`, `plcom_tex`, `song_SELECTsw.adx`; `adxse_clouds1.adx` later | A advances; B is EXIT on the select menu | host dialogue; AUTO SELECT / CUSTOM SELECT ("This will automatically select your character and team for you", CONFIRM A, EXIT B); "Is this your team? If you want to go with this team, press A."; "Congratulations! Your team is ready to go!" | `open tsedit`; left when the title state becomes 0xD |
+| Story Mode / SAVE GAME (no save) | 0xD | — | `title_tex_us`, `title_movie_1a.sfd`, `song_MENU.adx` | A on the defaults: slot 1 of 3, 1P MODE | SAVE GAME, slot, 1P MODE / 2P MODE, NOW SAVING | `mem 0x5eb620 == 0xd` |
+| NOW SAVING | 0xD | — | `U:\13C91777168C`, `SaveMeta.xbx`, `SaveImage.xbx`, `blinx2data.bin` (written) | — | NOW SAVING | `open blinx2data.bin` |
+| Story Mode / LOAD GAME (save present) | 0x15, then 0xD | — | `title_movie_2a.sfd`; the save was read at boot (`SaveMeta.xbx`, `blinx2data.bin` of each of 8 slots `13C91777168C`-`...93`) | A: slot, 1P | LOAD GAME | `mem 0x5eb620 == 0xd` (no R0_opening, no editor) |
+| Leaving for the hub | 0x13, then 0x14 | 0xA (stage load); stage index 0x32 (Sweepers hub) | `tsinfo_tex_us`, `plcom_tex`, `mgtu_ts_*`, `song_HUBsw.adx`, `envse_hub_factory.adx` | — | — | `open song_HUBsw` |
+| Hub, CHALLENGE drill | — | — | — | A, sticks | "Test 1 of 7 ... Press the A Button." | (end of `@story-hub`) |
+
+Memory units: none is reported (no MU prompt and no MU slot appears; saves go to the hard disk, `U:`). Controller removed: not seen on macOS (the scripted pad never disconnects); the checklist (G1, G2) records it with a real pad. The editor's screens have no file open and no known address between them, so `@story-hub` taps A through them until the title state comes back as 0xD; finding an editor sub-state address (the RAM-diff method of `blinx2-menu-flow.md`) is a follow-up, needed only if a golden frame must land on one editor screen. AUTO SELECT picks the team, so the team name and members vary between runs (Cougars in r1, Steel Paw in r2, Crystal Cats in the earlier stage1 research), with their uniforms; a golden editor frame should show the AUTO SELECT / CUSTOM SELECT menu, not the team.
+
+## Risks / Trade-offs
+
+- [Wine reports phantom connected pads] → the spike measures ports with 0, 1 and 2 virtual pads; if phantoms appear, `XInputGetCapabilities` failure becomes the disconnect test (D3) and the spec's "no source, no pad" scenario is the gate.
+- [Steam Input vs bare umu-run give different device paths/mappings] → the real-pad spike (1.4) is run both ways and the checklist records the setup line; the mapping table is per Xbox-layout controller, with any Steam Input quirks noted, not patched around.
+- [`/dev/uinput` permissions on the Linux/Proton host] → `xemu_ref.py` already uses it there; `vpad.py` reports the exact error and stops instead of escalating.
+- [Regenerating `gen/` for the lifter fix churns 800 MB of C and the bench sync] → one commit, `.gen-regenerating` honoured, golden re-run before merge; the diff is checked to be `movsx` sites only.
+- [The SAVE GAME step fails on Proton (`saves` is a placeholder)] → R1 is the first Proton test of it; a failure is handed to the `saves` change with the run stamp, and `@story-hub` stops at the save menu meanwhile.
+- [The drill cannot be scripted] → the seeded-save fallback (D11) is specified now, so R2 has a path either way.
+- [Menu frames are fade/timing sensitive] → record with the existing fixed-present mechanism and tolerant limits first; event-relative dump indices are a listed `golden.json` follow-up the golden agent owns.
+- [Analog pressure is lost] → audited (3.7) and recorded; the game's module thresholds at 30, so no behaviour change is expected.
+- [Keyboard focus semantics differ under Wine] → `WM_KILLFOCUS` clears the table as today; the checklist has an unfocused-window item.
+- [The user has no controller on hand, or is not at the machine] → every phase except 1.4, 3.9 (rumble) and 6.6 is verifiable with the virtual pad; those three wait, and nothing else is blocked on them.
+
+## Migration Plan
+
+1. Archive `input` (main session), which creates `openspec/specs/input/spec.md`.
+2. Land phases 2 and 3 (cat and toolkit, independent branches); golden must pass with `RECOMP_HOST_PAD=0` pinned, which is the same behaviour the bench had without a pad.
+3. The lifter fix regen is a separate commit; the Linux/Proton host `integrate --golden` after it.
+4. `story` is added to `golden.json` only after three passing runs.
+Rollback: every knob has a default that reproduces today's behaviour except two deliberate changes, the Black/White swap and "no phantom port 0", which the golden runs cannot see.
+
+## Open Questions
+
+Deferrable (none changes the specs or the task list):
+- The exact constants of the game's stick deadzone (`0x3DECBC`, `0x3DF06C`, `0x3DED60`); only useful for documenting the feel. Read from the binary locally when 3.7 audits analog use.
+- Whether any code outside the input module reads analog magnitudes (3.7 answers it).
+- Whether the hub → 1-1 path has a usable state address (7.1 answers it; the seeded-save fallback covers a "no").
+
+For the user (see tasks.md § Questions): which controllers, how they connect, Steam or bare umu-run, and availability for the three hands-on items.

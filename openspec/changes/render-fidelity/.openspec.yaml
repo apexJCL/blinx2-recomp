@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-10-01
+# Placeholder: proposal only. Remove skip_specs when the spec deltas are written.
+skip_specs: true

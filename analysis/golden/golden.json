@@ -1,0 +1,392 @@
+{
+  "about": "Golden frames for scripts/bench.sh golden (scripts/golden.py). D3D11 under Proton on the Linux/Proton host; RECOMP_DEBUG=d3d11_dump writes present 60*k+1 as frame_k. Frames are not bit-exact across runs (title-movie, idle-animation and timer phase vary with wall time), so a frame passes on an exact pixel hash or else on the tolerant compare below. Reference PNGs live in analysis/golden/frames/ (gitignored). Hashes are SHA-256 of width,height (LE u32) + RGB rows top-down.",
+  "compare": {
+    "method": "exact pixel hash, else per-channel mean abs diff and share of pixels off by more than pixel_tol in any channel; also the worst 64x64 tile's share of such pixels",
+    "pixel_tol": 8,
+    "max_channel_mae": 1.0,
+    "max_bad_fraction": 0.01,
+    "max_tile_bad_fraction": 0.6
+  },
+  "env": {
+    "RECOMP_PB_BACKEND": "d3d11",
+    "RECOMP_TRACE": "flip",
+    "RECOMP_HOST_PAD": "0",
+    "RECOMP_KEYBOARD": "0",
+    "RECOMP_INPUT_STRICT": "1"
+  },
+  "scenarios": {
+    "attract": {
+      "env": {
+        "RECOMP_INPUT_SCRIPT": "@attract"
+      },
+      "seconds": 75,
+      "min_flips": 2275,
+      "min_flips_note": "about 95% of the clean minimum: 11 runs gave 2396-2447 flips; one run on a busy host (084804) gave 1425, so the floor only catches a stalled run, not a slow one",
+      "frames": [
+        {
+          "name": "attract-title",
+          "dump": 5,
+          "note": "title screen, 'Press START to begin'. The cloud movie behind it drifts with wall time (runs: exact, exact, mae 2.95 with max 38), so only differences over 48 count as bad pixels. The mae limit is loose on purpose; tol 48 / 0.2% is the gate. Re-recorded 2026-10-04 (D3D11 run 20261004-045825) after the vblank pacer fix moved the crystal/cloud phase; anchored on title-3d since",
+          "max_channel_mae": 6.0,
+          "max_bad_fraction": 0.002,
+          "sha256": "77ae411f416c69cbf4732404b93e329103408a1fc3b1b51190946cc49596e0fd",
+          "size": [
+            640,
+            480
+          ],
+          "pixel_tol": 48,
+          "max_tile_bad_fraction": 0.1,
+          "anchor": {
+            "event": "title-3d",
+            "ref_flip": 228,
+            "why": "the recording run's anchor (D3D11 bench run 20261004-045825)"
+          }
+        },
+        {
+          "name": "attract-cliff",
+          "dump": 19,
+          "note": "demo stg0101, Blinx at the cliff (review's f1140); runs differ by mae 0.06-0.10, 0.09-0.18% pixels",
+          "max_channel_mae": 0.5,
+          "max_bad_fraction": 0.005,
+          "sha256": "e7c8fecad33e568eec632bb7a7cc95c9ed1011f694dd8598d0c8c89bebd579a3",
+          "size": [
+            640,
+            480
+          ],
+          "max_tile_bad_fraction": 0.25,
+          "why": "max_bad_fraction 0.50% (back from 0.75%, now that the reference was re-recorded after the shadow fix). The 0.75% was for the old reference (before the character-shadow fix, toolkit e4a7db1), which sat a little off current runs (0.30-0.53%, worst tile 8.7% at 224,32 in every run). Re-recorded 2026-10-02 from golden run 20261002-162148 (vs xemu attract f148: mae 4.31 -> 0.59). Against it, 7 runs gave 0.00% (190936), 0.29% (191307), 0.18% (191700), 0.18% (192514), 0.05% (193019) on toolkit e4a7db1, and 0.25% (192145), 0.05% (192654) on the integration tree (toolkit 1405dfa); worst tile <= 5.7%. Runs from before the fix give 9.4% (tile 100%). The dark rock-wall side-panel flake must FAIL here: keep its bench-logs dir and do not loosen for it",
+          "anchor": {
+            "event": "first-3d",
+            "ref_flip": 897,
+            "why": "reference run 20261002-162148"
+          }
+        }
+      ],
+      "anchors": {
+        "first-3d": {
+          "min_batches": 1000,
+          "why": "the first 3D frame: the demo's stg0101 scene (6000+ batches) after the title movie and menus (at most 41); flip 896-898 in D3D11 and Metal runs"
+        },
+        "title-3d": {
+          "after_flip": 100,
+          "min_batches": 5,
+          "why": "the title screen's 3D crystal: the first flip from 100 with 5+ batches (at most 3 before it, in the logo and movie presents). Flip 198-229 in Metal and CPU runs (Mac, 2026-10-04: 22 runs), 227 in a D3D11 one. The crystal and clouds animate by frames from here, so a run that reaches the title early or late is checked at the same distance from it"
+        }
+      },
+      "dump_slack": 40,
+      "dump_slack_why": "anchors move by up to ~30 flips between runs (title-3d 198-229, first-3d 866-898 on the Mac), so dumpat covers +-40 around each anchored frame"
+    },
+    "stage1": {
+      "env": {
+        "RECOMP_INPUT_SCRIPT": "@stage1"
+      },
+      "seconds": 105,
+      "min_flips": 3070,
+      "min_flips_note": "about 95% of the clean minimum: 15 runs gave 3231-3279 flips; a run on a busy host gave 1425, so the floor only catches a stalled run, not a slow one",
+      "frames": [
+        {
+          "name": "stage1-stick",
+          "dump": 14,
+          "note": "stg0101 intro cut, Stick close up (fills the frame: catches an invisible Stick; with Stick hidden, RECOMP_D3D11_OCC=fixed RECOMP_ZPASS_FIXED=0, run 20261002-102403 FAILs here: mae 14.9, worst tile 100%). Margin: the preset taps A every 3 s from the jingle (~present 767); the close-up takes A from ~jingle+60, the second press lands ~+90, and this dump is ~+74, so 16 presents before it (with 2 s taps the second press hit the +60 edge: 2 of 26 runs off). Re-recorded 2026-10-02 after the character-shadow fix (toolkit e4a7db1) from golden run 20261002-162307 (vs xemu stage1 f042: mae 6.38 -> 0.62); runs 191055/191426/191820: mae <= 0.39, exact/1.3-1.4% pixels, worst tile <= 31.2%; the Stick-hidden run 102403 still FAILs against it (mae 9.6, tile 99.9%). Before the re-record: mae <= 0.91, 1.7-3.0% pixels, worst tile 41-42.4% (both grids). Dump 13 was rejected: the fly-over camera follows the stage-start jitter. Dump 19 was rejected: the dialogue camera follows the wall-time A taps (one run off by 38%)",
+          "max_channel_mae": 2.0,
+          "max_bad_fraction": 0.06,
+          "sha256": "f903f965cb364e6f69c4b06cfe8cbc176244c4cf82addbf88cd3f98f14f1786e",
+          "size": [
+            640,
+            480
+          ],
+          "max_tile_bad_fraction": 0.75,
+          "anchor": {
+            "event": "first-3d",
+            "ref_flip": 769,
+            "why": "reference run 20261002-162307"
+          }
+        },
+        {
+          "name": "stage1-enemies-objectives",
+          "dump": 22,
+          "note": "Guards the cut-in's static content (text, rock, sky, cannon base) and gross absence of the gunners' cannons via the cannon base; the gunners' own rendering (skinning, textures, lighting, flashes, tracers) is UNCHECKED, because their band is exempt. MISSION OBJECTIVES cut-in: both Tom Tom cannon gunners, textured, skinned, lit, with muzzle flashes and tracers (the only place @stage1 shows enemies). Margin, two modes (the 3 s taps put the checkpoint at 1366-1370 or 1453-1457): in the late mode (5 of 7 runs) the A press at presents 1301-1305 opens the shot and this dump (present 1321) is 16-20 presents after it, ~70 before the closing press; in the early mode (133331, 133837) the shot opened one tap earlier, the press at 1304-1308 closes it and this dump is 13-17 presents into the close (the \"Press the A Button\" line gone), 45-53 before the checkpoint. 1321 is the only dump that shows the shot in both modes, and both pass the limits below. Chosen: tolerant limits, not an event anchor; anchoring the dump to the shot (followups 2) needs a dump trigger the toolkit dumper does not have. Reference: golden run 20261002-103526. The gunners' firing cycle is not tied to presents: across 7 normal runs (golden 101239, 103526; enemy 134453; shared 133954; integration 133331, 133837, 134609) pairs differ by up to mae 10.3, 21% pixels and 98% in a tile of the gunner band, while a run with the gunners and front cannon missing (RECOMP_D3D11_OCC=fixed RECOMP_ZPASS_FIXED=0, 102403) gives mae 12.9-15.8 and 23-27%. So mae (16) and bad (0.35) only catch a wholesale-wrong frame (the exempt band alone moves the frame-wide bad share by 0-14 pp) and the tiles outside the band do the work: normal runs reach 36.7% there against the reference (tile 320,320), the missing-gunner run 78.4% (cannon base, tile 256,384)",
+          "pixel_tol": 8,
+          "max_channel_mae": 16.0,
+          "max_bad_fraction": 0.35,
+          "max_tile_bad_fraction": 0.55,
+          "regions": [
+            {
+              "rect": [
+                64,
+                128,
+                384,
+                192
+              ],
+              "max_tile_bad_fraction": 1.0,
+              "why": "gunner band: both gunners, cannon tops, muzzle flashes and the tracer rows (~235-260 px) animate out of phase with the dump: up to 98% in a tile between normal runs, 66-98% with the gunners missing, so no tile limit separates them here"
+            }
+          ],
+          "sha256": "a2b3b173d7cfc370ff3c344080fc184421caf44f673a811e785f12a075a81628",
+          "size": [
+            640,
+            480
+          ],
+          "anchor": {
+            "event": "first-3d",
+            "ref_flip": 768,
+            "why": "reference run 20261002-103526"
+          }
+        },
+        {
+          "name": "stage1-hud",
+          "dump": 44,
+          "note": "stg0101 gameplay: HUD, timer, radar and Stick; timer digits, radar sweep and idle pose vary: mae 0.3-2.1, 1.6-4.4% pixels. Tiles (both grids, overlap rule) outside the regions stay under 21.1% (timer digits; 253 samples, dumps 40-50 of 23 runs on the host, 2026-10-02); a missing timer, panel or radar gives 40-75%, a 100x30 block straddling tiles 31%. Known second state, open: 3 of 28 runs (070552, 072638 on 2 s taps; 101239 on 3 s taps), all with present 2641 on surface 0x00230000 (but 11 other runs on that surface are normal), show the scene with the camera ~2 px off, frames moving between dumps and the timer running ~2x (0'39\"56 at dump 44, 0'51\"56 at dump 50): mae 15-112, FAIL. Not a reference problem (the reference matches the normal state). Re-recorded 2026-10-02 after the character-shadow fix (toolkit e4a7db1) from golden run 20261002-191426, in which Stick stands; the old reference gave worst tile 77-81% in the Stick rect on post-fix runs. Stick's idle pose varies across runs (standing, sideways), and the Stick region's 90% tile limit covers it; the shadow itself is a small patch under his feet in every post-fix run, as in xemu. Whole-frame mae vs xemu stage1 f116 is set by that pose: 1.77 (191426, standing, the reference), 1.89 (191055), 2.20 (162307), 2.50 (191820, sideways); the old reference gave 1.74. Against the new reference: runs 162307, 191055, 191820, 192634, 193326 give mae <= 2.08, 1.9-3.4% pixels, worst tile 39.7-60.7% (all in the Stick rect); the second-state run 101239 still FAILs (mae 15.9, tile 87.8%)",
+          "max_channel_mae": 3.0,
+          "max_bad_fraction": 0.08,
+          "sha256": "faf140fd84df00eda30f0fb451d518950451785051edab6eb03bb0fa65f6c2ae",
+          "size": [
+            640,
+            480
+          ],
+          "max_tile_bad_fraction": 0.3,
+          "regions": [
+            {
+              "rect": [
+                256,
+                192,
+                128,
+                192
+              ],
+              "max_tile_bad_fraction": 0.9,
+              "why": "Stick's idle animation: tiles up to 83.9% (253 samples, both grids, overlap rule). This frame cannot see a missing Stick: with Stick hidden (RECOMP_D3D11_OCC=fixed RECOMP_ZPASS_FIXED=0, run 20261002-102403) its worst tile here is 83.7% and the rect-wide share 34.0%, against up to 83.9% and 32.9% (dump 44, 23 runs) with Stick drawn; no limit separates them, so stage1-stick is the missing-Stick check"
+            },
+            {
+              "rect": [
+                0,
+                320,
+                192,
+                128
+              ],
+              "max_tile_bad_fraction": 0.4,
+              "why": "radar sweep and blips: up to 30.0% in one run of 23 (present2 073006, tile 96,352), 21% elsewhere; a missing radar gives 75%"
+            }
+          ],
+          "anchor": {
+            "event": "first-3d",
+            "ref_flip": 769,
+            "why": "reference run 20261002-191426"
+          }
+        }
+      ],
+      "followups": "Structural, not done: (1) count tap periods in polls/presents, not wall seconds, so a busy host cannot move a press across an accept edge; (2) rebase dumps to events instead of fixed present numbers from boot, which carry the +-6 present stage-start jitter: done for runs that dump by flip (RECOMP_FB_DUMP_AT, golden.py dumpat; the `anchors` here), not yet for bench.sh's D3D11 runs, whose dumper writes every 60th present; (3) record a measured margin per frame (presents between the dump and the nearest input or scene edge) next to its limits; (4) an in-band presence region kind for stage1-enemies-objectives, independent of the gunners' phase (share of band pixels that are not sky/terrain colour, or band mean luminance against the reference with a wide tolerance), so the gunners themselves are checked",
+      "anchors": {
+        "first-3d": {
+          "min_batches": 1000,
+          "why": "the first 3D frame: stg0101's intro fly-over (6088 batches) after the menus (at most 41); flip 768-769"
+        }
+      },
+      "skip_backends": [
+        "cpu"
+      ],
+      "skip_why": "the CPU path is too slow for this scenario's timeline: its cut-scenes and input script run on wall time, so at 6-21 flips/s the dumped flips show other screens (Mac, 2026-10-04: stage1 intro cut at flip 832, story tsedit/menu bad 94-99%). Re-enable once the CPU path can hold the scenario's pace"
+    },
+    "story": {
+      "env": {
+        "RECOMP_SAVE_DIR": "@run",
+        "RECOMP_INPUT_SCRIPT": "@story-hub"
+      },
+      "seconds": 100,
+      "min_flips": 4480,
+      "min_flips_note": "about 95% of the clean minimum: 3 runs of 100 s gave 4714-4719 flips (20261003-005419, -005602, -005745); the hub dump (72) needs 4321",
+      "about": "The front door from an empty save (RECOMP_SAVE_DIR=@run: bench-logs/<stamp>/save/): title, R0_opening skipped, team editor (AUTO SELECT), Story Mode / SAVE GAME, slot 1, 1P, NOW SAVING, then the Sweepers hub's CHALLENGE drill. A skips R0_opening at a varying time (tsedit opens at t=13-18 s), so @story-hub waits until t=24 and holds AUTO SELECT 8 s and the slot list 7 s: the 3 runs above put tsedit's A, state 0xD and the hub load within 0.2 dumps of each other (dumps 23.5-23.6, 53.9-54.0, 65.6-65.8). Reference: 20261003-005602 (team Steel Paw; AUTO SELECT picks the team at random, so no frame shows it)",
+      "frames": [
+        {
+          "name": "story-tsedit",
+          "dump": 28,
+          "note": "LOCKER ROOM, AUTO SELECT / CUSTOM SELECT, cursor on AUTO; on screen from dump 25 to 31. Runs 005419/005745/005148 vs the reference: mae <= 1.68, bad 2.5-2.7%, worst tile 23-24% (0,384: the scrolling help line); dumps 27 and 29 of the reference run give the same (2.8%, 25%)",
+          "max_channel_mae": 3.0,
+          "max_bad_fraction": 0.05,
+          "max_tile_bad_fraction": 0.4,
+          "sha256": "4efb1c0c4fc09af1f324c9de728ced031bfad3c06386dde4b33128f3fec8b232",
+          "size": [
+            640,
+            480
+          ],
+          "anchor": {
+            "event": "tsedit",
+            "ref_flip": 1489,
+            "why": "the recording run's anchor (D3D11 bench run 20261004-050144)"
+          },
+          "masks": [
+            {
+              "rect": [
+                47,
+                159,
+                387,
+                82
+              ],
+              "why": "the AUTO SELECT button, whose brightness pulses on a clock the tsedit anchor does not follow: anchored Mac Metal runs gave the whole button (x 48-432, y 160-239) off by more than tol 8, worst tile 100% at 352,160, or exact, depending on phase (2026-10-04). The rest of the screen, CUSTOM SELECT included, is still checked",
+              "presence": {
+                "pixel_tol": 96,
+                "max_bad_fraction": 0.02,
+                "max_channel_mae": 60,
+                "why": "the pulse moves the button by mae up to 12/27/41 (r/g/b) and never a pixel past 96 (9 Mac Metal runs, 2026-10-04); another screen gives mae 104/77/64 with 68% past 96. A button drawn wrong but similar in colour can still pass: a known gap"
+              }
+            }
+          ]
+        },
+        {
+          "name": "story-menu",
+          "dump": 58,
+          "note": "Story Mode / SAVE GAME, the slot list (slot 1 of 3 highlighted, before the 1P/2P choice); on screen from dump 55 to 61. The star and the character art behind the list animate steadily, and the menu opens (state 0xD) 231-255 flips before present 3481 depending on the run, so dump 58 catches them at different phases. That gives six exact repeat frames in 16 Proton runs (2026-10-03), in one ordered series: the further apart two phases are, the more they differ (up to bad 11.9%, worst tile 68% at 96,160 or 256,256). The differences are in the art (left half and top rows), and where it shows through the translucent list. Two references cover the series: menu-a (20261003-005602, opened ~237 flips before the dump) and menu-b (20261003-025414, ~255 flips, the latest seen; it FAILED against menu-a at bad 10.4%). Every run is within bad 3.6%, worst tile 36% of one of them; a wrong screen gives bad ~99.8%. A run that opens the menu much earlier or later than this range may FAIL; then check the phase, and anchor the dump to the menu event once golden supports that, rather than loosening the limits Re-recorded 2026-10-04: the vblank pacer fix moved the art's phase, and D3D11 runs now dump by flip so the slot-list anchor applies; menu-a re-recorded from D3D11 run 20261004-050144, menu-b (a pre-pacer phase) dropped.",
+          "max_channel_mae": 3.0,
+          "max_bad_fraction": 0.08,
+          "max_tile_bad_fraction": 0.6,
+          "references": [
+            {
+              "label": "menu-a",
+              "sha256": "d0ebac3ff804b6784a4b85a0b83e85c9b3dae360f80280c27012149e142a59e7",
+              "size": [
+                640,
+                480
+              ],
+              "anchor_flip": 3231
+            }
+          ],
+          "anchor": {
+            "event": "slot-list",
+            "ref_flip": 3231,
+            "why": "menu-a's (D3D11 bench run 20261004-050144)"
+          }
+        },
+        {
+          "name": "story-hub",
+          "dump": 72,
+          "note": "Sweepers hub, CHALLENGE drill 'Test 1 of 7 ... Press the A Button' (script done at dump ~65.8). The hub camera opens on one of several views at random, each fixed once the camera stops: hub-a the dish (reference run 20261003-005602), hub-b the staircase (20261003-005419), hub-c the drill wall (golden run 20261003-013300), hub-d crates and a platform (golden run 20261003-081844). Of 26 Proton story runs on 2026-10-03: hub-a 15, hub-b 9, hub-c 1, hub-d 1. Judged as a split frame (golden.py, 'split frames'): the CHALLENGE panel is held strictly and the 3D view behind it loosely. Overlay: the opaque white text (intro lines, 'Test 1 of 7', the logo's core) where all four views agree, 2931 px; 0 bad pixels in all 28 Proton runs with a dump, and leave-one-out (overlay from three views, the fourth checked) gives 0 bad for each view. Panel rects (logo, intro text, 'Test 1 of 7', 'Press the A Button'): against the run's own view, worst mae 0.91, bad 2.07%, tile 18.3% (staircase runs, 192,128). Background against its view: worst mae 0.65, bad 2.43%, tile 32.8% (the staircase's yellow ball moves); across views mae 32-61, bad 55-89%. The logo glow and 'Press the A Button' are translucent, so they can only be held against a known view. A background within the loose limits of a view names it, and the panel must then match that view. A panel that matches a view whose background does not, or a background within mae 16 of a view (the four are 32-61 apart), is a known view rendered wrong and FAILs; so does a flat background (luma std: views 29.7-76.3). Any other unseen view is NEWVIEW, which reports INCOMPLETE (not a pass): look at it, and if it is right record it with `golden.py reference story story-hub LABEL DIR` so its panel is held again. 2026-10-04: hub-b re-recorded (D3D11 run 20261004-050144, phase of the blinking 'Press the A Button' after the vblank pacer fix); hub-a re-recorded from a Mac Metal run (wt/vblcap runs/vM-s1; Mac runs open on that view); hub-c and hub-d are pre-pacer and are re-recorded when a run shows their view. The 'Press the A Button' blink is not locked to the hub anchor (panel tile 256,384 at 26-28% in anchored Mac runs).",
+          "references": [
+            {
+              "label": "hub-a",
+              "sha256": "49ad75efaa6ef2c014b7850ce97c041b4d31653fc7d53207a2551b59bd81b9c9",
+              "size": [
+                640,
+                480
+              ],
+              "anchor_flip": 3950
+            },
+            {
+              "label": "hub-b",
+              "sha256": "457d2627a4869cb03d5a711ef2398cd846aaef09f162f0b18a009674a857bd80",
+              "size": [
+                640,
+                480
+              ],
+              "anchor_flip": 3939
+            },
+            {
+              "label": "hub-c",
+              "sha256": "bdd34ffaff430dd59a47616b634c595589190b8a78e7e6f29f318529f2f7a271",
+              "size": [
+                640,
+                480
+              ],
+              "anchor_flip": 3953
+            },
+            {
+              "label": "hub-d",
+              "sha256": "f9a6fa4dfbea233f797776ee2889dc38532fbcc6de7423630b3b5f59be759d2d",
+              "size": [
+                640,
+                480
+              ],
+              "anchor_flip": 3945
+            }
+          ],
+          "anchor": {
+            "event": "hub",
+            "ref_flip": 3947,
+            "why": "hub-a's; each reference carries its run's anchor_flip"
+          },
+          "split": {
+            "why": "the camera picks a view at random; the panel over it does not change",
+            "panel": {
+              "rects": [
+                [
+                  152,
+                  32,
+                  336,
+                  72
+                ],
+                [
+                  56,
+                  104,
+                  384,
+                  100
+                ],
+                [
+                  404,
+                  232,
+                  104,
+                  32
+                ],
+                [
+                  240,
+                  420,
+                  160,
+                  32
+                ]
+              ],
+              "rects_are": "CHALLENGE logo, intro text and icon, 'Test 1 of 7', 'Press the A Button'",
+              "max_channel_mae": 1.5,
+              "max_bad_fraction": 0.03,
+              "max_tile_bad_fraction": 0.25
+            },
+            "overlay": {
+              "max_spread": 8,
+              "min_luma": 200,
+              "min_pixels": 2500,
+              "max_bad_fraction": 0.005
+            },
+            "background": {
+              "max_channel_mae": 3.0,
+              "max_bad_fraction": 0.1,
+              "max_tile_bad_fraction": 0.9,
+              "min_luma_std": 10,
+              "new_view_min_mae": 16
+            }
+          },
+          "masks": [
+            {
+              "rect": [
+                248,
+                427,
+                147,
+                18
+              ],
+              "why": "the blinking 'Press the A Button' text (x 249-393, y 428-443): its blink does not follow the hub anchor; anchored Mac Metal runs put panel tile 256,384 at 26-28% against a 25% limit (2026-10-04). The rest of the panel stays strict"
+            }
+          ]
+        }
+      ],
+      "followups": "story-hub uses several references (hub-a dish, hub-b staircase, hub-c drill wall, hub-d crates) because the hub camera opens on a random view. Seeding the game's clock or RNG to fix the view was rejected for now as too invasive. The frame is a split frame: the opaque panel text is held in every view, the panel and background per known view; a new view reports NEWVIEW (INCOMPLETE) and, once looked at, is added with golden.py reference",
+      "anchors": {
+        "tsedit": {
+          "after_flip": 1400,
+          "max_batches": 100,
+          "why": "the first flip after the R0_opening skip with at most 100 batches (539 -> 88): the locker room; flip 1494-1496"
+        },
+        "slot-list": {
+          "after_flip": 3200,
+          "max_batches": 60,
+          "why": "573 -> 43 batches, the Story Mode slot list opening; flip 3242-3245"
+        },
+        "hub": {
+          "after_flip": 3800,
+          "min_batches": 1000,
+          "why": "the Sweepers hub's first 3D frame after NOW SAVING (1 batch); flip 3945-3953"
+        }
+      },
+      "dump_slack": 40,
+      "dump_slack_why": "Metal's story anchors fell 11-26 flips after D3D11's (the menus' wall-time A taps against a different flip rate), so dumpat asks for +-40 flips around each frame",
+      "skip_backends": [
+        "cpu"
+      ],
+      "skip_why": "the CPU path is too slow for this scenario's timeline: its cut-scenes and input script run on wall time, so at 6-21 flips/s the dumped flips show other screens (Mac, 2026-10-04: stage1 intro cut at flip 832, story tsedit/menu bad 94-99%). Re-enable once the CPU path can hold the scenario's pace"
+    }
+  }
+}

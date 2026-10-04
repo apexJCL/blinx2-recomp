@@ -1,0 +1,47 @@
+build/
+game_files
+# analysis/ is per-worktree scratch, except the golden-frame hashes
+# (golden.json); the reference frames in analysis/golden/frames/ are game
+# output and stay local.
+analysis/*
+!analysis/golden/
+analysis/golden/*
+!analysis/golden/golden.json
+# audio.json is thresholds; the reference WAVs in analysis/golden/audio/ are
+# game output and stay local.
+!analysis/golden/audio.json
+analysis/golden/audio/
+src/recomp/gen/
+.venv-ghidra
+build-*/
+third_party
+bench-logs/
+scripts/bench.env
+src/recomp/.gen-regenerating
+.DS_Store
+*.log
+timeline/
+__pycache__/
+# Game data and game output, anywhere in the tree: never commit these.
+*.xbe
+*.iso
+*.xiso
+*.xpr
+*.xwb
+*.adx
+*.sfd
+*.ipk
+*.wav
+*.bmp
+*.png
+*.ppm
+*.raw
+*.sav
+*.xsv
+UDATA/
+TDATA/
+saves/
+# ...but not the openspec change that is named "saves"
+!openspec/changes/saves/
+# Local Claude Code settings
+.claude/settings.local.json

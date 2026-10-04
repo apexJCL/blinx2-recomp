@@ -1,0 +1,53 @@
+{
+  "about": "Golden audio for scripts/audio_check.py (task 5.x of openspec change audio). A scenario's dump is the WAV tap RECOMP_DEBUG=audio_wav under Proton on the Linux/Proton host: exactly the samples handed to the device, 48 kHz s16 stereo. References (xemu captures, scripts/xemu_ref.py --audio) live in analysis/golden/audio/<scenario>.ref.wav, gitignored: they are game output. This file holds thresholds only. The first-sound windows and the correlation limits are provisional until task 5.5 sets them from measured runs with margin; the buffer-size table of tasks 4.3/4.6 goes here too.",
+  "compare": {
+    "method": "first sample at or above silence_floor_dbfs inside the scenario's first_sound_window (seconds from the start of the dump); no run of digital zero longer than max_dropout_ms between the first and last sound with sound at or above silence_floor_dbfs in the 50 ms on each side of it; clipped-sample share at most max_clipping_fraction; with the log, |frames / (48000 x submit seconds) - 1| at most rate_tolerance; with a reference, envelope lag inside +/- max_lag_ms, envelope correlation at least min_envelope_correlation, and every non-silent band's correlation (8 bands, 50 Hz-16 kHz, 1 s windows) at least min_band_correlation; noise: at most max_noise_fraction of the 1 s windows at or above silence_floor_dbfs may be noise-like, that is spectral flatness (200 Hz-16 kHz) >= noise_flatness and at least noise_hf_share of the energy above 8 kHz -- white noise is ~0.56 flatness with two thirds of its energy up there, music under 0.3 and a few percent; this is the check that catches the APU playing memory that is not audio (the dumps that did had flatness 0.40-0.51 and 57-67 % above 8 kHz; five clean runs, title and in-game, peak at 0.315 and 16 %, so 0.36 / 0.25 leave a margin on both sides). A scenario with sustained broadband effects may carry its own noise_flatness / noise_hf_share / max_noise_fraction (a scenario's keys override these), set from a run known good by ear",
+    "silence_floor_dbfs": -40.0,
+    "max_dropout_ms": 2.0,
+    "max_clipping_fraction": 0.001,
+    "rate_tolerance": 0.005,
+    "min_band_correlation": 0.8,
+    "min_envelope_correlation": 0.8,
+    "max_lag_ms": 500.0,
+    "noise_flatness": 0.36,
+    "noise_hf_share": 0.25,
+    "max_noise_fraction": 0.1
+  },
+  "env": {
+    "RECOMP_PB_BACKEND": "d3d11",
+    "RECOMP_TRACE": "flip"
+  },
+  "scenarios": {
+    "boot-title": {
+      "note": "the first 60 s from boot with no input: the logo movies (logo_mgs.sfd, Artoon), blinx2_opening.sfd and the title music",
+      "env": {},
+      "seconds": 60,
+      "first_sound_window": [
+        0,
+        10
+      ]
+    },
+    "title-menu": {
+      "note": "the intro skipped (pad preset @skip-intro, which ends idle on the title), then the title loop: 30 s of it after the title opens",
+      "env": {
+        "RECOMP_INPUT_SCRIPT": "@skip-intro"
+      },
+      "seconds": 45,
+      "first_sound_window": [
+        0,
+        15
+      ]
+    },
+    "stage1": {
+      "note": "pad preset @stage1 (the debug stage select into 1-1, as golden.json's stage1); BGM and SFX in the stage. The run is as long as golden.json's; the last 60 s are in the stage",
+      "env": {
+        "RECOMP_INPUT_SCRIPT": "@stage1"
+      },
+      "seconds": 105,
+      "first_sound_window": [
+        0,
+        20
+      ]
+    }
+  }
+}
