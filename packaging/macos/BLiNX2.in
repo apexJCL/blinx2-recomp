@@ -1,0 +1,67 @@
+#!/bin/bash
+#
+# BLiNX2.app's main executable: sets up the environment cat_recomp reads
+# (recomp_env) and starts it. The game files are inside the app; saves,
+# settings and logs live in ~/Library/Application Support/BLiNX2, so
+# replacing the app (an update) or trashing it (uninstall) keeps them.
+# Settings: Resources/launch.env.default, then config/launch.env (KEY=value
+# lines, yours win). No lock: this is the game for play.
+#
+set -euo pipefail
+
+HERE="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"        # Contents/MacOS
+RES="$(cd "$HERE/../Resources" && pwd)"
+# BLINX2_DATA_DIR moves the user data (tests point it at a scratch folder so
+# they never touch the player's saves or launch.env).
+DATA="${BLINX2_DATA_DIR:-$HOME/Library/Application Support/BLiNX2}"
+
+fail() {
+    echo "@NAME@: $*" >&2
+    # The message goes in as an argument, never as script text, so a quote or
+    # backslash in a path cannot break the alert.
+    osascript -e 'on run argv' \
+        -e 'display alert "@NAME@ cannot start" message (item 1 of argv)' \
+        -e 'end run' -- "$*" >/dev/null 2>&1 || true
+    exit 1
+}
+
+load_env() {
+    local file=$1 n=0 line
+    [ -f "$file" ] || return 0
+    while IFS= read -r line || [ -n "$line" ]; do
+        n=$((n + 1))
+        line="${line%$'\r'}"
+        case "$line" in ''|'#'*) continue ;; esac
+        [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || fail "$file:$n: not a KEY=value line"
+        export "${line%%=*}=${line#*=}"
+    done < "$file"
+}
+
+[ -f "$RES/game_files/default.xbe" ] || fail "the game files are missing from the app"
+load_env "$RES/launch.env.default"
+load_env "$DATA/config/launch.env"
+
+mkdir -p "$DATA/config" "$DATA/logs"
+[ -e "$DATA/config/enhance.toml" ] || cp "$RES/enhance.toml.default" "$DATA/config/enhance.toml"
+cmp -s "$RES/enhance.toml.default" "$DATA/config/enhance.toml.default" \
+    || cp "$RES/enhance.toml.default" "$DATA/config/enhance.toml.default"
+
+keep=${LOG_KEEP:-10}
+ls -1t "$DATA"/logs/game-*.log 2>/dev/null | tail -n +"$keep" | while IFS= read -r old; do rm -f -- "$old"; done || true
+
+export RECOMP_GAME_FILES="$RES/game_files"
+export RECOMP_HDD_DIR="$DATA/hdd"
+export RECOMP_ENHANCE_CONFIG="$DATA/config/enhance.toml"
+export RECOMP_STDIO_LOG="$DATA/logs/game-$(date +%Y%m%d-%H%M%S).log"
+
+# The game keeps one host file open per cache record on its Z: partition
+# (about 250), and Launch Services starts an app with a soft limit of 256
+# open files (a terminal has far more), so the 248th open failed and the
+# game crashed. Raise the soft limit as far as the hard one allows.
+hard=$(ulimit -Hn)
+[ "$hard" = unlimited ] && hard=10240
+ulimit -n $(( hard < 10240 ? hard : 10240 )) 2>/dev/null || true
+
+# xbox_kernel.log opens in the working directory.
+cd "$DATA/logs"
+exec "$HERE/cat_recomp" "$@"

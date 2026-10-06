@@ -42,6 +42,13 @@ if(NOT WIN32)
     find_package(OpenSSL REQUIRED)
 endif()
 
+# The toolkit's enhancements layer (render scale, present filter, fullscreen;
+# enhance.toml beside the executable). ON for this title, every key stock by
+# default; not FORCE, so -DXBOXRECOMP_ENHANCE=OFF builds a layer-free binary
+# for A/B.
+set(XBOXRECOMP_ENHANCE ON CACHE BOOL
+    "Build the enhancements layer (enhance.toml, RECOMP_RENDER_SCALE, ...)")
+
 # Add xboxrecomp as a subdirectory -- this builds all 6 runtime libraries
 # and provides the 'xboxrecomp' umbrella target to link against.
 add_subdirectory(${XBOXRECOMP_DIR} ${CMAKE_BINARY_DIR}/xboxrecomp)
@@ -85,6 +92,19 @@ add_executable(${PROJECT_NAME} WIN32
     ${GAME_SOURCES}
     ${RECOMP_GEN_SOURCES}
 )
+
+# Opt-in app icon for the Windows exe: a .ico path. Only `blinx2 package`
+# sets it, in its own build-pkg-win/ (the icon is the game's title image,
+# kept out of git); empty, nothing below runs and the build is unchanged.
+set(CAT_APP_ICON "" CACHE FILEPATH
+    "Windows: .ico compiled into cat_recomp.exe (the taskbar shows the game's own icon)")
+if(CAT_APP_ICON AND WIN32)
+    enable_language(RC)
+    file(TO_CMAKE_PATH "${CAT_APP_ICON}" ICON)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows/BLiNX2.rc.in
+                   ${CMAKE_CURRENT_BINARY_DIR}/cat_recomp_icon.rc @ONLY)
+    target_sources(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/cat_recomp_icon.rc)
+endif()
 
 # Link against the xboxrecomp umbrella target (all 6 runtime libraries)
 target_link_libraries(${PROJECT_NAME} PRIVATE xboxrecomp)

@@ -481,19 +481,41 @@ void recomp_icall_not_code_log(uint32_t va)
  * RECOMP_UNIMPL_TRAP=1 aborts at the first hit, at the guest address of the
  * cause rather than wherever the damage surfaces. */
 #include <stdlib.h>
+#include "unimpl_budget.h"
+
+/* Lines per site before only hits 10, 100, 1000 ... print. Override with
+ * RECOMP_TRACE=unimpl_budget=n, like kernel_budget; the first hit of a site
+ * prints whatever n is (see unimpl_budget.h). */
+static long unimpl_log_budget(void)
+{
+    static long budget = -1;
+
+    if (budget < 0) {
+        const char *env = recomp_env(RENV_UNIMPL_BUDGET);
+        budget = env ? strtol(env, NULL, 0) : 3;
+        if (budget < 1)
+            budget = 1;
+    }
+    return budget;
+}
 
 void recomp_unimpl(const char *text, uint32_t va)
 {
-    static int printed;
+    static struct unimpl_budget sites;
     const char *trap = recomp_env(RENV_UNIMPL_TRAP);
     int stop = trap && *trap && *trap != '0';
+    uint32_t n = unimpl_budget_hit(&sites, va, unimpl_log_budget());
 
-    if (printed < 50 || stop) {
-        printed++;
+    if (n || stop) {
+        char hit[32] = "";
+        if (n == UINT32_MAX)
+            snprintf(hit, sizeof hit, ", site table full");
+        else if (n > 1)
+            snprintf(hit, sizeof hit, ", hit %u", n);
         fprintf(stderr,
                 "[UNIMPL] untranslated instruction REACHED: `%s` at 0x%08X"
-                " (a no-op; set RECOMP_DEBUG=unimpl_trap to stop here)\n",
-                text, va);
+                " (a no-op%s; set RECOMP_DEBUG=unimpl_trap to stop here)\n",
+                text, va, hit);
         fflush(stderr);
     }
     if (stop) abort();

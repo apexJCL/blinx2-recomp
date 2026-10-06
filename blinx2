@@ -1,0 +1,3 @@
+#!/bin/sh
+# blinx2: the project CLI (blinx2.py). Python 3.9 or newer.
+exec python3 "$(dirname "$0")/blinx2.py" "$@"

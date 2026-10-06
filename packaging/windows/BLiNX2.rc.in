@@ -1,0 +1,5 @@
+// The app icon, compiled into BLiNX2.exe (blinx2 package) and, with the
+// opt-in CAT_APP_ICON CMake option, into cat_recomp.exe: the taskbar shows
+// the icon of the process that owns the window, which is the game, not the
+// launcher. The .ico is the game's title image; it never enters git.
+1 ICON "@ICON@"

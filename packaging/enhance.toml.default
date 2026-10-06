@@ -1,0 +1,16 @@
+# BLiNX 2 enhancements. Every key below is at its stock value, so this file
+# changes nothing until you edit it. The launcher copies this file to
+# config/enhance.toml the first time; edit that copy, not this one. Each
+# install refreshes enhance.toml.default beside it, so new keys show up
+# there. A key missing from your copy runs at its stock value.
+# Reference: the toolkit's docs/runtime/enhance-config.md.
+
+[render]
+scale = 1                 # internal resolution factor: 1 (stock 640x480), 2, 3, ...
+
+[display]
+aspect = "4:3"            # only 4:3 so far
+
+[present]
+filter = "nearest"        # "nearest" (stock), "linear", "integer"
+fullscreen = false        # true: borderless fullscreen at start

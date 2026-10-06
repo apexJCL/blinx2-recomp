@@ -1,0 +1,28 @@
+Install and update (Windows)
+----------------------------
+Keep this folder together: the setup program copies game_files\ from the
+folder it runs in. Run BLiNX2-@VERSION@-setup.exe. It installs for your user
+only (no administrator rights) to %LOCALAPPDATA%\Programs\BLiNX2 and adds a
+Start Menu entry. Running a newer setup installs on top and keeps your
+saves. Uninstall from Settings > Apps; your saves and settings stay in
+%LOCALAPPDATA%\BLiNX2.
+
+Windows may warn before running the setup program or BLiNX2.exe: they are
+built on your machine and not signed. SmartScreen: "More info" > "Run
+anyway". If the folder came as a .zip downloaded or copied from another
+machine, right-click the .zip > Properties > Unblock before extracting
+(Mark of the Web), or Windows asks again for every file.
+
+Note: this build is tested under Proton on Linux only, not on native
+Windows.
+
+Controls
+--------
+A controller works as player 1. The keyboard works too, merged with a pad
+on player 1, while the game window has the focus (RECOMP_KEYBOARD=0 in
+config/launch.env turns it off):
+
+  arrows          d-pad            Enter       START
+  Z X A S         A B X Y          Backspace   BACK
+  Q E             white, black     1 3         left, right trigger
+  numpad 8/2/4/6  left stick       I/K/J/L     right stick

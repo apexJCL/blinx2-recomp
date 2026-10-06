@@ -2,9 +2,9 @@
 
 Every variable the runtime reads goes through one table, `RECOMP_ENV_KEYS` in toolkit `src/platform/recomp_env.h`, and is read once at startup (`recomp_env_init`, called first in `main`) and cached. A lookup is an array load, so call sites in hot paths cost nothing. There are three tiers:
 
-- **Config** (25): documented knobs, each its own variable (`RECOMP_PB_BACKEND=d3d11`).
-- **Trace** (47): log and report toggles, one comma list: `RECOMP_TRACE=flip,tex,heap=0x80123000`. Printing only; nothing changes behaviour.
-- **Debug** (67): hacks, A/B switches, experiments, dumps, watchpoints, one comma list: `RECOMP_DEBUG=pb_fast=0,fb_dump=/tmp/f_,fb_dump_at=61,121`. Anything that changes behaviour, writes files or installs machinery (a watchdog, a thread dumper) is here.
+- **Config** (32): documented knobs, each its own variable (`RECOMP_PB_BACKEND=d3d11`). Five of them belong to the toolkit's enhancements layer (`RECOMP_ENHANCE_CONFIG`, `RECOMP_RENDER_SCALE`, `RECOMP_DISPLAY_ASPECT`, `RECOMP_PRESENT_FILTER`, `RECOMP_PRESENT_FULLSCREEN`) and exist only when it is built (`XBOXRECOMP_ENHANCE`, on by default in this project); each overrides its key in `enhance.toml`, which sits beside the executable (toolkit `docs/runtime/enhance-config.md`).
+- **Trace** (50): log and report toggles, one comma list: `RECOMP_TRACE=flip,tex,heap=0x80123000`. Printing only; nothing changes behaviour.
+- **Debug** (68): hacks, A/B switches, experiments, dumps, watchpoints, one comma list: `RECOMP_DEBUG=pb_fast=0,fb_dump=/tmp/f_,fb_dump_at=61,121`. Anything that changes behaviour, writes files or installs machinery (a watchdog, a thread dumper) is here.
 
 List syntax: `key` means `1`, `key=value` sets a value, and a later entry wins. Only keys whose values hold commas (`fb_dump_at`, `peek`, `peek_chain`, `px`, `px_consts`, `dsp_ack`, `apu_dsp_ack`, `poke`, `window_shot`, `pad_script`, and the game's `mem_dump`) take the fragments after them as part of the value, so `fb_dump_at=61,121,181`, `peek_chain=0x1315A8,8,0x10,0` and `px=10,20;30,40` each read as one value. After any other key, a fragment that is not a key gets the unknown-key warning, so a typo such as `d3d11_dump=Z:\d,pb_fsatt=0` is reported, not glued onto the path. `RECOMP_TRACE=help` (or `RECOMP_DEBUG=help`) prints the table. A key given in the wrong list is accepted with a note. An unknown key is ignored with a warning.
 
@@ -25,11 +25,13 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_PB_EXEC` | `RECOMP_PB_EXEC` (unchanged) | pushbuffer executor (draws frames). **Default on**; `=0` turns it off | `toolkit:src/kernel/nv2a_pb_scan.c:303`, `toolkit:src/kernel/xbox_memory_layout.c:3110`, `toolkit:src/kernel/xbox_memory_layout.c:3113` |
 | `RECOMP_PB_BACKEND` | `RECOMP_PB_BACKEND` (unchanged) | executor backend: cpu (default), metal, d3d11, null | `toolkit:src/d3d/nv2a_pb_d3d11.c:3049`, `toolkit:src/d3d/nv2a_pb_metal.m:1995`, `toolkit:src/kernel/nv2a_pb_exec.c:4991` +2 |
 | `RECOMP_HEADLESS` | `RECOMP_HEADLESS` (unchanged) | 1: no window (SDL host) | `toolkit:src/video/fb_present_sdl.c:348` |
-| `RECOMP_WINDOW_SCALE` | `RECOMP_WINDOW_SCALE` (unchanged) | window scale factor (SDL host, default 2) | `toolkit:src/video/fb_present_sdl.c:342` |
+| `RECOMP_WINDOW_SCALE` | `RECOMP_WINDOW_SCALE` (unchanged) | initial window size in points, 640x480 times this (SDL host, default 2); how the frame fills the window is `RECOMP_PRESENT_FILTER` | `toolkit:src/video/fb_present_sdl.c:420` |
 | `RECOMP_PRESENT_VSYNC` | `RECOMP_PRESENT_VSYNC` (unchanged) | 0: present without vsync (SDL host, default on) | `toolkit:src/video/fb_present_sdl.c:340` |
 | `RECOMP_WINDOW_QUIT_AFTER` | `RECOMP_WINDOW_QUIT_AFTER` (unchanged) | close the window after this many seconds | `toolkit:src/video/fb_present_sdl.c:344`, `toolkit:src/video/fb_present_sdl.c:345` |
 | `RECOMP_FB_WINDOW` | `RECOMP_FB_WINDOW` (unchanged) | Windows: show the framebuffer window | `toolkit:src/video/fb_present.c:349` |
-| `RECOMP_SAVE_DIR` | `RECOMP_SAVE_DIR` (unchanged) | root for the title's UDATA/TDATA | `toolkit:src/kernel/kernel_path.c:380`, `toolkit:src/kernel/kernel_path.c:581`, `cat:src/save_seed.c:141` |
+| `RECOMP_SAVE_DIR` | `RECOMP_SAVE_DIR` (unchanged) | root for the title's UDATA/TDATA, inside whichever save root is in force (`RECOMP_HDD_DIR` or the toolkit default); the partition images and caches stay in the save root | `toolkit:src/kernel/kernel_path.c:380`, `toolkit:src/kernel/kernel_path.c:581`, `cat:src/save_seed.c:141` |
+| `RECOMP_GAME_FILES` | `RECOMP_GAME_FILES` (new) | the game files directory (`default.xbe` and the disc). Default: `game_files/` in the working directory. An installed game's launcher sets it (docs/packaging.md) (game) | `cat:src/main.c:1044` |
+| `RECOMP_HDD_DIR` | `RECOMP_HDD_DIR` (new) | the emulated hard disk: partition images, `TitleData/`, `UserData/`, `Cache/` and the UDATA/TDATA saves. Default: the toolkit's save root (`%LOCALAPPDATA%\xboxrecomp`, inside the Wine prefix under Proton; `~/.local/share/xboxrecomp` elsewhere). Launchers set it outside the program files and any prefix. Either key set prints one `[BOOT] game files:` line (game) | `cat:src/main.c:1142` |
 | `RECOMP_SAVE_SEED` | `RECOMP_SAVE_SEED` (unchanged) | seed the save dir from this save before boot (game) | `cat:src/save_seed.c:140` |
 | `RECOMP_AC97_READY` | `RECOMP_AC97_READY` (unchanged) | emulated APU and audio. **Default on** on x86-64 Windows/Proton and on macOS/Linux arm64 (A64 MMIO decoder); `=0` turns it off. On x86-64 POSIX always off, with an "audio unsupported on this host" line if set to 1 | `toolkit:src/kernel/xbox_memory_layout.c:3182`, `toolkit:templates/new-game/src/main.c:363`, `cat:src/main.c:905` +2 |
 | `RECOMP_VBLANK` | `RECOMP_VBLANK` (unchanged) | deliver the vblank interrupt | `toolkit:src/kernel/kernel_bridge.c:2587`, `cat:src/main.c:957`, `cat:src/main.c:958` |
@@ -39,7 +41,7 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_KEYBOARD` | `RECOMP_KEYBOARD` (unchanged) | 1: keyboard drives pad 1 | `toolkit:src/input/xinput_device.c:54`, `toolkit:src/usb/usb_gamepad.c:321`, `cat:src/pad_input.c:853` |
 | `RECOMP_RUMBLE` | `RECOMP_RUMBLE` (unchanged) | 0: no rumble (game) | `cat:src/pad_input.c:951` |
 | `RECOMP_PAD_DEADZONE` | `RECOMP_PAD_DEADZONE` (unchanged) | stick deadzone, 0..32767 (default 0) | `toolkit:src/input/input_map.c:50` |
-| `RECOMP_STDIO_LOG` | `RECOMP_STDIO_LOG` (unchanged) | send stdout/stderr to this file | `toolkit:tests/d3d11_backend_smoke/smoke.c:170`, `toolkit:tests/d3dcompile_smoke/smoke.c:280`, `cat:src/main.c:854` |
+| `RECOMP_STDIO_LOG` | `RECOMP_STDIO_LOG` (unchanged) | send stdout/stderr to this file | `toolkit:tests/d3d11_backend_smoke/smoke.c:170`, `toolkit:tests/d3dcompile_smoke/smoke.c:280`, `cat:src/main.c:987` |
 | `XBOX_LOG_LEVEL` | `RECOMP_LOG_LEVEL` | kernel log level, 0 (error) .. 4 (trace) | `toolkit:src/kernel/kernel_thunks.c:410` |
 | `RECOMP_AUDIO_BUF_SAMPLES` | `RECOMP_AUDIO_BUF_SAMPLES` (unchanged) | audio output buffer size in samples | `toolkit:src/apu/apu_xaudio2.c:80`, `toolkit:src/apu/apu_sdl2.c` |
 | `RECOMP_AUDIO_BUF_COUNT` | `RECOMP_AUDIO_BUF_COUNT` (unchanged) | audio output buffer count | `toolkit:src/apu/apu_xaudio2.c:83`, `toolkit:src/apu/apu_sdl2.c` |
@@ -47,6 +49,11 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_FMV_HOST` | `RECOMP_FMV_HOST` (unchanged) | play the title's movies through the host player | `toolkit:src/kernel/kernel_bridge.c:3478` |
 | `RECOMP_RASTER_THREADS` | `RECOMP_RASTER_THREADS` (unchanged) | CPU raster threads, 1..16 (default: cores - 4; 1 = serial) | `toolkit:src/kernel/nv2a_pb_exec.c:3527` |
 | `RECOMP_USB_PADS` | `RECOMP_USB_PADS` (unchanged; from upstream) | emulated USB pads plugged in, 1..4 (default 1; Burnout 3 sets 2 in its game defaults) | `toolkit:src/usb/ohci.c:1281` |
+| `RECOMP_ENHANCE_CONFIG` | `RECOMP_ENHANCE_CONFIG` (new; enhancements layer) | the enhancements file: a path, or `none` for no file. Default: `enhance.toml` in the executable's directory. Golden runs pin `none` | `toolkit:src/enhance/enhance_cfg.c:140` |
+| `RECOMP_RENDER_SCALE` | `RECOMP_RENDER_SCALE` (new; enhancements layer) | `render.scale`: internal resolution factor 1..4 (default 1 = stock 640x480). Metal and D3D11 render every target at N times its size; the CPU backend ignores it (one log line). Golden runs pin 1, and `golden.py` fails a run whose log shows another value | `toolkit:src/enhance/enhance_cfg.c:36` |
+| `RECOMP_DISPLAY_ASPECT` | `RECOMP_DISPLAY_ASPECT` (new; enhancements layer) | `display.aspect`: 4:3 (stock). Hor+ widescreen is not implemented yet; another value is reported and 4:3 is used (and `golden.py` fails the run) | `toolkit:src/enhance/enhance_cfg.c:37` |
+| `RECOMP_PRESENT_FILTER` | `RECOMP_PRESENT_FILTER` (new; enhancements layer) | `present.filter`: `nearest` (stock letterbox), `linear` (letterbox, bilinear), `integer` (largest whole multiple that fits, centred; a frame larger than the window is fitted, linear). SDL window and D3D11 window | `toolkit:src/enhance/enhance_cfg.c:38` |
+| `RECOMP_PRESENT_FULLSCREEN` | `RECOMP_PRESENT_FULLSCREEN` (new; enhancements layer) | `present.fullscreen`: 1 opens the window borderless fullscreen at start (no mode change; 1/0, true/false, yes/no, on/off) | `toolkit:src/enhance/enhance_cfg.c:39` |
 
 ## Trace (`RECOMP_TRACE=`)
 
@@ -75,6 +82,7 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_TRACE_DEREF` | `call_deref` | call trace follows pointer args | `toolkit:src/kernel/recomp_trace.c:182` |
 | `RECOMP_TRACE_PROFILE` | `call_profile` | call profile; =n report interval | `toolkit:src/kernel/recomp_trace.c:104`, `toolkit:src/kernel/recomp_trace.c:115` |
 | `RECOMP_IRQL_TRACE` | `irql` | first IRQL transitions | `toolkit:src/kernel/kernel_hal.c:161` |
+| (none) | `dpc` | where the host-run guest routines (timer and queued DPCs, vblank/APU/USB ISRs, KeSynchronizeExecution) spend the timer thread: per routine its runs, run time and longest run, and its waits on the dispatch gate, the APU lock and KeStallExecutionProcessor; three or more `[DPCPROF]` lines under each `[NV2A] vblank N: last 600` line, top eight by run plus gate wait; a timer-thread DPC past 20 ms is also sampled once a millisecond (NV2A interrupt words, last kernel ordinal, guest return addresses) | `toolkit:src/kernel/kernel_prof.c:40` |
 | `RECOMP_APU_TRACE` | `apu` | APU register and frame trace; [APU-IRQ] line every 5 s | `toolkit:src/apu/apu_core.c:160`, `toolkit:src/apu/apu_mmio_hook.c:150`, `toolkit:src/apu/apu_vp.c:1190` |
 | (none) | `audio_host` | host audio playback vs wall clock; [AUDIO-HOST] starve lines (on with `apu`); `scripts/audio_check.py --log` splices the starves in | `toolkit:src/apu/apu_core.c:543` |
 | (none) | `apu_ring` | looping APU buffers refilled by the title: [APU-RING] writer lead and stale-lap replays once a second; `audio_check.py --log` fails on any (`max_ring_stale` 0), except with `--golden`: the golden gate leaves it out until a clean run shows a stream's last lap, replayed as the stream ends, does not trip it | `toolkit:src/apu/apu_vp.c:968` |
@@ -82,7 +90,9 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_USB_STATS` | `usb_stats` | OHCI summary line every 5 s | `toolkit:src/usb/ohci.c:700` |
 | `RECOMP_INPUT_DIAG` | `input_diag` | input chain probe once a second | `toolkit:src/usb/usb_gamepad.c:310` |
 | `RECOMP_INPUT_TRACE` | `input` | pad handles and states (game) | `cat:src/pad_input.c:1120` |
+| (none) | `unimpl_budget` | =n: [UNIMPL] lines per address (3), then only hits 10, 100, 1000 ...; a new address always prints once (game) | `cat:src/recomp_manual.c:494` |
 | `RECOMP_KEY_TRACE` | `key` | window key-down events | `toolkit:src/video/fb_present.c:142` |
+| (none) | `title` | the window title also shows FPS and draws, refreshed once a second (`<name> \| FPS: n \| draws: n`); without it the title is only the game's name and is written only when the name changes. Every window: Win32, D3D11 (via `fb_present.c`), SDL (CPU, Metal) | `toolkit:src/video/fb_present.c:296`, `toolkit:src/video/fb_present_sdl.c:404` |
 | `RECOMP_CS_TRACE_CRT` | `cs_crt` | CRT critical sections; =all every one | `toolkit:src/kernel/kernel_rtl.c:405` |
 | `RECOMP_CS_WATCH` | `cs_watch` | =va: critical section at that address | `toolkit:src/kernel/kernel_rtl.c:426` |
 | `RECOMP_KERNEL_WATCH` | `kernel_watch` | =va: report bridges that change it | `toolkit:src/kernel/kernel_bridge.c:9779` |
@@ -92,9 +102,9 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_FIND_NAN` | `find_nan` | scan for NaN matrices at reports | `toolkit:src/kernel/nv2a_pb_exec.c:5598` |
 | `RECOMP_FIND_QUAD` | `find_quad` | scan for quad vertices once | `toolkit:src/kernel/nv2a_pb_exec.c:5604` |
 | `RECOMP_D3D11_VERBOSE` | `d3d11_verbose` | D3D11 shader sources | `toolkit:src/d3d/nv2a_pb_d3d11.c:250`, `toolkit:src/d3d/nv2a_pb_d3d11.c:1606` |
-| `RECOMP_D3D11_PX` | `px` | =x,y[;x,y]: D3D11 draws touching a pixel | `toolkit:src/d3d/nv2a_pb_d3d11.c:2201` |
-| `RECOMP_D3D11_PX_FLIPS` | `px_flips` | =a[-b]: px only in those flips | `toolkit:src/d3d/nv2a_pb_d3d11.c:2201` |
-| `RECOMP_D3D11_PX_MAX` | `px_max` | =n: px line limit (400) | `toolkit:src/d3d/nv2a_pb_d3d11.c:2202` |
+| `RECOMP_D3D11_PX` | `px` | =x,y[;x,y]: D3D11/CPU draws touching a pixel | `toolkit:src/d3d/nv2a_pb_d3d11.c:2201`, `toolkit:src/kernel/nv2a_pb_exec.c:5041` |
+| `RECOMP_D3D11_PX_FLIPS` | `px_flips` | =a[-b]: px only in those flips | `toolkit:src/d3d/nv2a_pb_d3d11.c:2201`, `toolkit:src/kernel/nv2a_pb_exec.c:5041` |
+| `RECOMP_D3D11_PX_MAX` | `px_max` | =n: px line limit (400) | `toolkit:src/d3d/nv2a_pb_d3d11.c:2202`, `toolkit:src/kernel/nv2a_pb_exec.c:5042` |
 | `RECOMP_D3D11_PX_CONSTS` | `px_consts` | =a-b,c: px also prints these constants | `toolkit:src/d3d/nv2a_pb_d3d11.c:2057` |
 | `RECOMP_D3D11_PX_VERTS` | `px_verts` | px also prints program and vertices | `toolkit:src/d3d/nv2a_pb_d3d11.c:2077` |
 | `RECOMP_STUB_LOG` | `stub` | name each unresolved stub reached | generated `src/recomp/gen/recomp_stubs_unresolved.c` (via the exported variable) |
@@ -109,6 +119,7 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_PB_FAST` | `pb_fast` | =0: CPU raster without fast paths | `toolkit:src/kernel/nv2a_pb_exec.c:2941` |
 | `RECOMP_PB_FAST_AB` | `pb_fast_ab` | compare fast and slow raster per batch | `toolkit:src/kernel/nv2a_pb_exec.c:4238` |
 | `RECOMP_PB_BILINEAR` | `pb_bilinear` | =0: CPU raster samples nearest, whatever the filter | `toolkit:src/kernel/nv2a_pb_exec.c:2590` |
+| `RECOMP_PB_MIPS` | `pb_mips` | =0: CPU raster samples mip level 0 only | `toolkit:src/kernel/nv2a_pb_exec.c:2679` |
 | `RECOMP_PB_CLIP` | `pb_clip` | =0: no near-plane clipping | `toolkit:src/kernel/nv2a_pb_exec.c:3764` |
 | `RECOMP_PB_CULL_FLIP` | `pb_cull_flip` | CPU raster culls the other winding | `toolkit:src/kernel/nv2a_pb_exec.c:2779`, `toolkit:src/kernel/nv2a_pb_exec.c:3530` |
 | `RECOMP_PB_VSH_AB` | `pb_vsh_ab` | compare vertex-program paths per batch | `toolkit:src/kernel/nv2a_pb_exec.c:4472` |
@@ -132,6 +143,7 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_CS_MODE` | `cs_mode` | =single: one lock for every guest lock | `toolkit:src/kernel/kernel_rtl.c:253` |
 | `RECOMP_ASYNC_IO` | `async_io` | asynchronous file I/O | `toolkit:src/kernel/kernel_bridge.c:3810` |
 | `RECOMP_UNIMPL_TRAP` | `unimpl_trap` | stop at an unimplemented instruction | `toolkit:templates/new-game/src/recomp_manual.c:188`, `cat:src/recomp_manual.c:774` |
+| (none) | `cpuid_mmx` | =1: cpuid reports MMX (leaf 1 edx bit 23) and with it FXSR and SSE (bits 24, 25). Default masked, all three, so the CPU stays self-consistent: with MMX, D3DX's JPEG decoder switches to its MMX IDCT (sub_00307F41), which has never run lifted | `toolkit:src/kernel/kernel_hal.c:1235` |
 | `RECOMP_D3D11_MEMO` | `d3d11_memo` | =0: no D3D11 state memo | `toolkit:src/d3d/nv2a_pb_d3d11.c:80` |
 | `RECOMP_D3D11_NO_CULL` | `d3d11_no_cull` | D3D11 culls nothing | `toolkit:src/d3d/nv2a_pb_d3d11.c:974` |
 | `RECOMP_D3D11_CULL_FLIP` | `d3d11_cull_flip` | D3D11 culls the other winding | `toolkit:src/d3d/nv2a_pb_d3d11.c:976` |
@@ -188,6 +200,19 @@ The `RECOMP_WHITE_*` probes from the white-geometry investigation are gone, alon
 | `RECOMP_WHITE_RAW` | raw bytes of a traced batch's first vertices |
 | `RECOMP_WHITE_DUMP` | dump every surface drawn in a flip to this prefix |
 | `RECOMP_WHITE_EVERY` | flip interval for WHITE_DUMP (default 30) |
+
+## Launcher variables
+
+The packaged launchers (`BLiNX2.app`, `BLiNX2.exe`, the steamos `launch.sh`)
+read these before the game starts; the game itself never sees them, so they
+are not `recomp_env` keys.
+
+| Name | Where | Meaning |
+|---|---|---|
+| `BLINX2_DATA_DIR` | macOS and Windows launchers | user-data root instead of `~/Library/Application Support/BLiNX2` or `%LOCALAPPDATA%\BLiNX2` (`hdd/`, `config/`, `logs/` follow it). Tests set it to a scratch folder so they never touch the player's data |
+| `BLINX2_ROOT` | steamos `install.sh` | install and data root instead of `~/Games/BLiNX2` (same as `--root`) |
+| `LOG_KEEP` | all launchers, from `launch.env` | game logs kept in `logs/` (default 10) |
+| `PROTONPATH` | steamos `launch.sh`, from `launch.env` | the Proton build `umu-run` uses (default `GE-Proton`) |
 
 ## Not in the table
 

@@ -15,9 +15,22 @@ src/recomp/gen/
 .venv-ghidra
 build-*/
 third_party
+# blinx2 setup: the pinned venv, and the toolkit clone (it must not enter the
+# -dirty hash of a packaged version).
+.venv/
+external/
+# blinx2 package output: private bundles holding the game. Never commit them.
+dist/
+*.dmg
+*.exe
+*.pdb
+*.nsi
+*.tar
 bench-logs/
 scripts/bench.env
 src/recomp/.gen-regenerating
+# What gen/ was generated from (blinx2 package regenerates when it differs).
+src/recomp/gen.key.json
 .DS_Store
 *.log
 timeline/
@@ -34,6 +47,9 @@ __pycache__/
 *.wav
 *.bmp
 *.png
+# The app icons: the game's title image (blinx2 package, build-pkg-*/icon/).
+*.ico
+*.icns
 # README images (placeholders and screenshots), not game output
 !docs/images/*.png
 *.ppm

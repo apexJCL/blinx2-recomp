@@ -107,6 +107,10 @@ judged in parts instead: the panel's opaque overlay strictly in any view,
 the panel rects strictly and the background loosely against the view the
 background matches. A view not seen before is NEWVIEW, which is
 INCOMPLETE: someone looks at it and records it. See "split frames" below.
+
+`dumpat` and `check` print a WARNING (stderr; never a failure) when a game
+process is running (scripts/running_game.py): an installed copy left open
+beside a Metal or CPU golden run makes its timings noisy.
 """
 
 import contextlib
@@ -114,6 +118,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import struct
 import subprocess
 import sys
@@ -823,6 +828,34 @@ def run_backend(log):
     return seen
 
 
+ENHANCE_SCALE_RE = re.compile(r"\[ENHANCE\] render\.scale=(\d+) ")
+ENHANCE_ASPECT_RE = re.compile(r"\[ENHANCE\].*display\.aspect=([0-9:]+)")
+
+
+def enhance_nonstock(log):
+    """Why a run is not a stock run, from its enhancements lines, or None.
+    Goldens always run at the title's stock resolution and aspect: a
+    render.scale other than 1 or a display.aspect other than 4:3 (asked
+    for, even where the toolkit falls back) makes the run unusable as a
+    golden, whatever its frames look like. No [ENHANCE] line (a build
+    without the layer) is stock."""
+    why = []
+    try:
+        with open(log, errors="replace") as f:
+            for line in f:
+                if "[ENHANCE]" not in line:
+                    continue
+                m = ENHANCE_SCALE_RE.search(line)
+                if m and m.group(1) != "1" and f"render.scale={m.group(1)}" not in why:
+                    why.append(f"render.scale={m.group(1)}")
+                m = ENHANCE_ASPECT_RE.search(line)
+                if m and m.group(1) != "4:3" and f"display.aspect={m.group(1)}" not in why:
+                    why.append(f"display.aspect={m.group(1)}")
+    except (OSError, TypeError):
+        return None
+    return ", ".join(why) or None
+
+
 def find_anchor(batches, ev):
     """The first flip at or after ev's after_flip where the batch count
     crosses into the event: at least min_batches (or, with max_batches
@@ -971,6 +1004,12 @@ def cmd_check(args):
         batches = flip_batches(log) if log else None
         times = flip_times(log) if log else None
         backend = run_backend(log) if log else None
+        nonstock = enhance_nonstock(log) if log else None
+        if nonstock:
+            print(f"FAIL     {scen}: not a stock run ({nonstock} in {log}); goldens run"
+                  " at the stock resolution and aspect, frames not compared")
+            rcs.append(1)
+            continue
         for fr in sc["frames"]:
             tag = f"{scen}/{fr['name']} (dump {fr['dump']}, present {fr['dump'] * 60 + 1})"
             skip = fr.get("skip_backends", sc.get("skip_backends", []))
@@ -1395,11 +1434,28 @@ def cmd_diff(args):
     return 0 if sa == sb else 1
 
 
+def warn_running_game():
+    """A game outside the run (the installed copy, or one started by hand)
+    makes a Metal or CPU golden run's timing-sensitive frames noisy. Warn
+    only: on the Mac nothing holds a run lock that would make the match
+    certainly foreign, and the caller may be running the game on purpose."""
+    try:
+        import running_game
+        games = running_game.find_games(running_game.list_processes(), os.getpid())
+    except Exception:   # a listing failure must never fail a golden check
+        return
+    for pid, cmd in games:
+        print("golden: WARNING a game process is running (pid %d: %s); a run "
+              "overlapping it has noisy timings" % (pid, cmd[:160]), file=sys.stderr)
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
         return 2
     cmd, args = sys.argv[1], sys.argv[2:]
+    if cmd in ("dumpat", "check"):
+        warn_running_game()
     return {"check": cmd_check, "record": cmd_record, "diff": cmd_diff,
              "plan": cmd_plan, "frames": cmd_frames, "refs": cmd_refs,
              "reference": cmd_reference,

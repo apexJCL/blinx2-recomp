@@ -35,7 +35,8 @@
 #                       scripts/golden.py record --only NAME SCEN=DIR
 #                       on a run's pulled frames
 #   tests     build and ctest the toolkit's Proton tests (d3d8_hlsl_split,
-#             d3d11_backend_smoke, input_map, nv2a_zbuf, apu_irq, kernel_irql_abi, fp_precision), holding the run
+#             d3d11_backend_smoke, input_map, nv2a_zbuf, apu_irq, kernel_irql_abi, fp_precision,
+#             vblank_ack), holding the run
 #             lock exclusively
 #             also fails a run on [CRASH] or, with a limit, an early exit
 #   logs      symbolize a run's crash reports, then pull bench-logs/ from the
@@ -59,7 +60,7 @@
 #   BENCH_BOX        distrobox name                    (xbr-build)
 #   BENCH_IMAGE      distrobox image                   (fedora:42)
 #   LLVM_MINGW_ROOT  llvm-mingw install on the host    ($BENCH_DIR/llvm-mingw)
-#   LLVM_MINGW_TAG   llvm-mingw release to install     (20260922)
+#   LLVM_MINGW_TAG   llvm-mingw release to install     (config/toolchain.env)
 #   PROTONPATH       Proton for umu-run                (GE-Proton = latest GE)
 #   BENCH_PREFIX     Wine prefix on the host           ($BENCH_DIR/prefix)
 #   BENCH_GAME_FILES the host's single game_files copy  (~/xbox-recomp/<game>/game_files)
@@ -75,6 +76,11 @@
 #   BENCH_TIMEOUT    stop the game with SIGINT after this many seconds
 #   BENCH_FRAMES     1: RECOMP_DEBUG=d3d11_dump into bench-logs/<stamp>/frames/ on
 #                    the host (every 60th present; not pulled by logs)
+#   BENCH_KILL_GAME  1 (or --kill-game on run, golden, all, integrate): end a
+#                    game running outside the bench (the installed copy, or
+#                    one started by hand) once the run lock is held. Without
+#                    it the run only warns, on stdout and in
+#                    bench-logs/<stamp>/warnings.txt
 #
 # run-info.txt records the exe's sha256 and, from build-win/provenance.txt,
 # the cat and toolkit commits it was built from and whether either tree was
@@ -105,6 +111,11 @@ TOOLKIT="$(cd "$XBOXRECOMP_DIR" && pwd)"
 GAME_NAME="$(basename "$GAME_DIR")"
 
 [ -f "$GAME_DIR/scripts/bench.env" ] && . "$GAME_DIR/scripts/bench.env"
+# The pinned llvm-mingw tag, shared with pipeline.sh; the environment and
+# bench.env still win (a tag set either way is kept).
+if [ -z "${LLVM_MINGW_TAG:-}" ] && [ -f "$GAME_DIR/config/toolchain.env" ]; then
+    LLVM_MINGW_TAG=$(sed -n 's/^LLVM_MINGW_TAG=//p' "$GAME_DIR/config/toolchain.env")
+fi
 
 # Host paths keep a literal ~ so the host's shell expands it.
 : "${BENCH_DIR:=~/xbox-recomp}"
@@ -436,9 +447,9 @@ run_game() {
     RUN_STAMP=$stamp
     step "run: under $PROTONPATH -> bench-logs/$stamp"
     { remote_vars
-      printf 'STAMP=%q\nPROTONPATH=%q\nGAME_ARGS=(%s)\nGAME_ENV=(%s)\nTIMEOUT=%q\nFRAMES=%q\n' \
+      printf 'STAMP=%q\nPROTONPATH=%q\nGAME_ARGS=(%s)\nGAME_ENV=(%s)\nTIMEOUT=%q\nFRAMES=%q\nKILL_GAME=%q\n' \
           "$stamp" "$PROTONPATH" "$(printf '%q ' "$@")" "$BENCH_ENV" \
-          "${BENCH_TIMEOUT:-}" "${BENCH_FRAMES:-0}"
+          "${BENCH_TIMEOUT:-}" "${BENCH_FRAMES:-0}" "${BENCH_KILL_GAME:-0}"
       cat <<'EOF'
 cd "$REMOTE_GAME"
 [ -f build-win/cat_recomp.exe ] || { echo "no build-win/cat_recomp.exe -- run build first" >&2; exit 1; }
@@ -483,6 +494,21 @@ if ! flock -n 9; then
     echo "bench: got the run lock after ${waited}s"
 fi
 echo "$(date -Is) $REMOTE_GAME/$LOG (pid $$)" > "$LOCK"
+# A game started outside the bench (the installed copy, or one by hand)
+# takes no lock, and every bench run holds this one, so any game process now
+# is foreign and would make this run's timings noisy: warn (into the run's
+# log dir too), or end it with --kill-game / BENCH_KILL_GAME=1.
+if [ -f scripts/running_game.py ] && games=$(python3 scripts/running_game.py 2>/dev/null) \
+        && [ -n "$games" ]; then
+    if [ "$KILL_GAME" = 1 ]; then
+        python3 scripts/running_game.py --kill | sed 's/^/bench: ended a game outside the bench: /' \
+            | tee -a "$LOG/warnings.txt" || true
+    else
+        printf '%s\n' "$games" \
+            | sed 's/^/bench: WARN a game outside the bench is running; timings will be noisy (--kill-game ends it): /' \
+            | tee -a "$LOG/warnings.txt"
+    fi
+fi
 # Only under the lock: a run from this same checkout may be writing it.
 rm -f xbox_kernel.log
 
@@ -789,7 +815,7 @@ cmd_run() {
 # Non-zero on any failure.
 cmd_tests() {
     need_host
-    step "tests: d3d8_hlsl_split, d3d11_backend_smoke, input_map, nv2a_zbuf, apu_irq, kernel_irql_abi, fp_precision under Proton"
+    step "tests: d3d8_hlsl_split, d3d11_backend_smoke, input_map, nv2a_zbuf, apu_irq, kernel_irql_abi, fp_precision, vblank_ack under Proton"
     local rc=0
     { remote_vars
       cat <<'EOF'
@@ -800,10 +826,10 @@ emu=$(cd ../xboxrecomp 2>/dev/null && pwd -P || true)/tests/proton_run.sh
 [ -f build-win/CMakeCache.txt ] || { echo "tests: no build-win (run bench.sh build first)" >&2; exit 1; }
 cmake -B build-win -DCMAKE_CROSSCOMPILING_EMULATOR="$emu" >/dev/null
 cmake --build build-win --target d3d8_hlsl_split d3d11_backend_smoke input_map_test
-# tests/nv2a_zbuf, apu_irq, kernel_irql_abi and fp_precision are projects of their own
+# tests/nv2a_zbuf, apu_irq, kernel_irql_abi, fp_precision and vblank_ack are projects of their own
 # (not in the game build): configure each beside build-win with the same
 # toolchain.
-standalone="nv2a_zbuf apu_irq kernel_irql_abi fp_precision"
+standalone="nv2a_zbuf apu_irq kernel_irql_abi fp_precision vblank_ack"
 for t in $standalone; do
     src=../xboxrecomp/tests/$t
     [ -f "$src/CMakeLists.txt" ] || { echo "tests: $src missing (toolkit too old?)" >&2; exit 1; }
@@ -996,6 +1022,12 @@ cmd_shell() {
 }
 
 cmd="${1:-}"; shift || true
+# --kill-game, for any command that runs the game: as BENCH_KILL_GAME=1.
+args=()
+for a in "$@"; do
+    if [ "$a" = --kill-game ]; then BENCH_KILL_GAME=1; else args+=("$a"); fi
+done
+set -- ${args[@]+"${args[@]}"}
 case "$cmd" in
     setup) cmd_setup "$@" ;;
     sync)  cmd_sync "$@" ;;

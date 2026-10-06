@@ -1,0 +1,17 @@
+# Line endings that must survive a Windows checkout (core.autocrlf=true):
+# shell scripts and the files bundled into a Linux or macOS install run
+# there, and a CR breaks them. The eol attribute wins over autocrlf.
+*.sh                      text eol=lf
+*.py                      text eol=lf
+*.in                      text eol=lf
+*.env                     text eol=lf
+*.env.*                   text eol=lf
+*.toml                    text eol=lf
+*.toml.*                  text eol=lf
+blinx2                    text eol=lf
+packaging/steamos/*       text eol=lf
+packaging/macos/*         text eol=lf
+packaging/*.default*      text eol=lf
+packaging/README*         text eol=lf
+# cmd.exe wants CRLF.
+*.cmd                     text eol=crlf

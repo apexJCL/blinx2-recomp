@@ -18,7 +18,7 @@
  * Platform-specific code is confined to the host_* functions below; the boot
  * sequence itself is host_main() and is shared.
  *
- * The game-specific constants are BLINX2_ENTRY_POINT, BLINX2_XBE_PATH and
+ * The game-specific constants are BLINX2_ENTRY_POINT, BLINX2_XBE_NAME and
  * BLINX2_GAME_DIR below; report_fault() prints the crash diagnosis.
  *
  * XBE details (from the toolkit's xbe_parser):
@@ -56,6 +56,10 @@
 /* xboxrecomp runtime headers */
 #include <xbox/xboxrecomp.h>
 #include "video_player.h"   /* xbox_HostWindowSetTitle, xbox_HostWindowMain */
+#ifdef RECOMP_ENV_HAVE_ENHANCE_KEYS   /* the toolkit's opt-in enhancements layer */
+#include "enhance.h"
+#include "recomp_exe_dir.h"
+#endif
 
 /*
  * If xboxrecomp.h is not an umbrella header in your setup, include
@@ -95,11 +99,13 @@ extern ptrdiff_t g_xbox_mem_offset;
 
 /*
  * From the XBE header (the toolkit's xbe_parser: python3 -m tools.xbe_parser
- * game_files/default.xbe). The paths are relative to the working directory,
- * so run from the project root.
+ * game_files/default.xbe). The game files are found in RECOMP_GAME_FILES
+ * when set (an installed game's launcher sets it), else in game_files/
+ * relative to the working directory, so a dev run starts from the project
+ * root.
  */
 #define BLINX2_ENTRY_POINT      0x0029A1DA  /* XBE entry point VA */
-#define BLINX2_XBE_PATH         "game_files/default.xbe"
+#define BLINX2_XBE_NAME         "default.xbe"
 #define BLINX2_GAME_DIR         "game_files"
 
 /* ── Forward declarations ──────────────────────────────────── */
@@ -970,11 +976,11 @@ static void host_report_fatal(const char *step, const char *detail)
 
 /* ── Boot sequence (shared) ────────────────────────────────── */
 
-static int host_main(void)
+/* RECOMP_STDIO_LOG and unbuffered stdio, from the entry points: before the
+ * enhancements layer reports its settings and before any thread, so every
+ * line of the boot reaches the log. */
+static void host_stdio_setup(void)
 {
-    void *xbe_data = NULL;
-    size_t xbe_size = 0;
-
     /* RECOMP_STDIO_LOG=<path>: send stdout and stderr to a file (truncated).
      * Proton drops a game's stdio whatever its subsystem, so this is the only
      * way to see the boot log and crash reports there. Before anything prints. */
@@ -1007,6 +1013,12 @@ static int host_main(void)
     /* Deprecated names and bad keys found when the environment was read:
      * held until now, so they land in the log rather than a closed stderr. */
     recomp_env_flush_notes();
+}
+
+static int host_main(void)
+{
+    void *xbe_data = NULL;
+    size_t xbe_size = 0;
 
     printf("=== BLiNX 2 - Static Recompilation ===\n");
     printf("Loading XBE...\n");
@@ -1016,12 +1028,37 @@ static int host_main(void)
     host_install_crash_handler();
     host_install_thread_dump();
 
-    /* Step 2: Load XBE */
-    if (!load_xbe(BLINX2_XBE_PATH, &xbe_data, &xbe_size)) {
-        host_report_fatal("load XBE",
-            "cannot read " BLINX2_XBE_PATH " (relative to the current "
-            "directory). Run from the project root, with the game files in "
-            BLINX2_GAME_DIR "/.");
+    /* Step 2: Load XBE. RECOMP_GAME_FILES and RECOMP_HDD_DIR move the game
+     * files and the emulated hard disk out of the working directory and the
+     * toolkit's default save root, so an installed game keeps its saves
+     * outside the program files (and outside any Wine prefix, which Proton
+     * may recreate). Both unset: the paths and the log are as before. */
+    const char *game_dir_env = recomp_env(RENV_GAME_FILES);
+    const char *hdd_dir = recomp_env(RENV_HDD_DIR);
+    const char *game_dir = (game_dir_env && *game_dir_env) ? game_dir_env
+                                                           : BLINX2_GAME_DIR;
+    if (hdd_dir && !*hdd_dir)
+        hdd_dir = NULL;
+    char xbe_path[1024];
+    int xbe_len = snprintf(xbe_path, sizeof(xbe_path), "%s/" BLINX2_XBE_NAME, game_dir);
+    if (xbe_len < 0 || (size_t)xbe_len >= sizeof(xbe_path)) {
+        /* A truncated path would open some other file, or none, and the
+         * message below would name the wrong one. */
+        host_report_fatal("load XBE", "the game files path (RECOMP_GAME_FILES) is too long");
+        return 1;
+    }
+    if (!load_xbe(xbe_path, &xbe_data, &xbe_size)) {
+        char detail[1400];
+        if (game_dir != game_dir_env)
+            snprintf(detail, sizeof(detail),
+                "cannot read %s (relative to the current directory). Run "
+                "from the project root with the game files in "
+                BLINX2_GAME_DIR "/, or set RECOMP_GAME_FILES.", xbe_path);
+        else
+            snprintf(detail, sizeof(detail),
+                "cannot read %s (from RECOMP_GAME_FILES=%s).",
+                xbe_path, game_dir_env);
+        host_report_fatal("load XBE", detail);
         return 1;
     }
     printf("XBE loaded: %zu bytes\n", xbe_size);
@@ -1108,7 +1145,10 @@ static int host_main(void)
     /* Step 6: Set game directory for file I/O path translation */
     {
         extern void xbox_path_init(const char *game_dir, const char *save_dir);
-        xbox_path_init(BLINX2_GAME_DIR, NULL);
+        xbox_path_init(game_dir, hdd_dir);
+        if (game_dir == game_dir_env || hdd_dir)
+            printf("[BOOT] game files: %s; hdd: %s\n", game_dir,
+                   hdd_dir ? hdd_dir : "toolkit default");
     }
 
     /* Step 7: Initialize kernel bridge (thunk table in Xbox memory) */
@@ -1234,6 +1274,17 @@ static BOOL load_xbe(const char *path, void **out_data, size_t *out_size)
 
 /* ── Entry points ──────────────────────────────────────────── */
 
+/* The enhancements (render scale, present filter, fullscreen): enhance.toml
+ * beside the executable, the environment over it, every key stock by
+ * default. Before any thread, so the backends and the window read settled
+ * values. Without the layer (-DXBOXRECOMP_ENHANCE=OFF) this is nothing. */
+static void host_enhance_init(void)
+{
+#ifdef RECOMP_ENV_HAVE_ENHANCE_KEYS
+    xbox_enhance_init(recomp_exe_dir(), NULL);
+#endif
+}
+
 #if defined(_WIN32)
 /* The Windows build links as a GUI-subsystem program, which starts here. */
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
@@ -1244,8 +1295,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     (void)lpCmdLine;
     (void)nCmdShow;
     recomp_env_init();   /* the environment, read once, before any thread */
+    host_stdio_setup();
+    host_enhance_init();
     xbox_log_thread_role("process-main", 0);
-    xbox_HostWindowSetTitle("BLiNX 2 (recomp)");
+    xbox_HostWindowSetTitle("BLiNX 2");
     return host_main();
 }
 #endif
@@ -1268,8 +1321,10 @@ int main(int argc, char **argv)
      * (renaming it breaks pgrep/ps). host_main then logs guest-main, on this
      * thread when headless or on Windows, on its own pthread when windowed. */
     recomp_env_init();   /* the environment, read once, before any thread */
+    host_stdio_setup();
+    host_enhance_init();
     xbox_log_thread_role("process-main", 0);
-    xbox_HostWindowSetTitle("BLiNX 2 (recomp)");
+    xbox_HostWindowSetTitle("BLiNX 2");
 #if defined(_WIN32)
     return host_main();
 #else

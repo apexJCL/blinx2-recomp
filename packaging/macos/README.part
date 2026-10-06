@@ -1,0 +1,14 @@
+Install and update (macOS)
+--------------------------
+Open the .dmg and drag BLiNX2.app to Applications, replacing the old one
+for an update. The game files are inside the app. To uninstall, drag the app
+to the Trash; your saves stay in Application Support.
+
+The app is signed ad hoc on the Mac that built it, not notarized. On
+another Mac, Gatekeeper may refuse it: right-click > Open once, or run
+  xattr -dr com.apple.quarantine /Applications/BLiNX2.app
+
+Controls
+--------
+Use a controller (Xbox, PlayStation or another SDL-supported pad); it is
+player 1. The keyboard does not drive the game on macOS yet.

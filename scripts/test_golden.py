@@ -217,6 +217,45 @@ def test_cpu_skip():
         assert rc == 0 and "SKIP" in out, out
 
 
+# ---- stock guarantee: a run with enhancements on is never a golden ---------------
+
+STOCK = "[ENHANCE] render.scale=1 present.filter=nearest present.fullscreen=0 (display.aspect=4:3)"
+
+
+def enhance_case(tmp, enhance_lines):
+    sha = ref_png(tmp, "f", flat(100))
+    frame = {"name": "f", "dump": 1, "sha256": sha, "size": [W, H]}
+    gj = make_golden(tmp, frame)
+    d = setup_run(tmp, enhance_lines + metal_log({61: 3}), {61: flat(100)})
+    return run_check(tmp, gj, d)
+
+
+def test_enhance_scale_2_fails():
+    with tempfile.TemporaryDirectory() as tmp:
+        rc, out = enhance_case(tmp, [STOCK.replace("render.scale=1", "render.scale=2")])
+        assert rc == 1 and "not a stock run" in out and "render.scale=2" in out, out
+
+
+def test_enhance_aspect_fails():
+    with tempfile.TemporaryDirectory() as tmp:
+        rc, out = enhance_case(tmp, [
+            "[ENHANCE] display.aspect=16:9 not implemented yet (hor+ is a later slice); using 4:3",
+            STOCK])
+        assert rc == 1 and "display.aspect=16:9" in out, out
+
+
+def test_enhance_stock_passes():
+    with tempfile.TemporaryDirectory() as tmp:
+        rc, out = enhance_case(tmp, [STOCK])
+        assert rc == 0 and "EXACT" in out, out
+
+
+def test_enhance_no_line_passes():
+    with tempfile.TemporaryDirectory() as tmp:
+        rc, out = enhance_case(tmp, [])
+        assert rc == 0 and "EXACT" in out, out
+
+
 # ---- pace: flips per wall second from the anchor to the frame ------------------
 
 def paced_run(tmp, fps, timed=True, img=None, flip=81):

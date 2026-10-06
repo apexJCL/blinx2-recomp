@@ -14,7 +14,9 @@
     "RECOMP_TRACE": "flip",
     "RECOMP_HOST_PAD": "0",
     "RECOMP_KEYBOARD": "0",
-    "RECOMP_INPUT_STRICT": "1"
+    "RECOMP_INPUT_STRICT": "1",
+    "RECOMP_ENHANCE_CONFIG": "none",
+    "RECOMP_RENDER_SCALE": "1"
   },
   "scenarios": {
     "attract": {

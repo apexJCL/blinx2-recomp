@@ -224,31 +224,5 @@
     "start": "0x000EF540",
     "source": "ICALL failure on macOS (4 hits at boot, not blocking), ecx=0xEF540 passed to sub_0015FD70 in recomp_0027; decodes as function body, follows sub_000EF500. NOT regen-tested",
     "observed": true
-  },
-  {
-    "start": "0x000AEC20",
-    "source": "ICALL failure on macOS Metal, debug stage select St1-4 BOSS1 and St1-4 VS (screenshot runs, local logs); decodes as a function body after a jump-table/padding run that disasm had folded into sub_000AEC0E",
-    "observed": true
-  },
-  {
-    "start": "0x000D09F0",
-    "source": "ICALL failure on macOS Metal, debug stage select St4-1&2 SWEEPER (screenshot run, local log; fatal); decodes as a function body (push ebx/push esi, stores callbacks 0xD0B50/0xD0EC0/0xD1A30) after data at 0xD09E0",
-    "observed": true
-  },
-  {
-    "start": "0x00158BE0",
-    "source": "code pointer in .data at 0x4114CC (static check, Fable review of shots/suite): follows ret at 0x158BDF, decodes as a function body with branches to 0x158CB5 and 0x158D87, rets at 0x158CB4/0x158CFB/0x158D86/0x158D8E, then int3 padding; lies in the gap after sub_00158AF3, so it splits nothing. NOT regen-tested"
-  },
-  {
-    "start": "0x002E0888",
-    "source": "constant thunk `mov eax, 0x3E12E0; jmp 0x2D6AE4` after int3 padding, same shape as the seeded siblings 0x2E0851/0x2E086B/0x2E08AB (static check, Fable review of shots/suite); in the gap after the preceding funclet. NOT regen-tested"
-  },
-  {
-    "start": "0x002E08C8",
-    "source": "constant thunk `mov eax, 0x3E1400; jmp 0x2D6AE4` after int3 padding, same shape as the seeded siblings 0x2E0851/0x2E086B/0x2E08AB (static check, Fable review of shots/suite); in the gap after the preceding funclet. NOT regen-tested"
-  },
-  {
-    "start": "0x002E08E8",
-    "source": "constant thunk `mov eax, 0x3E146C; jmp 0x2D6AE4` after int3 padding, same shape as the seeded siblings 0x2E0851/0x2E086B/0x2E08AB (static check, Fable review of shots/suite); in the gap after the preceding funclet. NOT regen-tested"
   }
 ]

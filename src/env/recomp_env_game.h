@@ -9,12 +9,15 @@
 #define RECOMP_ENV_GAME_H
 
 #define RECOMP_ENV_GAME_KEYS(X) \
+    X(GAME_FILES,        CONFIG, "RECOMP_GAME_FILES",        NULL, "game files directory (default: game_files/ in the working directory)") \
+    X(HDD_DIR,           CONFIG, "RECOMP_HDD_DIR",           NULL, "emulated hard disk: partition images, saves, caches (default: the toolkit's save root)") \
     X(SAVE_SEED,         CONFIG, "RECOMP_SAVE_SEED",         NULL, "seed the save dir from this save before boot") \
     X(INPUT_SCRIPT,      CONFIG, "RECOMP_INPUT_SCRIPT",      NULL, "scripted pad: @preset, file or inline script") \
     X(INPUT_STRICT,      CONFIG, "RECOMP_INPUT_STRICT",      NULL, "1: a bad input script ends the run") \
     X(HOST_PAD,          CONFIG, "RECOMP_HOST_PAD",          NULL, "0/1: host gamepads in or out") \
     X(RUMBLE,            CONFIG, "RECOMP_RUMBLE",            NULL, "0: no rumble") \
     X(INPUT_TRACE,       TRACE, "input",           "RECOMP_INPUT_TRACE",       "pad handles and states") \
+    X(UNIMPL_BUDGET,     TRACE, "unimpl_budget",   NULL,                       "=n: [UNIMPL] lines per address before only hits 10, 100, ... (3)") \
     X(APU_FAULT_BENCH,   DEBUG, "apu_fault_bench", "RECOMP_APU_FAULT_BENCH",   "=n: time n trapped APU accesses") \
     X(MEM_DUMP,          DEBUG, "mem_dump",        "RECOMP_MEM_DUMP",          "=va,bytes,prefix: guest memory dumps") \
     X(MEM_DUMP_EVERY,    DEBUG, "mem_dump_every",  "RECOMP_MEM_DUMP_EVERY",    "=s: mem_dump period, default 20") \
