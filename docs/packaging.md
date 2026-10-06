@@ -42,8 +42,10 @@ download checked against a pinned sha256.
 - **Linux:** for the windows target, `makensis` from the distribution
   (`sudo apt install nsis`, `sudo dnf install mingw32-nsis`,
   `sudo pacman -S nsis`). On an immutable system (SteamOS, Fedora Atomic and
-  similar), run the build in a toolbox or distrobox; `blinx2 doctor` prints
-  the commands.
+  similar), `makensis` goes in a toolbox or distrobox: build on the host,
+  then run `blinx2 package windows --no-build` inside the box, which only
+  stages the files and runs `makensis` (the host's `.venv` does not run in
+  the box). `blinx2 doctor` prints the commands.
 - **Windows:** Python from python.org (the `py` launcher) and Git for
   Windows. Use a short checkout path such as `C:\b2`, and run
   `git config --global core.longpaths true`; `doctor` warns when the path is
@@ -159,9 +161,13 @@ one).
   `KEY=value` lines (for example `RECOMP_PB_BACKEND=cpu`); `docs/env.md`
   lists them.
 
-**Untested natively on Windows.** The installer, launcher and uninstaller
-are tested under Proton on Linux only. Building on a Windows host is
-untested too.
+**Untested natively on Windows.** Under Proton on Linux, with the silent
+switch (`/S`), these are tested: install, a launch to the D3D11 title and
+attract screens, `BLINX2_DATA_DIR`, installing again on top, and uninstall
+(the program folder goes, `%LOCALAPPDATA%\BLiNX2` stays byte for byte).
+The interactive setup pages, the Start Menu and desktop shortcuts, and the
+Settings > Apps entry are not tested, and neither is building on a Windows
+host.
 
 ## 4. Linux gaming PC (steamos)
 

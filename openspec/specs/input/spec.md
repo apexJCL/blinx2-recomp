@@ -1,7 +1,7 @@
 # input Specification
 
 ## Purpose
-TBD - created by archiving change input. Update Purpose after archive.
+Defines how the title's controller input is supplied: the XInput entry points the port overrides, the scripted pad used by tests and goldens, and host controllers (and, where supported, the keyboard) mapped onto the Duke layout.
 
 ## Requirements
 

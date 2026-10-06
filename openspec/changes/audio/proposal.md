@@ -26,4 +26,6 @@ There is no audio for this title. Disc audio is CRI ADX/AIX, decoded by translat
 
 ## Status
 
-Planned. Design, spec deltas and tasks written; the Phase 0 spike (one Proton run with `RECOMP_AC97_READY=1 RECOMP_APU_TRACE=1`) gates the GP handshake decision before implementation starts.
+In progress (reviewed 2026-10-06 in the openspec cleanup). The audio path is merged and on by default under Proton and on macOS arm64: the spike, the toolkit output path (phase 2), the GP doorbell ack (now `RECOMP_APU_DSP_ACK=auto`), APU interrupt delivery, `audio_check.py` with `audio.json`, and the default (7.1). The macOS arm64 port (`audio-macos`, archived) folded its spec text into this change's delta. Later fixes landed outside this change: the vblank pacer that every waiter wakes on (the Proton speech cutoff), the voice-cutoff checks, and the menu-music finding (an incomplete dump, not a runtime bug).
+
+Still open, and the reason this change is not archived: the measured buffer defaults and the ~20 ms latency target (4.2, 4.3, 4.6), the steady-state rate measurement (4.4), `BENCH_AUDIO` in `bench.sh` (5.3), xemu reference audio (5.4, 5.5), A/V sync against the Sofdec clock (6.x) and the close-out (7.2-7.5). Archive when those are done or explicitly dropped; the requirements for them are still in the delta.

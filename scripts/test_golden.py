@@ -256,6 +256,75 @@ def test_enhance_no_line_passes():
         assert rc == 0 and "EXACT" in out, out
 
 
+PACED = ("[ENHANCE] render.scale=1 present.filter=nearest present.fullscreen=0"
+         " present.pacing={} (display.aspect=4:3)")
+
+
+def test_enhance_pacing_spin_and_lock30_pass():
+    with tempfile.TemporaryDirectory() as tmp:
+        rc, out = enhance_case(tmp, [PACED.format("spin"), "[ENHANCE] fps.mode=lock30"])
+        assert rc == 0 and "EXACT" in out, out
+
+
+def test_enhance_pacing_sleep_fails():
+    with tempfile.TemporaryDirectory() as tmp:
+        rc, out = enhance_case(tmp, [PACED.format("sleep")])
+        assert rc == 1 and "present.pacing=sleep" in out, out
+
+
+def test_enhance_fps_mode_fails_even_when_unavailable():
+    with tempfile.TemporaryDirectory() as tmp:
+        rc, out = enhance_case(tmp, [
+            PACED.format("spin"),
+            "[ENHANCE] fps.mode=lock60 not available for this title (stage logic"
+            " advances a fixed 1/30 s per frame; see docs/env.md); using lock30"])
+        assert rc == 1 and "fps.mode=lock60" in out, out
+
+
+def check_allowing(tmp, lines, *allow):
+    sha = ref_png(tmp, "f", flat(100))
+    frame = {"name": "f", "dump": 1, "sha256": sha, "size": [W, H]}
+    gj = make_golden(tmp, frame)
+    d = setup_run(tmp, lines + metal_log({61: 3}), {61: flat(100)})
+    G.GOLDEN_JSON = gj
+    G.FRAMES_DIR = os.path.join(tmp, "frames")
+    args = []
+    for a in allow:
+        args += ["--allow-enhance", a]
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        rc = G.cmd_check(args + ["s=" + d])
+    return rc, out.getvalue()
+
+
+def test_allow_enhance_evaluates_with_a_note():
+    with tempfile.TemporaryDirectory() as tmp:
+        rc, out = check_allowing(tmp, [PACED.format("sleep")], "present.pacing=sleep")
+        assert rc == 0 and "EXACT" in out and "NOTE" in out and "present.pacing=sleep" in out, out
+
+
+def test_allow_enhance_is_only_that_value():
+    with tempfile.TemporaryDirectory() as tmp:
+        rc, out = check_allowing(tmp, [PACED.format("sleep").replace(
+            "render.scale=1", "render.scale=2")], "present.pacing=sleep")
+        assert rc == 1 and "render.scale=2" in out and "present.pacing=sleep" not in out.split(
+            "not a stock run")[1].split(")")[0], out
+
+
+def test_allow_enhance_bad_key_and_record_refuse():
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            check_allowing(tmp, [], "present.vsync=1")
+            assert False, "bad key accepted"
+        except SystemExit as e:
+            assert "KEY=VALUE" in str(e)
+        try:
+            G.cmd_record(["--allow-enhance", "present.pacing=sleep", "s=" + tmp])
+            assert False, "record accepted --allow-enhance"
+        except SystemExit as e:
+            assert "stock runs only" in str(e)
+
+
 # ---- pace: flips per wall second from the anchor to the frame ------------------
 
 def paced_run(tmp, fps, timed=True, img=None, flip=81):

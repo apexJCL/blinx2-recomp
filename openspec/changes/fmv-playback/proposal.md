@@ -25,3 +25,7 @@ This change is mostly a decision record, so that nobody replaces a decoder that 
 - Toolkit: the file I/O layer (movie-window tagging), `src/kernel/nv2a_pb_exec.c` (unchanged YUV sampler).
 - No change to the decoder or to generated code.
 - A/V sync depends on `audio`: Sofdec uses audio as the master clock (xemu #1118 is the failure mode).
+
+## Status
+
+Open (reviewed 2026-10-06 in the openspec cleanup). The decision record holds: movies are Sofdec, decoded by the title, and drawn through the shared YUV decode on the CPU, D3D11 and Metal paths. No measurement support has been written yet (2.1, 2.2), and the later items wait on it or on `audio` 6.x. The GPU paths still convert YUY2/UYVY at upload (3.1). Low priority: movies play correctly today.

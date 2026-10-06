@@ -280,6 +280,12 @@ def test_uninstall_keeps_user_data(d):
     rc, out = cli(b, root, "uninstall")
     assert rc == 0, out
     assert sorted(os.listdir(root)) == ["config", "hdd", "logs"], os.listdir(root)
+    assert "Remove the %s shortcut" % pl.PRODUCT_NAME in out, out
+    # Installing again into what uninstall left works; cli() checks the
+    # saves are untouched.
+    rc, out = cli(b, root, "install")
+    assert rc == 0, out
+    assert os.path.isfile(os.path.join(root, "game_files", "default.xbe"))
 
 
 def test_foreign_root_refused(d):

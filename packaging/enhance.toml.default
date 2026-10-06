@@ -14,3 +14,10 @@ aspect = "4:3"            # only 4:3 so far
 [present]
 filter = "nearest"        # "nearest" (stock), "linear", "integer"
 fullscreen = false        # true: borderless fullscreen at start
+pacing = "spin"           # "spin" (stock: the frame wait holds a CPU core, as on
+                          # the Xbox) or "sleep" (it sleeps until the next
+                          # vblank instead; the frames are the same)
+
+[fps]
+mode = "lock30"           # lock60 and free are not available for this title:
+                          # the stage logic steps a fixed 1/30 s per frame

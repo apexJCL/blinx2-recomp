@@ -3,8 +3,10 @@
 - [x] 1.1 `bench.sh` writes `run-info.txt` (host, Proton, env, args, exe sha).
 - [x] 1.2 `bench.sh sync` refuses while `.gen-regenerating` exists.
 - [x] 1.3 `bench.sh logs` / `symbolize` write `crash-symbols.txt` (`9a756d5`).
-- [ ] 1.4 `pipeline.sh recomp` writes `gen/PROVENANCE` (toolkit commit, seed files, `recomp_manual.c` hash).
+- [x] 1.4 `pipeline.sh recomp` writes `gen/PROVENANCE` (toolkit commit, seed files, `recomp_manual.c` hash).
+  - Done differently (2026-10-06 cleanup): `blinx2 recomp` writes `src/recomp/gen.key.json` (the inputs that decide the generated code), and `bench.sh integrate` compares the local and remote `gen/` digests.
 - [ ] 1.5 `run-info.txt` also records the toolkit and cat commits and the `gen/PROVENANCE` content.
+  - Status (2026-10-06): `run-info.txt` quotes `build-win/provenance.txt` (cat and toolkit commits, branches, dirty state at sync). Open: the `gen/` digest or `gen.key.json` in `run-info.txt`.
 
 ## 2. Instrumentation
 

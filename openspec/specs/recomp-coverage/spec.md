@@ -17,15 +17,15 @@ The pipeline SHALL disassemble and translate every XBE section that contains cod
 - **THEN** no functions are reported in the model/motion data sections (DOLBY and every section after it)
 
 ### Requirement: Measured indirect targets seed function detection
-The pipeline SHALL pass a hand-maintained list of runtime-measured indirect-call targets to function detection. Each listed address SHALL become a function start in the next recompilation.
+The pipeline SHALL pass a hand-maintained list of runtime-measured indirect-call targets (`config/seed_functions.json`) to function detection. Each listed address SHALL become a function start in the next recompilation. The pipeline SHALL NOT pass the raw `icall_feedback` database to `--seed-functions`. When the database exists, the disasm stage SHALL regenerate `analysis/icall_seeds.json` from it with `tools.recomp.icall_feedback seeds --xbe` and pass that filtered file as a second seed file.
 
 #### Scenario: Thread entry inside a merged function
 - **WHEN** the game starts a thread at `0x002D702E`
 - **THEN** the dispatcher resolves it to `sub_002D702E`, and the thread runs instead of exiting immediately
 
 #### Scenario: Seed list kept separate from generated feedback
-- **WHEN** the `icall_feedback` database is used as a second seed file
-- **THEN** it is passed as its own `--seed-functions` argument, and the hand-maintained list is not rewritten
+- **WHEN** `tools/recomp/output/icall_targets.json` (or `$ICALL_DB`) exists and the disasm stage runs
+- **THEN** `analysis/icall_seeds.json` is rewritten from it, disasm is invoked with `--seed-functions config/seed_functions.json --seed-functions analysis/icall_seeds.json`, and the hand-maintained list is not rewritten
 
 ### Requirement: Every direct branch out of a lifted body lands on an entry
 Function detection SHALL register an alias entry for every direct jmp/jcc whose target lies outside its primary or alias body and on a decoded instruction strictly inside another detected function. The alias SHALL end at the containing body's end. The pass SHALL iterate until no new alias is found. Targets in gaps between functions SHALL be left to the orphan pass.

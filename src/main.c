@@ -58,6 +58,7 @@
 #include "video_player.h"   /* xbox_HostWindowSetTitle, xbox_HostWindowMain */
 #ifdef RECOMP_ENV_HAVE_ENHANCE_KEYS   /* the toolkit's opt-in enhancements layer */
 #include "enhance.h"
+#include "enhance_cfg.h"
 #include "recomp_exe_dir.h"
 #endif
 
@@ -1274,14 +1275,34 @@ static BOOL load_xbe(const char *path, void **out_data, size_t *out_size)
 
 /* ── Entry points ──────────────────────────────────────────── */
 
-/* The enhancements (render scale, present filter, fullscreen): enhance.toml
- * beside the executable, the environment over it, every key stock by
- * default. Before any thread, so the backends and the window read settled
- * values. Without the layer (-DXBOXRECOMP_ENHANCE=OFF) this is nothing. */
+/* The enhancements (render scale, present filter, fullscreen, pacing):
+ * enhance.toml beside the executable, the environment over it, every key
+ * stock by default. Before any thread, so the backends, the window and the
+ * kernel read settled values. Without the layer (-DXBOXRECOMP_ENHANCE=OFF)
+ * this is nothing.
+ *
+ * fps.mode is the game's key. Only lock30 exists: the stage logic advances a
+ * fixed 1/30 s per frame, so running it at 60 doubles the game's speed (the
+ * fps spike, docs/env.md). lock60 and free say so and run lock30; nothing
+ * changes in the guest. Read before the unused-key report, so a file that
+ * sets it is not told the key is unknown. */
 static void host_enhance_init(void)
 {
 #ifdef RECOMP_ENV_HAVE_ENHANCE_KEYS
+    static const char *const fps_modes[] = { "lock30", "lock60", "free", NULL };
+    int fps;
+
     xbox_enhance_init(recomp_exe_dir(), NULL);
+    enhance_cfg_bind_env("fps.mode", RENV_FPS_MODE);
+    fps = enhance_cfg_choice("fps.mode", fps_modes, 0);
+    if (fps == 0)
+        fprintf(stderr, "[ENHANCE] fps.mode=lock30\n");
+    else
+        fprintf(stderr, "[ENHANCE] fps.mode=%s not available for this title"
+                        " (stage logic advances a fixed 1/30 s per frame;"
+                        " see docs/env.md); using lock30\n", fps_modes[fps]);
+    enhance_cfg_report_unused();
+    fflush(stderr);
 #endif
 }
 

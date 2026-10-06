@@ -243,7 +243,11 @@ def check_ours(root, installing):
     marker = root.p("state", "layout")
     if os.path.isfile(marker):
         return
-    if installing and (not os.path.isdir(root.path) or not os.listdir(root.path)):
+    # What uninstall leaves (the user-data folders alone) takes a fresh
+    # install again: reinstalling after an uninstall must find the saves.
+    if installing and (not os.path.isdir(root.path) or
+                       all(n in USER_DIRS and os.path.isdir(root.p(n))
+                           for n in os.listdir(root.path))):
         return
     raise InstallError("%s is not a BLiNX2 install root (no state/layout); refusing to %s it"
                        % (root.path, "install into" if installing else "change"))
@@ -381,6 +385,19 @@ def desktop_exec_arg(path):
     if any(c in DESKTOP_RESERVED for c in path):
         path = '"%s"' % re.sub(r'(["`$\\])', r"\\\1", path)
     return path.replace("\\", "\\\\")
+
+
+def desktop_name(root):
+    """The Name= of the installed .desktop entry (the Steam shortcut's
+    name), or None."""
+    try:
+        with open(root.p("BLiNX2.desktop")) as f:
+            for line in f:
+                if line.startswith("Name="):
+                    return line[5:].strip()
+    except OSError:
+        pass
+    return None
 
 
 def write_desktop(root, name):
@@ -608,6 +625,7 @@ def cmd_uninstall(root):
         say("not installed at %s" % root.path)
         return
     check_ours(root, installing=False)
+    shortcut = desktop_name(root) or "game's"
     for name in ("current", "current.new", "BLiNX2", "BLiNX2.desktop"):
         p = root.p(name)
         if os.path.lexists(p):
@@ -617,7 +635,7 @@ def cmd_uninstall(root):
     kept = [d for d in USER_DIRS if os.path.isdir(root.p(d))]
     say("removed the program from %s" % root.path)
     say("kept: %s" % (", ".join(root.p(d) for d in kept) or "(no user data yet)"))
-    say("Remove the BLiNX2 shortcut in Steam yourself (right-click > Manage > Remove).")
+    say("Remove the %s shortcut in Steam yourself (right-click > Manage > Remove)." % shortcut)
 
 
 def main(argv=None, host_check=True, bench=None):

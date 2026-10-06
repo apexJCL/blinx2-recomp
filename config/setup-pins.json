@@ -38,7 +38,7 @@
   },
   "toolkit": {
     "branch": "blinx2/portability",
-    "commit": "0c4c857e1fbd5f48edac9d367e1db0e057ae511b",
+    "commit": "6d51fa2d2b9eae4a31b22022925c6e72ad14dd04",
     "url": "https://github.com/apexJCL/xboxrecomp.git"
   }
 }

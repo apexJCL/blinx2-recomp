@@ -4,10 +4,16 @@
   golden.py plan                  scenario<TAB>seconds<TAB>min_flips<TAB>env lines, for bench.sh
   golden.py frames SCEN           the dump indexes (NNNN) SCEN checks
   golden.py diff A B [TOL]                     per-channel stats for two images (BMP or PNG)
-  golden.py check [--window K] [--log SCEN=LOG]... SCEN=DIR...
+  golden.py check [--window K] [--log SCEN=LOG]... [--allow-enhance KEY=VALUE]...
+                SCEN=DIR...
                                   compare each scenario's dumped frames with
                                   analysis/golden/golden.json; exit 1 on a
-                                  regression, 2 on a missing frame or reference
+                                  regression, 2 on a missing frame or reference.
+                                  A run whose [ENHANCE] lines show a non-stock
+                                  render.scale, display.aspect, present.pacing
+                                  or fps.mode FAILs unless that KEY=VALUE is
+                                  allowed (an evaluation run, noted; record
+                                  refuses the flag)
   golden.py dumpat SCEN [--slack W] [--window K]
                                   the RECOMP_DEBUG=fb_dump_at= flip list that makes a
                                   run (Metal, CPU) dump SCEN's frames by flip
@@ -830,30 +836,62 @@ def run_backend(log):
 
 ENHANCE_SCALE_RE = re.compile(r"\[ENHANCE\] render\.scale=(\d+) ")
 ENHANCE_ASPECT_RE = re.compile(r"\[ENHANCE\].*display\.aspect=([0-9:]+)")
+ENHANCE_PACING_RE = re.compile(r"\[ENHANCE\].* present\.pacing=(\w+)")
+ENHANCE_FPS_RE = re.compile(r"\[ENHANCE\] fps\.mode=(\w+)")
+
+# key -> (pattern, stock value)
+ENHANCE_STOCK = (("render.scale", ENHANCE_SCALE_RE, "1"),
+                 ("display.aspect", ENHANCE_ASPECT_RE, "4:3"),
+                 ("present.pacing", ENHANCE_PACING_RE, "spin"),
+                 ("fps.mode", ENHANCE_FPS_RE, "lock30"))
 
 
-def enhance_nonstock(log):
+def enhance_nonstock(log, allow=()):
     """Why a run is not a stock run, from its enhancements lines, or None.
-    Goldens always run at the title's stock resolution and aspect: a
-    render.scale other than 1 or a display.aspect other than 4:3 (asked
-    for, even where the toolkit falls back) makes the run unusable as a
+    Goldens always run at the title's stock resolution, aspect, pacing and
+    frame rate: a render.scale other than 1, a display.aspect other than
+    4:3, a present.pacing other than spin or an fps.mode other than lock30
+    (asked for, even where the game falls back) makes the run unusable as a
     golden, whatever its frames look like. No [ENHANCE] line (a build
-    without the layer) is stock."""
+    without the layer) is stock.
+
+    allow: "key=value" strings an evaluation run asked for on purpose
+    (--allow-enhance); those are left out here and reported by
+    enhance_allowed instead."""
     why = []
     try:
         with open(log, errors="replace") as f:
             for line in f:
                 if "[ENHANCE]" not in line:
                     continue
-                m = ENHANCE_SCALE_RE.search(line)
-                if m and m.group(1) != "1" and f"render.scale={m.group(1)}" not in why:
-                    why.append(f"render.scale={m.group(1)}")
-                m = ENHANCE_ASPECT_RE.search(line)
-                if m and m.group(1) != "4:3" and f"display.aspect={m.group(1)}" not in why:
-                    why.append(f"display.aspect={m.group(1)}")
+                for key, rx, stock in ENHANCE_STOCK:
+                    m = rx.search(line)
+                    kv = f"{key}={m.group(1)}" if m else None
+                    if m and m.group(1) != stock and kv not in why and kv not in allow:
+                        why.append(kv)
     except (OSError, TypeError):
         return None
     return ", ".join(why) or None
+
+
+def enhance_allowed(log, allow):
+    """The --allow-enhance settings this run's log does show, for the note."""
+    if not allow or not log:
+        return []
+    seen = []
+    try:
+        with open(log, errors="replace") as f:
+            for line in f:
+                if "[ENHANCE]" not in line:
+                    continue
+                for key, rx, _ in ENHANCE_STOCK:
+                    m = rx.search(line)
+                    kv = f"{key}={m.group(1)}" if m else None
+                    if kv in allow and kv not in seen:
+                        seen.append(kv)
+    except OSError:
+        return []
+    return seen
 
 
 def find_anchor(batches, ev):
@@ -985,13 +1023,19 @@ def window_report(d, img_path, ref, fr, th, k):
 def cmd_check(args):
     g = load_golden()
     th = g["compare"]
-    window, logs, rest = 2, {}, []
+    window, logs, rest, allow = 2, {}, [], []
     it = iter(args)
     for a in it:
         if a == "--window":
             window = int(next(it))
         elif a == "--log":
             logs.update(parse_scen_args([next(it)]))
+        elif a == "--allow-enhance":
+            kv = next(it)
+            if "=" not in kv or kv.split("=", 1)[0] not in {k for k, _, _ in ENHANCE_STOCK}:
+                sys.exit(f"golden: --allow-enhance takes KEY=VALUE with KEY one of "
+                         + ", ".join(k for k, _, _ in ENHANCE_STOCK))
+            allow.append(kv)
         else:
             rest.append(a)
     dirs = parse_scen_args(rest)
@@ -1004,12 +1048,16 @@ def cmd_check(args):
         batches = flip_batches(log) if log else None
         times = flip_times(log) if log else None
         backend = run_backend(log) if log else None
-        nonstock = enhance_nonstock(log) if log else None
+        nonstock = enhance_nonstock(log, allow) if log else None
         if nonstock:
             print(f"FAIL     {scen}: not a stock run ({nonstock} in {log}); goldens run"
-                  " at the stock resolution and aspect, frames not compared")
+                  " at the stock resolution, aspect, pacing and frame rate, frames"
+                  " not compared")
             rcs.append(1)
             continue
+        for kv in enhance_allowed(log, allow):
+            print(f"NOTE     {scen}: evaluation run with {kv} (--allow-enhance);"
+                  " not a stock run, never recorded")
         for fr in sc["frames"]:
             tag = f"{scen}/{fr['name']} (dump {fr['dump']}, present {fr['dump'] * 60 + 1})"
             skip = fr.get("skip_backends", sc.get("skip_backends", []))
@@ -1293,6 +1341,9 @@ def cmd_record(args):
     a short run cannot leave new PNGs next to old hashes."""
     g = load_golden()
     only = None
+    if "--allow-enhance" in args:
+        sys.exit("golden: --allow-enhance is for evaluating runs (check); references"
+                 " are recorded from stock runs only")
     if args[:1] == ["--only"] and len(args) > 1:
         only, args = set(args[1].split(",")), args[2:]
     dirs = parse_scen_args(args)

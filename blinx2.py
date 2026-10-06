@@ -340,7 +340,10 @@ ANALYSIS_JSON = os.path.join(ROOT, "game_files", "default_analysis.json")
 OUT = os.path.join(ROOT, "analysis")
 SEEDS = os.path.join(ROOT, "config", "seed_functions.json")
 ICALL_SEEDS = os.path.join(OUT, "icall_seeds.json")
-GAME_NAME = os.path.basename(ROOT)
+# Fixed, not the checkout folder's name: recomp writes it into every gen/
+# file, so a clone in another folder would generate different bytes (and a
+# different gen hash in the version) from the same inputs.
+GAME_NAME = "cat"
 # Code outside .text: the XDK library sections. --text-only stays, because
 # the XBE also flags ~60 model/motion data sections (DOLBY onwards)
 # executable and sweeping those yields phantom functions. See openspec
@@ -422,6 +425,8 @@ def abi_cmds(extra=()):
 GHIDRA_EXPORT = os.path.join(OUT, "ghidra", "export", "functions.json")
 HOST_RESERVED = os.path.join(ROOT, "scripts", "host_reserved_names.py")
 RECOMP_MANUAL = os.path.join(ROOT, "src", "recomp_manual.c")
+# The busy-wait loops recomp lowers to RECOMP_SPIN_WAIT (present.pacing).
+SPIN_WAITS = os.path.join(ROOT, "config", "spin_waits.json")
 
 
 def names_cmds(extra=()):
@@ -443,6 +448,7 @@ def recomp_cmds(extra=()):
                      "--game-name", GAME_NAME, "--disasm-dir", os.path.join(OUT, "disasm"),
                      "--func-id-dir", os.path.join(OUT, "func_id"),
                      "--abi-dir", os.path.join(OUT, "abi"),
+                     "--spin-waits", SPIN_WAITS,
                      "-o", os.path.join(OUT, "recomp"), *extra)]
 
 
@@ -554,7 +560,10 @@ def stage_recomp(extra=()):
     require(os.path.join(OUT, "abi", "abi_functions.json"), "abi")
     os.makedirs(os.path.dirname(REGEN_MARKER), exist_ok=True)
     open(REGEN_MARKER, "a").close()
-    run_cmds(recomp_cmds(extra))
+    # -v makes the translator print "[i/n] Translating" every 500 functions,
+    # the progress view's only signal in a 10-20 minute step. It changes no
+    # output, so it is left out of the argv the generation key hashes.
+    run_cmds(recomp_cmds(("-v",) + tuple(extra)))
     os.remove(REGEN_MARKER)
     write_gen_key()
 
@@ -622,7 +631,7 @@ def _placeholders(text):
 def gen_inputs():
     """{path with placeholders: sha256 | 'absent'}: every file outside gen/
     the stages read that the pipeline does not produce itself."""
-    files = [SEEDS, icall_db(), RECOMP_MANUAL, HOST_RESERVED, GHIDRA_EXPORT]
+    files = [SEEDS, icall_db(), RECOMP_MANUAL, SPIN_WAITS, HOST_RESERVED, GHIDRA_EXPORT]
     return {_placeholders(p): (sha256_path(p) if os.path.isfile(p) else "absent") for p in files}
 
 
@@ -764,8 +773,10 @@ MAKENSIS_HINT = {
     "fedora": "sudo dnf install mingw32-nsis",
     "arch": "sudo pacman -S nsis   (or the AUR package)",
     "immutable": ("in a toolbox or distrobox: distrobox create -n blinx2-build -i fedora:42, "
-                  "then distrobox enter blinx2-build -- sudo dnf install -y mingw32-nsis, "
-                  "and run 'blinx2 package windows' inside the box"),
+                  "then distrobox enter blinx2-build -- sudo dnf install -y mingw32-nsis; "
+                  "build on the host ('blinx2 package steamos' or 'blinx2 build'), then run "
+                  "'blinx2 package windows --no-build' inside the box (the host's .venv "
+                  "does not run there)"),
 }
 
 

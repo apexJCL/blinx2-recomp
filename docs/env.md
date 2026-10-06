@@ -2,9 +2,9 @@
 
 Every variable the runtime reads goes through one table, `RECOMP_ENV_KEYS` in toolkit `src/platform/recomp_env.h`, and is read once at startup (`recomp_env_init`, called first in `main`) and cached. A lookup is an array load, so call sites in hot paths cost nothing. There are three tiers:
 
-- **Config** (32): documented knobs, each its own variable (`RECOMP_PB_BACKEND=d3d11`). Five of them belong to the toolkit's enhancements layer (`RECOMP_ENHANCE_CONFIG`, `RECOMP_RENDER_SCALE`, `RECOMP_DISPLAY_ASPECT`, `RECOMP_PRESENT_FILTER`, `RECOMP_PRESENT_FULLSCREEN`) and exist only when it is built (`XBOXRECOMP_ENHANCE`, on by default in this project); each overrides its key in `enhance.toml`, which sits beside the executable (toolkit `docs/runtime/enhance-config.md`).
-- **Trace** (50): log and report toggles, one comma list: `RECOMP_TRACE=flip,tex,heap=0x80123000`. Printing only; nothing changes behaviour.
-- **Debug** (68): hacks, A/B switches, experiments, dumps, watchpoints, one comma list: `RECOMP_DEBUG=pb_fast=0,fb_dump=/tmp/f_,fb_dump_at=61,121`. Anything that changes behaviour, writes files or installs machinery (a watchdog, a thread dumper) is here.
+- **Config** (34): documented knobs, each its own variable (`RECOMP_PB_BACKEND=d3d11`). Six of them belong to the toolkit's enhancements layer (`RECOMP_ENHANCE_CONFIG`, `RECOMP_RENDER_SCALE`, `RECOMP_DISPLAY_ASPECT`, `RECOMP_PRESENT_FILTER`, `RECOMP_PRESENT_FULLSCREEN`, `RECOMP_PRESENT_PACING`) and exist only when it is built (`XBOXRECOMP_ENHANCE`, on by default in this project); each overrides its key in `enhance.toml`, which sits beside the executable (toolkit `docs/runtime/enhance-config.md`). The game's `RECOMP_FPS_MODE` overrides `fps.mode` the same way and is read only with the layer.
+- **Trace** (52): log and report toggles, one comma list: `RECOMP_TRACE=flip,tex,heap=0x80123000`. Printing only; nothing changes behaviour.
+- **Debug** (72): hacks, A/B switches, experiments, dumps, watchpoints, one comma list: `RECOMP_DEBUG=pb_fast=0,fb_dump=/tmp/f_,fb_dump_at=61,121`. Anything that changes behaviour, writes files or installs machinery (a watchdog, a thread dumper) is here.
 
 List syntax: `key` means `1`, `key=value` sets a value, and a later entry wins. Only keys whose values hold commas (`fb_dump_at`, `peek`, `peek_chain`, `px`, `px_consts`, `dsp_ack`, `apu_dsp_ack`, `poke`, `window_shot`, `pad_script`, and the game's `mem_dump`) take the fragments after them as part of the value, so `fb_dump_at=61,121,181`, `peek_chain=0x1315A8,8,0x10,0` and `px=10,20;30,40` each read as one value. After any other key, a fragment that is not a key gets the unknown-key warning, so a typo such as `d3d11_dump=Z:\d,pb_fsatt=0` is reported, not glued onto the path. `RECOMP_TRACE=help` (or `RECOMP_DEBUG=help`) prints the table. A key given in the wrong list is accepted with a note. An unknown key is ignored with a warning.
 
@@ -54,6 +54,8 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_DISPLAY_ASPECT` | `RECOMP_DISPLAY_ASPECT` (new; enhancements layer) | `display.aspect`: 4:3 (stock). Hor+ widescreen is not implemented yet; another value is reported and 4:3 is used (and `golden.py` fails the run) | `toolkit:src/enhance/enhance_cfg.c:37` |
 | `RECOMP_PRESENT_FILTER` | `RECOMP_PRESENT_FILTER` (new; enhancements layer) | `present.filter`: `nearest` (stock letterbox), `linear` (letterbox, bilinear), `integer` (largest whole multiple that fits, centred; a frame larger than the window is fitted, linear). SDL window and D3D11 window | `toolkit:src/enhance/enhance_cfg.c:38` |
 | `RECOMP_PRESENT_FULLSCREEN` | `RECOMP_PRESENT_FULLSCREEN` (new; enhancements layer) | `present.fullscreen`: 1 opens the window borderless fullscreen at start (no mode change; 1/0, true/false, yes/no, on/off) | `toolkit:src/enhance/enhance_cfg.c:39` |
+| `RECOMP_PRESENT_PACING` | `RECOMP_PRESENT_PACING` (new; enhancements layer) | `present.pacing`: how the main loop's frame wait (0x00060475, lowered by `config/spin_waits.json`) waits. `spin` (stock): it busy-waits as on the console, holding a host core (about 97% in the fps spike's samples). `sleep`: it blocks until the kernel signals (a vblank, an ISR or DPC, a fence) or 1 ms passes, which frees that core; frames are the game's own either way. Golden runs pin `spin`, and `golden.py` fails a run whose log shows another value unless `--allow-enhance present.pacing=sleep` (evaluation only) | `toolkit:src/enhance/enhance_cfg.c:40`, `toolkit:src/enhance/enhance.c:44` |
+| `RECOMP_FPS_MODE` | `RECOMP_FPS_MODE` (new; enhancements layer) | `fps.mode`: `lock30` only. `lock60` and `free` are not available: the stage logic advances a fixed 1/30 s per frame, so a 60 Hz loop runs the game at double speed (the fps spike); either one logs one line and runs `lock30`, nothing in the guest changes. `golden.py` fails a run that asked for another value (game) | `cat:src/main.c:1296` |
 
 ## Trace (`RECOMP_TRACE=`)
 
@@ -62,6 +64,7 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_FLIP_LOG` | `flip` | one line per flip (golden.py reads it) | `toolkit:src/d3d/nv2a_pb_d3d11.c:2789`, `toolkit:src/d3d/nv2a_pb_metal.m:1854`, `toolkit:src/kernel/nv2a_pb_exec.c:5305` +1 |
 | `RECOMP_PRESENT_TRACE` | `present` | present-surface choices | `toolkit:src/kernel/nv2a_pb_exec.c:599` |
 | `RECOMP_PRESENT_STATS` | `present_stats` | SDL host present statistics | `toolkit:src/video/fb_present_sdl.c:341` |
+| (none) | `metal_prof` | Metal flip cost every 300 flips: GPU wait, host readback, write-back, readback-mode window copy and hand-off, layer-mode slot blit, GPU time, write-backs and decode syncs | `toolkit:src/d3d/nv2a_pb_metal.m:312` |
 | `RECOMP_VSH_TRACE` | `vsh` | vertex programs and their batches | `toolkit:src/kernel/nv2a_pb_exec.c:2061`, `toolkit:src/kernel/nv2a_pb_exec.c:3963`, `toolkit:src/kernel/nv2a_pb_exec.c:4044` |
 | `RECOMP_VSH_ZLOG` | `zlog` | depth clears and z-buffer use | `toolkit:src/kernel/nv2a_pb_exec.c:2265`, `toolkit:src/kernel/nv2a_pb_exec.c:3956` |
 | `RECOMP_TEX_LOG` | `tex` | texture format survey; =2 also every texture | `toolkit:src/kernel/nv2a_pb_exec.c:2381`, `toolkit:src/kernel/nv2a_pb_exec.c:2526` |
@@ -82,6 +85,7 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_TRACE_DEREF` | `call_deref` | call trace follows pointer args | `toolkit:src/kernel/recomp_trace.c:182` |
 | `RECOMP_TRACE_PROFILE` | `call_profile` | call profile; =n report interval | `toolkit:src/kernel/recomp_trace.c:104`, `toolkit:src/kernel/recomp_trace.c:115` |
 | `RECOMP_IRQL_TRACE` | `irql` | first IRQL transitions | `toolkit:src/kernel/kernel_hal.c:161` |
+| (none) | `pacing` | frame pacing: every 600 flips, `[PACING] flips 600:` with the flip interval p5/p50/p95/max, the vblank gap range, process CPU and the pacing mode, then one line per spin-wait site (waits, immediate, wakes, timeouts, skipped at DISPATCH; loop exits on a wake and on the timeout; in-wait and thread CPU). `=all` adds `[PACING] flip N t_us T batches B` per flip, which `scripts/pacing_stats.py` reads | `toolkit:src/kernel/kernel_pacing.c:282` |
 | (none) | `dpc` | where the host-run guest routines (timer and queued DPCs, vblank/APU/USB ISRs, KeSynchronizeExecution) spend the timer thread: per routine its runs, run time and longest run, and its waits on the dispatch gate, the APU lock and KeStallExecutionProcessor; three or more `[DPCPROF]` lines under each `[NV2A] vblank N: last 600` line, top eight by run plus gate wait; a timer-thread DPC past 20 ms is also sampled once a millisecond (NV2A interrupt words, last kernel ordinal, guest return addresses) | `toolkit:src/kernel/kernel_prof.c:40` |
 | `RECOMP_APU_TRACE` | `apu` | APU register and frame trace; [APU-IRQ] line every 5 s | `toolkit:src/apu/apu_core.c:160`, `toolkit:src/apu/apu_mmio_hook.c:150`, `toolkit:src/apu/apu_vp.c:1190` |
 | (none) | `audio_host` | host audio playback vs wall clock; [AUDIO-HOST] starve lines (on with `apu`); `scripts/audio_check.py --log` splices the starves in | `toolkit:src/apu/apu_core.c:543` |
@@ -155,8 +159,11 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_D3D11_OCC` | `d3d11_occ` | =sync\|fixed: D3D11 occlusion mode | `toolkit:src/d3d/nv2a_pb_d3d11.c:2922`, `toolkit:tests/d3d11_backend_smoke/smoke.c:649` |
 | `RECOMP_METAL_NO_MIPS` | `metal_no_mips` | Metal uploads level 0 only | `toolkit:src/d3d/nv2a_pb_metal.m:776` |
 | `RECOMP_METAL_POINT` | `metal_point` | Metal point sampling | `toolkit:src/d3d/nv2a_pb_metal.m:968` |
-| `RECOMP_METAL_NO_RTT` | `metal_no_rtt` | Metal decodes render targets from memory | `toolkit:src/d3d/nv2a_pb_metal.m:1263` |
+| `RECOMP_METAL_NO_RTT` | `metal_no_rtt` | Metal decodes render targets from memory; implies `metal_writeback=always` | `toolkit:src/d3d/nv2a_pb_metal.m:1388` |
 | `RECOMP_METAL_OCC` | `metal_occ` | =sync\|fixed: Metal occlusion mode | `toolkit:src/d3d/nv2a_pb_metal.m:1621` |
+| (none) | `metal_present` | =layer\|readback: how Metal frames reach the SDL window. `layer` (default): a CAMetalLayer window; the backend blits its frame into a GPU slot and the main thread draws it, with no CPU copy. `readback`: the old texture readback and `SDL_UpdateTexture`. The window falls back to `readback` by itself when the layer cannot be made | `toolkit:src/video/fb_present_sdl.c:554` |
+| (none) | `metal_writeback` | =lazy\|always: when Metal copies a render target into guest memory. `lazy` (default): only when something reads it (fb_dump, fb_dump_at, the report dump, a texture decode over it, eviction of a presented target). `always`: the present surface at every flip, as before | `toolkit:src/d3d/nv2a_pb_metal.m:1777` |
+| (none) | `metal_fb_guard` | trap title access to the last Metal present surface (pages PROT_NONE after each flip); a read is logged with thread and pc and switches the run to `metal_writeback=always`, a write is logged once. Debug only: kernel-side I/O into those pages fails while armed | `toolkit:src/d3d/nv2a_pb_metal.m:1950` |
 | `RECOMP_FB_VA` | `fb_va` | =va: framebuffer window shows that address | `toolkit:src/video/fb_present.c:52`, `toolkit:src/video/fb_present.c:68` |
 | `RECOMP_USB` | `ohci` | emulated OHCI/XID USB (unused path) | `toolkit:src/usb/ohci.c:1076` |
 | `RECOMP_USB_PORT` | `usb_port` | =n: USB pad port | `toolkit:src/usb/ohci.c:909` |
@@ -186,6 +193,7 @@ File:line columns list the call sites as of this change (first three; `toolkit:`
 | `RECOMP_WATCHDOG_SECS` | `watchdog` | =s: dump and exit after s seconds | `toolkit:src/kernel/xbox_memory_layout.c:2400` |
 | `RECOMP_PAD_SCRIPT` | `pad_script` | =ms:btn[+btn][:hold],... or =@file: timed pad presses (from upstream; takes commas) | `toolkit:src/usb/usb_gamepad.c:412` |
 | `RECOMP_PAD_LIVE` | `pad_live` | =file: press each line appended to it, btn[+btn][:hold] (from upstream) | `toolkit:src/usb/usb_gamepad.c:462` |
+| (none) | `vblank_clock` | =ms: the timer thread's previous loop, vblanks on the whole-millisecond grid with `Sleep(ms)`, for A/B against the nanosecond schedule (default); logs one `[NV2A] vblank clock:` line | `toolkit:src/kernel/kernel_bridge.c:2805` |
 
 ## Deleted
 

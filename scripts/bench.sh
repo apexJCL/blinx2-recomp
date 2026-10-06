@@ -36,9 +36,18 @@
 #                       on a run's pulled frames
 #   tests     build and ctest the toolkit's Proton tests (d3d8_hlsl_split,
 #             d3d11_backend_smoke, input_map, nv2a_zbuf, apu_irq, kernel_irql_abi, fp_precision,
-#             vblank_ack), holding the run
+#             vblank_ack, vblank_schedule, spin_wait), holding the run
 #             lock exclusively
 #             also fails a run on [CRASH] or, with a limit, an early exit
+#   pacing    frame-pacing A/B (scripts/pacing_stats.py): one golden scenario
+#             under two environments, alternating A B A B ..., all under one
+#             hold of the run lock; the report goes to
+#             bench-logs/<stamp>-pacing/pacing-report.txt
+#             [--scen SCEN (stage1)] [--runs N (3)] [--gate clock|sleep]
+#             ["A env" "B env"]   (default "RECOMP_PRESENT_PACING=spin"
+#             "RECOMP_PRESENT_PACING=sleep"); each run adds
+#             RECOMP_TRACE=flip,pacing=all, and BENCH_ENV applies to both
+#             arms (e.g. RECOMP_PB_BACKEND=cpu)
 #   logs      symbolize a run's crash reports, then pull bench-logs/ from the
 #             host into ./bench-logs/              [stamp, default: newest run]
 #   symbolize name the native addresses in a run's [CRASH] reports, into
@@ -76,6 +85,8 @@
 #   BENCH_TIMEOUT    stop the game with SIGINT after this many seconds
 #   BENCH_FRAMES     1: RECOMP_DEBUG=d3d11_dump into bench-logs/<stamp>/frames/ on
 #                    the host (every 60th present; not pulled by logs)
+#   BENCH_HOLD_MAX   pacing: the most seconds its hold of the run lock lasts
+#                    if this script dies without releasing it  (14400)
 #   BENCH_KILL_GAME  1 (or --kill-game on run, golden, all, integrate): end a
 #                    game running outside the bench (the installed copy, or
 #                    one started by hand) once the run lock is held. Without
@@ -447,9 +458,10 @@ run_game() {
     RUN_STAMP=$stamp
     step "run: under $PROTONPATH -> bench-logs/$stamp"
     { remote_vars
-      printf 'STAMP=%q\nPROTONPATH=%q\nGAME_ARGS=(%s)\nGAME_ENV=(%s)\nTIMEOUT=%q\nFRAMES=%q\nKILL_GAME=%q\n' \
+      printf 'STAMP=%q\nPROTONPATH=%q\nGAME_ARGS=(%s)\nGAME_ENV=(%s)\nTIMEOUT=%q\nFRAMES=%q\nKILL_GAME=%q\nLOCK_HELD=%q\n' \
           "$stamp" "$PROTONPATH" "$(printf '%q ' "$@")" "$BENCH_ENV" \
-          "${BENCH_TIMEOUT:-}" "${BENCH_FRAMES:-0}" "${BENCH_KILL_GAME:-0}"
+          "${BENCH_TIMEOUT:-}" "${BENCH_FRAMES:-0}" "${BENCH_KILL_GAME:-0}" \
+          "${BENCH_LOCK_HELD:-0}"
       cat <<'EOF'
 cd "$REMOTE_GAME"
 [ -f build-win/cat_recomp.exe ] || { echo "no build-win/cat_recomp.exe -- run build first" >&2; exit 1; }
@@ -478,7 +490,11 @@ command -v umu-run >/dev/null || { echo "host has no umu-run" >&2; exit 1; }
 LOCK="$HOME/.recomp-run.lock"
 exec 9>>"$LOCK"
 waited=0
-if ! flock -n 9; then
+# cmd_pacing holds the lock across all its runs (hold_run_lock); its runs
+# must not wait on it again.
+if [ "$LOCK_HELD" = 1 ]; then
+    echo "bench: the run lock is held for this run's series (bench.sh pacing)"
+elif ! flock -n 9; then
     # The holder is the lock's one entry with no BLOCKER; the file's text
     # names only the last bench.sh run (a bare `flock FILE cmd` writes none).
     # awk reads to the end (no exit): under pipefail an early exit can
@@ -493,7 +509,7 @@ if ! flock -n 9; then
     waited=$(( $(date +%s) - t0 ))
     echo "bench: got the run lock after ${waited}s"
 fi
-echo "$(date -Is) $REMOTE_GAME/$LOG (pid $$)" > "$LOCK"
+[ "$LOCK_HELD" = 1 ] || echo "$(date -Is) $REMOTE_GAME/$LOG (pid $$)" > "$LOCK"
 # A game started outside the bench (the installed copy, or one by hand)
 # takes no lock, and every bench run holds this one, so any game process now
 # is foreign and would make this run's timings noisy: warn (into the run's
@@ -815,7 +831,7 @@ cmd_run() {
 # Non-zero on any failure.
 cmd_tests() {
     need_host
-    step "tests: d3d8_hlsl_split, d3d11_backend_smoke, input_map, nv2a_zbuf, apu_irq, kernel_irql_abi, fp_precision, vblank_ack under Proton"
+    step "tests: d3d8_hlsl_split, d3d11_backend_smoke, input_map, nv2a_zbuf, apu_irq, kernel_irql_abi, fp_precision, vblank_ack, vblank_schedule, spin_wait under Proton"
     local rc=0
     { remote_vars
       cat <<'EOF'
@@ -826,10 +842,11 @@ emu=$(cd ../xboxrecomp 2>/dev/null && pwd -P || true)/tests/proton_run.sh
 [ -f build-win/CMakeCache.txt ] || { echo "tests: no build-win (run bench.sh build first)" >&2; exit 1; }
 cmake -B build-win -DCMAKE_CROSSCOMPILING_EMULATOR="$emu" >/dev/null
 cmake --build build-win --target d3d8_hlsl_split d3d11_backend_smoke input_map_test
-# tests/nv2a_zbuf, apu_irq, kernel_irql_abi, fp_precision and vblank_ack are projects of their own
+# tests/nv2a_zbuf, apu_irq, kernel_irql_abi, fp_precision, vblank_ack, vblank_schedule
+# and spin_wait are projects of their own
 # (not in the game build): configure each beside build-win with the same
 # toolchain.
-standalone="nv2a_zbuf apu_irq kernel_irql_abi fp_precision vblank_ack"
+standalone="nv2a_zbuf apu_irq kernel_irql_abi fp_precision vblank_ack vblank_schedule spin_wait"
 for t in $standalone; do
     src=../xboxrecomp/tests/$t
     [ -f "$src/CMakeLists.txt" ] || { echo "tests: $src missing (toolkit too old?)" >&2; exit 1; }
@@ -946,6 +963,104 @@ cmd_golden() {
     [ "$grc" = 0 ]
 }
 
+# Hold the host's run lock from this machine, for a series of runs that must
+# not interleave with anyone else's (cmd_pacing): a holder on the host keeps
+# it while its marker file exists, and gives it up on its own after
+# BENCH_HOLD_MAX seconds (default 4 h) if this script dies without
+# releasing it. The runs in between pass BENCH_LOCK_HELD=1.
+hold_run_lock() {
+    { printf 'MAX=%q\n' "${BENCH_HOLD_MAX:-14400}"
+      cat <<'EOF'
+# A transient unit of the user's systemd: a process left behind by this ssh
+# session (nohup, setsid) is killed with the session's scope when it closes.
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+# Runs on the host are one agent at a time, so a holder still alive here is
+# a leftover of a series that died: stop it, or the new unit cannot start
+# under the same name.
+systemctl --user stop recomp-pacing-hold 2>/dev/null || true
+systemctl --user reset-failed recomp-pacing-hold 2>/dev/null || true
+rm -f ~/.recomp-run.held
+touch ~/.recomp-run.hold
+# A unit that does not start would leave the wait below polling for an hour.
+systemd-run --user --quiet --collect --unit=recomp-pacing-hold \
+    flock -w 3600 -E 75 "$HOME/.recomp-run.lock" bash -c '
+    echo "$(date -Is) bench.sh pacing hold (pid $$)" > "$HOME/.recomp-run.lock"
+    touch "$HOME/.recomp-run.held"
+    t=0
+    while [ -f "$HOME/.recomp-run.hold" ] && [ "$t" -lt "$1" ]; do sleep 1; t=$((t + 1)); done
+    rm -f "$HOME/.recomp-run.hold" "$HOME/.recomp-run.held"' _ "$MAX" \
+    || { rm -f ~/.recomp-run.hold; exit 75; }
+for i in $(seq 3700); do
+    [ -f ~/.recomp-run.held ] && exit 0
+    [ "$i" = 2 ] && echo "bench: pacing waiting for the run lock" >&2
+    sleep 1
+done
+rm -f ~/.recomp-run.hold
+exit 75
+EOF
+    } | remote || die "pacing: could not get the run lock"
+}
+release_run_lock() { ssh -o BatchMode=yes "$BENCH_HOST" 'rm -f ~/.recomp-run.hold' || true; }
+
+# Frame-pacing A/B: one golden scenario's route under two environments, N
+# runs each, alternating so host drift lands on both arms, then
+# pacing_stats.py over both arms' logs.
+cmd_pacing() {
+    need_host
+    local scen=stage1 runs=3 gate= envs=() a plan row secs genv i k
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --scen) scen=$2; shift 2 ;;
+            --runs) runs=$2; shift 2 ;;
+            --gate) gate=$2; shift 2 ;;
+            --*) die "pacing: unknown option $1" ;;
+            *) envs+=("$1"); shift ;;
+        esac
+    done
+    [ "${#envs[@]}" = 0 ] && envs=("RECOMP_PRESENT_PACING=spin" "RECOMP_PRESENT_PACING=sleep")
+    [ "${#envs[@]}" = 2 ] || die "pacing: two environments, A and B"
+    case "$runs" in ''|*[!0-9]*|0) die "pacing: --runs takes a count" ;; esac
+    case "$gate" in ''|clock|sleep) ;; *) die "pacing: --gate clock or sleep" ;; esac
+    plan=$(python3 "$GAME_DIR/scripts/golden.py" plan) || die "pacing: no golden plan"
+    row=$(awk -F'\t' -v s="$scen" '$1 == s' <<<"$plan")
+    [ -n "$row" ] || die "pacing: no scenario $scen in golden.json"
+    secs=$(cut -f2 <<<"$row"); genv=$(cut -f4 <<<"$row")
+    local pstamp; pstamp=$(date +%Y%m%d-%H%M%S)-pacing
+    local out="$GAME_DIR/bench-logs/$pstamp"
+    mkdir -p "$out"
+    local logs_a=() logs_b=()
+    step "pacing: $scen, $runs runs each: A=${envs[0]}  B=${envs[1]}"
+    hold_run_lock
+    trap release_run_lock EXIT
+    for i in $(seq "$runs"); do
+        for k in 0 1; do
+            BENCH_ENV="$genv ${BENCH_ENV:-} RECOMP_TRACE=flip,pacing=all ${envs[$k]}" \
+                BENCH_TIMEOUT=$secs BENCH_LOCK_HELD=1 run_game || true
+            echo "$k $RUN_STAMP" >> "$out/runs.txt"
+            if [ "$k" = 0 ]; then
+                logs_a+=("$GAME_DIR/bench-logs/$RUN_STAMP/game-stdio.log")
+            else
+                logs_b+=("$GAME_DIR/bench-logs/$RUN_STAMP/game-stdio.log")
+            fi
+        done
+    done
+    release_run_lock
+    trap - EXIT
+    step "pacing: report"
+    local rc=0
+    {
+        echo "scenario: $scen ($secs s), $runs runs each, alternating"
+        echo "A: ${envs[0]}"
+        echo "B: ${envs[1]}"
+        echo "BENCH_ENV: ${BENCH_ENV:-(none)}"
+        echo
+        python3 "$GAME_DIR/scripts/pacing_stats.py" --scen "$scen" ${gate:+--gate "$gate"} \
+            --arm A "${logs_a[@]}" --arm B "${logs_b[@]}"
+    } 2>&1 | tee "$out/pacing-report.txt" || rc=$?
+    echo "report: $out/pacing-report.txt"
+    return "$rc"
+}
+
 # Name the native addresses in a run's [CRASH] reports, into
 # bench-logs/<stamp>/crash-symbols.txt. Wine's dbghelp names nothing from the
 # lld PDB, so this is done offline on the host with llvm-mingw's
@@ -1040,5 +1155,6 @@ case "$cmd" in
     all)   cmd_sync; cmd_build; cmd_run ;;
     integrate) cmd_integrate "$@" ;;
     tests)     cmd_tests "$@" ;;
+    pacing)    cmd_pacing "$@" ;;
     *)     sed -n '3,/^set -euo/p' "$0" | sed '$d'; exit 1 ;;
 esac

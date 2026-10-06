@@ -25,3 +25,7 @@ the Linux/Proton host (GE-Proton) is the bench, driven from the Mac through `scr
 - cat: `scripts/bench.sh` (run-info fields, the report step), `scripts/pipeline.sh` (a `gen/PROVENANCE` stamp).
 - Toolkit: `RECOMP_FLIP_LOG` and `[THREAD]` lines (merged, `a47bfb0`). The movie-window tag comes from `fmv-playback`.
 - the Linux/Proton host: no change to the host setup.
+
+## Status
+
+Partly done (reviewed 2026-10-06 in the openspec cleanup). In place: `bench.sh` with one `bench-logs/<stamp>/` per run, `run-info.txt` with the source commits, the regeneration guard, offline crash symbols, the flip log and `[THREAD]` roles, the running-game check (synced into `openspec/specs/bench-methodology/spec.md` from `packaging-deploy`), and `bench.sh golden`/`integrate`, which grew out of this change. Open: the `gen/` stamp in `run-info.txt` (1.5), the movie-window lines (2.2, with `fmv-playback` 2.1), and the report step with the 3D-only percentiles and thread roles (3.x). The 3.3 baseline's precondition, the `NtFreeVirtualMemory` fix, has landed.

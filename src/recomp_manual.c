@@ -20,15 +20,14 @@
 
 #include <stdio.h>
 #include "recomp_env.h"
+#include "host_time.h"  /* xbox_HostNowNs, xbox_HostSleepNs: the vblank pacer */
 #include <stddef.h>   /* ptrdiff_t: <windows.h> supplied it on Windows only */
 #include <stdint.h>
-/* Host clock and sleep, for the vblank pacer. Before recomp_types.h, whose
- * register macros (eax, esp, ...) would otherwise reach the system headers. */
+/* The pacer's interlocked epoch. Before recomp_types.h, whose register
+ * macros (eax, esp, ...) would otherwise reach the system headers. */
 #ifdef _WIN32
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
-#else
-#  include <time.h>
 #endif
 
 /* ── ICALL trace ring buffer ───────────────────────────────── */
@@ -131,54 +130,6 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
  * of gen/ (pipeline.sh recomp passes --exclude-manual this file). */
 #define VBLANK_HZ 60
 
-static uint64_t host_now_ns(void)
-{
-#ifdef _WIN32
-    static LARGE_INTEGER freq;
-    LARGE_INTEGER t;
-    if (!freq.QuadPart)
-        QueryPerformanceFrequency(&freq);
-    QueryPerformanceCounter(&t);
-    return (uint64_t)((double)t.QuadPart * 1e9 / (double)freq.QuadPart);
-#else
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t)ts.tv_sec * 1000000000u + (uint64_t)ts.tv_nsec;
-#endif
-}
-
-static void host_sleep_ns(uint64_t ns)
-{
-#ifdef _WIN32
-    /* Sleep rounds to the system timer tick, 15.6 ms on native Windows
-     * unless someone raised the resolution, which would overshoot most
-     * vblanks. A high-resolution waitable timer (Windows 10 1803+; Wine has
-     * it too) waits to the 100 ns unit; each thread keeps its own. */
-#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
-#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
-#endif
-    static _Thread_local HANDLE timer;
-    static _Thread_local int timer_failed;
-    if (!timer && !timer_failed) {
-        timer = CreateWaitableTimerExW(NULL, NULL,
-                                       CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
-                                       TIMER_ALL_ACCESS);
-        timer_failed = !timer;
-    }
-    if (timer) {
-        LARGE_INTEGER due;
-        due.QuadPart = -(LONGLONG)((ns + 99u) / 100u);   /* relative, 100 ns */
-        if (SetWaitableTimer(timer, &due, 0, NULL, NULL, FALSE) &&
-            WaitForSingleObject(timer, INFINITE) == WAIT_OBJECT_0)
-            return;
-    }
-    Sleep((DWORD)((ns + 999999u) / 1000000u));
-#else
-    struct timespec ts = { (time_t)(ns / 1000000000u), (long)(ns % 1000000000u) };
-    nanosleep(&ts, NULL);
-#endif
-}
-
 void sub_002E0DB0(void)
 {
     /* Vblank N is at epoch + N * period, the same instants for every caller.
@@ -191,7 +142,7 @@ void sub_002E0DB0(void)
      * dry (speech cut off in the attract movie). */
     static volatile uint64_t epoch;
     const uint64_t period = 1000000000u / VBLANK_HZ;
-    uint64_t now = host_now_ns(), e = epoch, next;
+    uint64_t now = xbox_HostNowNs(), e = epoch, next;
 
     if (!e) {
         e = now;
@@ -204,7 +155,9 @@ void sub_002E0DB0(void)
     }
     /* The first boundary strictly after now. */
     next = e + ((now - e) / period + 1) * period;
-    host_sleep_ns(next - now);
+    /* The toolkit's clock (platform/host_time.h): a high-resolution
+     * waitable timer on Windows, where Sleep rounds to the 15.6 ms tick. */
+    xbox_HostSleepNs(next - now);
 
     {
         uint32_t device = MEM32(0x2F1FB8);

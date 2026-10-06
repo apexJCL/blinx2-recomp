@@ -6,9 +6,12 @@ by the [xboxrecomp](https://github.com/apexJCL/xboxrecomp) toolkit and compiled
 together with a host runtime: a replacement Xbox kernel, NV2A (GPU) pushbuffer
 execution and APU/audio pieces.
 
-**Status:** playable through stage 1 on Linux (Proton, Direct3D 11) using the Windows build |
-boots and runs stage 1 on macOS (Apple silicon, Metal) | audio, real-device
-input, saves and FMV in progress | **no game data included: bring your own copy**
+**Status:** runs with sound, controllers and saves on macOS (Apple silicon,
+Metal) and on Linux under Proton (Direct3D 11, the Windows build) | stage 1 is
+checked on every build; every later stage and boss has been reached in
+scripted runs | one command builds a private, installable bundle (macOS app,
+Windows setup program, SteamOS installer) | **no game data included: bring
+your own copy**
 
 ![BLiNX 2 recompiled: stage 1 on the Metal backend](docs/images/hero.png)
 
@@ -64,11 +67,57 @@ apexJCL/xboxrecomp, not upstream.
 
 | Platform | Render backend | Status |
 |---|---|---|
-| Windows / Linux (Proton) | Direct3D 11 (DXVK under Proton) | Playable through stage 1. The tested route is a Windows x86-64 build run under Proton. |
-| macOS (Apple silicon) | Metal, shown in an SDL2 window | Boots and runs the attract mode and stage 1. Audio is not available on macOS yet. |
+| Windows / Linux (Proton) | Direct3D 11 (DXVK under Proton) | Runs with audio (XAudio2, FAudio under Proton), controllers and the keyboard. The tested route is a Windows x86-64 build run under Proton; native Windows is untested. |
+| macOS (Apple silicon) | Metal, shown in an SDL2 window | Runs with audio (SDL2) and controllers (SDL2 GameController). The keyboard does not drive the game on macOS yet. |
 
-Audio, real-device input, saves and FMV playback are in progress. See
-`openspec/changes/`.
+Both routes pass the same automated checks on every build: the attract mode,
+stage 1 and the story route up to the hub are compared frame by frame against
+reference frames (`analysis/golden/golden.json`, `scripts/golden.py`). Every
+other stage and boss has been reached, through the game's own stage select,
+in scripted runs on Metal (`scripts/shots/`).
+
+What works today, and what does not yet:
+
+- **Rendering:** Metal and Direct3D 11 render the game; the CPU rasteriser is a
+  slow reference path. Known gaps: bump-environment mapping (texture mode 6)
+  samples as a plain 2D texture, which affects the stage 1 ocean and the
+  Boss 3 ripple; user clip planes are honoured on the CPU path only; a few
+  boss-stage artefacts (sky wedges in Boss 1, shadow shapes in two later
+  bosses) are the same on every backend and are still being checked against
+  the original hardware.
+- **Audio:** on by default on every platform (`RECOMP_AC97_READY`). Missing
+  menu music or voice lines mean an incomplete dump, not a runtime bug:
+  `./blinx2 doctor` lists the files the game names but `game_files/` lacks.
+- **Input:** controllers work as player 1 on every platform. The keyboard
+  works on Windows and under Proton (`RECOMP_KEYBOARD=1`, on by default in
+  the Windows and SteamOS bundles); on macOS it is not wired up yet. On
+  macOS, connect the controller before starting the game: hot-plugging is
+  not handled.
+- **Saves:** saving and loading work. A bundle keeps them in its `hdd/`
+  folder, outside the program files (see
+  [docs/packaging.md](docs/packaging.md)); a development build uses the
+  toolkit's default save root unless `RECOMP_HDD_DIR` points elsewhere.
+- **Movies (FMV):** the game's own Sofdec decoder runs; the runtime shows
+  its frames. Audio-to-video drift has not been measured.
+- **Frame rate:** 30 frames per second, as on the Xbox. A 60 fps mode is not
+  planned: the game's stage logic steps a fixed 1/30 s, so a faster frame
+  rate would play at double speed.
+- **Enhancements (opt-in, off by default):** `render.scale` 1 to 4 (Metal
+  and Direct3D 11), `present.filter` (`nearest`, `linear`, `integer`),
+  `present.fullscreen` and `present.pacing`, read from `enhance.toml` next to
+  the executable or from the matching `RECOMP_*` variables.
+  `present.pacing = "sleep"` lets the game's frame wait sleep until the next
+  vblank instead of spinning on a CPU core as the Xbox does: less heat and
+  battery on a laptop or a Steam Deck, the same frames. `fps.mode` accepts
+  only `lock30`; `lock60` and `free` say they are not available, for the
+  reason under Frame rate above. Widescreen (Hor+) is not
+  implemented. Checked on Metal and on Direct3D 11 under Proton; resizing
+  the Direct3D 11 window under Proton does not reach the game on the tested
+  desktop (GE-Proton 11, KWin), while fullscreen and render scale do.
+- **Known crash:** one scripted run on macOS crashed in stage 5-1 after
+  about 90 s; it is being investigated.
+
+The open work is tracked under `openspec/changes/`.
 
 ## Requirements
 
@@ -90,9 +139,9 @@ listed under [Tested with](#tested-with).
 
 | Platform | OS | Toolchain | Dependencies | GPU backend | Status |
 |---|---|---|---|---|---|
-| macOS (Apple silicon) | tested: macOS 27.0 | Xcode Command Line Tools (tested: 27.0, Apple clang 21.0.0), CMake (tested: 4.4.3) | SDL2, OpenSSL (Homebrew; tested: sdl2-compat 2.32.72, OpenSSL 3.6.5), Python (tested: 3.14.8) | Metal | Boots, attract mode and stage 1; no audio |
+| macOS (Apple silicon) | tested: macOS 27.0 | Xcode Command Line Tools (tested: 27.0, Apple clang 21.0.0), CMake (tested: 4.4.3) | SDL2, OpenSSL (Homebrew; tested: sdl2-compat 2.32.72, OpenSSL 3.6.5), Python (tested: 3.14.8) | Metal | Runs with audio and controllers; no keyboard input yet |
 | Windows x86-64 (native) | not tested | [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) (clang + lld + mingw-w64, UCRT), CMake, Ninja (cross-compiled) | - | Direct3D 11 | Builds with llvm-mingw; tested only under Proton |
-| Linux (Proton) | tested: Fedora 44-based, kernel 7.2 | Same Windows build, cross-compiled with llvm-mingw (tested: 20260922, clang 23.1.2) | Proton via `umu-run` (tested: GE-Proton11-7, umu-launcher 1.4.4) | Direct3D 11 via DXVK | Playable through stage 1 |
+| Linux (Proton) | tested: Fedora 44-based, kernel 7.2 | Same Windows build, cross-compiled with llvm-mingw (tested: 20260922, clang 23.1.2) | Proton via `umu-run` (tested: GE-Proton11-7, umu-launcher 1.4.4) | Direct3D 11 via DXVK | Runs with audio, controllers and keyboard |
 
 The pipeline and the Windows cross-build run on macOS, Linux or Windows
 (building on a Windows host is untested). The macOS build needs a Mac.
@@ -166,7 +215,9 @@ RECOMP_PB_BACKEND=metal ./build/cat_recomp
 
 Run it from this directory: the game files are looked up in `game_files/`
 (or wherever `RECOMP_GAME_FILES` points). `RECOMP_PB_BACKEND` unset uses the
-slower CPU rasteriser.
+slower CPU rasteriser. Add `RECOMP_HOST_PAD=1` to play with a controller: the
+development build leaves host pads off so scripted and golden runs never see
+one (the packaged app sets it).
 
 ### Run on Linux under Proton, or on Windows (Direct3D 11)
 
@@ -176,7 +227,8 @@ slower CPU rasteriser.
 
 Run `build-win/cat_recomp.exe` from this directory under Proton (for example
 with `umu-run`; native Windows is untested), with
-`RECOMP_PB_BACKEND=d3d11`.
+`RECOMP_PB_BACKEND=d3d11`. Controllers work as they are; `RECOMP_KEYBOARD=1`
+adds the keyboard as player 1.
 
 `scripts/bench.sh` automates this on a remote x86-64 Linux host over SSH: it
 syncs the toolkit and this project, builds in a distrobox, runs the game under
@@ -191,6 +243,12 @@ SteamOS-like Linux gaming PC (Proton, with a Steam entry, updates and
 rollback), or a macOS `.dmg`. Saves and settings live outside the program
 files and survive every update. [docs/packaging.md](docs/packaging.md) has
 the steps for each machine.
+
+How far each bundle has been tested: the macOS `.dmg` has been built from a
+fresh clone and the installed app run on the Mac that built it. The Windows
+setup program and the SteamOS tar build, and their unit tests pass, but
+neither has been installed and run on a Linux/Proton PC yet (those checks
+are in progress), and nothing has been tested on native Windows.
 
 A bundle contains your own copy of the game: keep it on your own machines.
 
@@ -210,13 +268,22 @@ in [docs/env.md](docs/env.md).
   in `game_files/`, or point `RECOMP_GAME_FILES` at them.
 - **Slow rendering on macOS:** with `RECOMP_PB_BACKEND` unset the CPU
   rasteriser is used; set it to `metal`.
-- **No audio on macOS:** not available yet.
-- Audio, real-device input, saves and FMV are still in progress.
+- **No sound at all:** audio is on by default; check that nothing sets
+  `RECOMP_AC97_READY=0`, and that `SDL_AUDIODRIVER` is not `dummy` (headless
+  runs set it).
+- **No menu music, or missing voice lines:** the dump is incomplete. The game
+  runs, silent where those files would play. `./blinx2 doctor` names the
+  missing files; extract the whole disc again into `game_files/`.
+- **The keyboard does nothing on macOS:** not wired up yet; use a controller.
+- **The controller is not seen:** on macOS, connect it before starting the
+  game (no hot-plug yet) and make sure `RECOMP_HOST_PAD=1` is set for a
+  development build.
 
 ## Repository layout
 
 - `src/`: boot code (`main.c`), hand-written XDK replacements
-  (`recomp_manual.c`), pad input and save seeding.
+  (`recomp_manual.c`), pad input, save seeding and the game's rows of the
+  environment-variable table (`env/`).
 - `blinx2.py`: the command-line tool (setup, pipeline, build, package).
 - `packaging/`: the installers, launchers and defaults the bundles carry.
 - `scripts/`: the remote bench, golden-frame and audio checks, packaging

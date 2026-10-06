@@ -256,7 +256,7 @@ import contextlib  # noqa: E402
 
 TREE_ATTRS = ("ROOT", "GEN", "REGEN_MARKER", "GAME_FILES", "XBE", "ANALYSIS_JSON", "OUT",
               "SEEDS", "ICALL_SEEDS", "GEN_KEY", "STAGE_EXTRAS", "GHIDRA_EXPORT",
-              "HOST_RESERVED", "RECOMP_MANUAL", "VENV", "THIRD_PARTY")
+              "HOST_RESERVED", "RECOMP_MANUAL", "SPIN_WAITS", "VENV", "THIRD_PARTY")
 
 
 @contextlib.contextmanager
@@ -281,11 +281,12 @@ def fake_tree(d):
              "GHIDRA_EXPORT": os.path.join(root, "analysis", "ghidra", "export", "functions.json"),
              "HOST_RESERVED": os.path.join(root, "scripts", "host_reserved_names.py"),
              "RECOMP_MANUAL": os.path.join(root, "src", "recomp_manual.c"),
+             "SPIN_WAITS": os.path.join(root, "config", "spin_waits.json"),
              "VENV": os.path.join(root, ".venv"), "THIRD_PARTY": os.path.join(root, "third_party")}
     for p in ("GEN", "GAME_FILES", "OUT"):
         os.makedirs(paths[p], exist_ok=True)
     for p, text in (("XBE", "xbe"), ("SEEDS", "[]"), ("HOST_RESERVED", "#"),
-                    ("RECOMP_MANUAL", "/* */")):
+                    ("RECOMP_MANUAL", "/* */"), ("SPIN_WAITS", "{}")):
         os.makedirs(os.path.dirname(paths[p]), exist_ok=True)
         with open(paths[p], "w") as f:
             f.write(text)
@@ -370,6 +371,7 @@ def test_stage_argv_snapshot(d):
                             "$ROOT/src/recomp_manual.c", "--game-name", b.GAME_NAME,
                             "--disasm-dir", "$ROOT/analysis/disasm", "--func-id-dir",
                             "$ROOT/analysis/func_id", "--abi-dir", "$ROOT/analysis/abi",
+                            "--spin-waits", "$ROOT/config/spin_waits.json",
                             "-o", "$ROOT/analysis/recomp"]]], argv
 
 
@@ -377,6 +379,7 @@ def test_gen_key_inputs(d):
     with fake_tree(d) as (root, tk):
         inputs = b.gen_inputs()
         assert inputs["$ROOT/config/seed_functions.json"] != "absent"
+        assert inputs["$ROOT/config/spin_waits.json"] != "absent"
         assert inputs["$TK/tools/recomp/output/icall_targets.json"] == "absent"
         assert inputs["$ROOT/analysis/ghidra/export/functions.json"] == "absent"
         for p in inputs:
@@ -393,6 +396,7 @@ def test_gen_key_staleness(d):
             (lambda: write(b.SEEDS, "[1]"), "config/seed_functions.json changed"),
             (lambda: write(b.XBE, "xbe2"), "the XBE changed"),
             (lambda: write(b.RECOMP_MANUAL, "/* 2 */"), "src/recomp_manual.c changed"),
+            (lambda: write(b.SPIN_WAITS, '{"auto": true}'), "config/spin_waits.json changed"),
             # The gitignored feedback database appearing changes inputs and argv.
             (lambda: write(b.icall_db(), "{}"), "toolkit:tools/recomp/output/icall_targets.json changed"),
             (lambda: os.environ.__setitem__("SPLIT", "100"), "stage commands changed"),
@@ -433,6 +437,26 @@ def test_gen_key_staleness(d):
         assert b.gen_stale_reasons() == []
         open(b.REGEN_MARKER, "w").close()
         assert b.gen_stale_reasons() == ["the last recomp did not finish"]
+
+
+def test_recomp_verbose_not_hashed(d):
+    """recomp runs with -v (progress lines for the view), but the key's argv
+    leaves it out, so the flag never stales gen/; the game name is fixed."""
+    with fake_tree(d) as (root, tk):
+        os.makedirs(os.path.join(b.OUT, "abi"), exist_ok=True)
+        write(os.path.join(b.OUT, "abi", "abi_functions.json"), "{}")
+        ran = []
+        real = b.run_cmds
+        try:
+            b.run_cmds = lambda cmds: ran.extend(cmds)
+            b.stage_recomp()
+        finally:
+            b.run_cmds = real
+        assert ran and ran[0][2][-1] == "-v", ran
+        import json
+        assert json.loads(b.stage_argv())[-1][2][-1] != "-v"
+        assert b.gen_stale_reasons() == []
+        assert b.GAME_NAME == "cat"
 
 
 def test_exclude_pin_mark(d):

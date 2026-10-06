@@ -19,3 +19,12 @@ Placeholder, for after `render-gpu-backend`. Getting a frame out is not the same
 ## Status
 
 Placeholder (proposal only). `.openspec.yaml` sets `skip_specs: true` so it validates. Remove that, and add design, spec deltas and tasks, when the work starts.
+
+## Current gaps (2026-10-06)
+
+Still a placeholder: no work has started under this change. Since it was written, the D3D11 and Metal backends have landed and the golden frames pass, so the bucket is now what remains after them. From TASKS.md:
+
+- `BUMPENVMAP` (texture mode 6) is unimplemented on every path and samples as plain 2D: the Boss 3 ripple and the stage-1 ocean (with the signed-filter item above).
+- The Boss 1 sky wedges, the Shadow Claw ellipse and the Silver Claw horns draw the same on the CPU path; they need an xemu reference before anyone calls them bugs.
+- Volume-texture mips on the GPU paths use 2D-chain offsets.
+- CLIPPLANE on the GPU paths has its own change, `render-clipplane-gpu`.

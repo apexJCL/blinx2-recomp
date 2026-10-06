@@ -10,8 +10,20 @@ The Metal boss-scene sweep (2026-10-05, branch `metal-boss/fixes`) checked wheth
 - **The emitters** (`d3d8_combiners_msl.c`, `d3d8_combiners_hlsl.c`): for a stage with `NV2A_TEXMODE_CLIPPLANE`, emit the four compares on `i.t<n>` and `discard_fragment()` / `discard`, before the stage's register is used. The register stays 0. The no-combiner shaders (`fs_basic`, D3D11 `s_ps_src`) do the same for stage 0 when its mode is 5.
 - **The backends** pass `v->clip_plane_mode` into the constant (`nv2a_ps_consts_fill`), and select a combiner shader whose mode key already carries 5 (35e17dd). The legacy d3d8 HLE path (`d3d8_combiners.c`) sets `clip_mode` to 0 unless it has the register.
 
+## Capabilities
+
+### New Capabilities
+<!-- none -->
+
+### Modified Capabilities
+- `gpu-backend`: CLIPPLANE stages kill pixels on the D3D11 and Metal backends, as on the CPU path.
+
 ## Impact
 
 - Toolkit only: `nv2a_backend_common.{h,c}`, the two emitters, `nv2a_pb_metal.m`, `nv2a_pb_d3d11.c`, `d3d8_combiners.c` (cbuffer layout).
 - D3D11 can only be cross-built on the Mac. It needs a Proton run (d3d11_backend_smoke, the goldens) before merge.
 - Goldens: no change expected. No BLiNX 2 scene seen so far sets mode 5: the [VSH] stage-mode census in every run of the 2026-10-05 sweep (Boss 1, 3, 4, 5, Shadow Claw; runs/metal-boss) shows modes 0, 1 and 6 only. attract, stage 1 and story were not censused; check them in task 3.2.
+
+## Status
+
+Spec only; not started (reviewed 2026-10-06 in the openspec cleanup, which added the `gpu-backend` delta so the change validates). Before implementation it needs a Fable read-and-improve pass: TASKS.md notes that its commit and impact text is inaccurate.
