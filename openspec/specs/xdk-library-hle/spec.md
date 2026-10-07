@@ -9,7 +9,7 @@ Defines how the statically linked XDK libraries are handled: translated with the
 The build SHALL translate the statically linked XDK library code along with the game. An XDK entry point that waits on or drives hardware the host doesn't model SHALL be replaced by a hand-written function in `src/recomp_manual.c` named for its guest address. The recompiler SHALL declare that function in `gen/` and not emit a body for it.
 
 #### Scenario: Override excluded from generated code
-- **WHEN** `scripts/pipeline.sh recomp` runs and `src/recomp_manual.c` defines `void sub_002E0DB0(void)`
+- **WHEN** `blinx2 recomp` runs and `src/recomp_manual.c` defines `void sub_002E0DB0(void)`
 - **THEN** recomp reports one function excluded, no file in `gen/` defines `sub_002E0DB0`, and the link uses the hand-written definition
 
 #### Scenario: Vertical-blank wait returns

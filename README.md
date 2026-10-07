@@ -68,11 +68,11 @@ apexJCL/xboxrecomp, not upstream.
 | Platform | Render backend | Status |
 |---|---|---|
 | Windows / Linux (Proton) | Direct3D 11 (DXVK under Proton) | Runs with audio (XAudio2, FAudio under Proton), controllers and the keyboard. The tested route is a Windows x86-64 build run under Proton; native Windows is untested. |
-| macOS (Apple silicon) | Metal, shown in an SDL2 window | Runs with audio (SDL2) and controllers (SDL2 GameController). The keyboard does not drive the game on macOS yet. |
+| macOS (Apple silicon) | Metal, shown in an SDL2 window | Runs with audio (SDL2), controllers (SDL2 GameController) and the keyboard. |
 
 Both routes pass the same automated checks on every build: the attract mode,
 stage 1 and the story route up to the hub are compared frame by frame against
-reference frames (`analysis/golden/golden.json`, `scripts/golden.py`). Every
+reference frames (`analysis/golden/golden.json`, `blinx2 bench golden`). Every
 other stage and boss has been reached, through the game's own stage select,
 in scripted runs on Metal (`scripts/shots/`).
 
@@ -85,14 +85,12 @@ What works today, and what does not yet:
   boss-stage artefacts (sky wedges in Boss 1, shadow shapes in two later
   bosses) are the same on every backend and are still being checked against
   the original hardware.
-- **Audio:** on by default on every platform (`RECOMP_AC97_READY`). Missing
-  menu music or voice lines mean an incomplete dump, not a runtime bug:
-  `./blinx2 doctor` lists the files the game names but `game_files/` lacks.
-- **Input:** controllers work as player 1 on every platform. The keyboard
-  works on Windows and under Proton (`RECOMP_KEYBOARD=1`, on by default in
-  the Windows and SteamOS bundles); on macOS it is not wired up yet. On
-  macOS, connect the controller before starting the game: hot-plugging is
-  not handled.
+- **Audio:** on by default on every platform (`RECOMP_AC97_READY`).
+- **Input:** controllers work as player 1 on every platform, and so does
+  the keyboard (`RECOMP_KEYBOARD=1`, on by default in the Windows, SteamOS
+  and macOS bundles; the keys are in each bundle's README.txt). On macOS,
+  connect the controller before starting the game: hot-plugging is not
+  handled.
 - **Saves:** saving and loading work. A bundle keeps them in its `hdd/`
   folder, outside the program files (see
   [docs/packaging.md](docs/packaging.md)); a development build uses the
@@ -127,9 +125,12 @@ The open work is tracked under `openspec/changes/`.
   `default.xbe` plus the rest of the game's files. This project does not
   provide or link to them.
 - [ ] The game files placed in `game_files/` (git ignores it).
-- [ ] Python 3.9 or newer and git. `./blinx2 setup` fetches the rest
-  (CMake, Ninja, the Python packages, llvm-mingw and the toolkit fork at its
-  pinned commit), checking each download against a pinned sha256.
+- [ ] Python 3.9 or newer, [uv](https://docs.astral.sh/uv/getting-started/installation/)
+  (macOS: `brew install uv`; Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`;
+  Windows: `winget install --id=astral-sh.uv -e`) and git. `./blinx2 setup`
+  fetches the rest (CMake, Ninja, the Python packages from the committed
+  `uv.lock`, llvm-mingw and the toolkit fork at its pinned commit), checking
+  each download against a pinned sha256.
 - [ ] The platform tools below.
 
 ### Per platform
@@ -139,7 +140,7 @@ listed under [Tested with](#tested-with).
 
 | Platform | OS | Toolchain | Dependencies | GPU backend | Status |
 |---|---|---|---|---|---|
-| macOS (Apple silicon) | tested: macOS 27.0 | Xcode Command Line Tools (tested: 27.0, Apple clang 21.0.0), CMake (tested: 4.4.3) | SDL2, OpenSSL (Homebrew; tested: sdl2-compat 2.32.72, OpenSSL 3.6.5), Python (tested: 3.14.8) | Metal | Runs with audio and controllers; no keyboard input yet |
+| macOS (Apple silicon) | tested: macOS 27.0 | Xcode Command Line Tools (tested: 27.0, Apple clang 21.0.0), CMake (tested: 4.4.3) | SDL2, OpenSSL (Homebrew; tested: sdl2-compat 2.32.72, OpenSSL 3.6.5), Python (tested: 3.14.8) | Metal | Runs with audio, controllers and keyboard |
 | Windows x86-64 (native) | not tested | [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) (clang + lld + mingw-w64, UCRT), CMake, Ninja (cross-compiled) | - | Direct3D 11 | Builds with llvm-mingw; tested only under Proton |
 | Linux (Proton) | tested: Fedora 44-based, kernel 7.2 | Same Windows build, cross-compiled with llvm-mingw (tested: 20260922, clang 23.1.2) | Proton via `umu-run` (tested: GE-Proton11-7, umu-launcher 1.4.4) | Direct3D 11 via DXVK | Runs with audio, controllers and keyboard |
 
@@ -163,8 +164,10 @@ cat/                 this repository
 cat/game_files/      your disc dump: default.xbe and the game's files
 ```
 
-One command-line tool, `blinx2` (`blinx2.py`, standard-library Python), runs
-every step on macOS, Linux and Windows. To get a game you can install, run
+One command-line tool, `blinx2`, runs every step on macOS, Linux and
+Windows. `blinx2.py` is a standard-library bootstrap that runs
+[xboxrecomp-cli](https://github.com/apexJCL/xboxrecomp-cli) at the commit
+`game.toml` pins (see "The CLI" below). To get a game you can install, run
 one command:
 
 ```sh
@@ -187,10 +190,19 @@ A cold run takes about 20 to 25 minutes; the next ones only rebuild.
 ./blinx2 build       # macOS: build/cat_recomp; elsewhere: build-win/cat_recomp.exe
 ```
 
+The Python tests and the lint run from the locked dev environment
+(`pyproject.toml`, `uv.lock`):
+
+```sh
+uv run pytest scripts
+uv run ruff check . && uv run ruff format --check .
+git config blame.ignoreRevsFile .git-blame-ignore-revs   # skip the one ruff format commit
+```
+
 `./blinx2 <command> --help` lists the options. The optional `ghidra` stage
 (slow, cached) only improves function names; it needs Ghidra
 (`GHIDRA_HOME`) and a Python 3.13 venv with PyGhidra at `.venv-ghidra`.
-`scripts/pipeline.sh <stage>` still works and runs the same code. `package`
+`package`
 builds in its own `build-pkg-macos/` and `build-pkg-win/`, with the stock
 options, so your `build/` and `build-win/` keep whatever options you set.
 
@@ -198,13 +210,30 @@ options, so your `build/` and `build-win/` keep whatever options you set.
 
 `setup` clones the toolkit fork
 ([apexJCL/xboxrecomp](https://github.com/apexJCL/xboxrecomp), branch
-`blinx2/portability`) at the commit pinned in `config/setup-pins.json` into
+`blinx2/portability`) at the commit pinned in `game.toml` into
 `external/xboxrecomp`, unless one is already found. CMake, `blinx2` and
-`scripts/bench.sh` look for it in this order:
+`blinx2 bench` look for it in this order:
 
 1. `$XBOXRECOMP_DIR` (or `-DXBOXRECOMP_DIR=...` for CMake);
 2. `external/xboxrecomp` inside this project;
 3. `../xboxrecomp`, next to this project.
+
+### The CLI
+
+The commands themselves live in
+[xboxrecomp-cli](https://github.com/apexJCL/xboxrecomp-cli), which any game
+built on the toolkit can use. This project's `game.toml` describes BLiNX 2
+to it: names, paths, pipeline flags, packaging and bench settings, and the
+pins. `blinx2.py` runs the CLI at `game.toml`'s `[cli] commit`. It looks
+for the CLI in this order:
+
+1. `$XBOXRECOMP_CLI_DIR`;
+2. `external/xboxrecomp-cli` inside this project, only at the pin;
+3. `../xboxrecomp-cli`, next to this project;
+4. otherwise it clones it at the pin into `external/xboxrecomp-cli`.
+
+`blinx2 doctor` shows the CLI commit in use and whether it is the pinned
+one.
 
 ### Run on macOS (Metal)
 
@@ -230,10 +259,10 @@ with `umu-run`; native Windows is untested), with
 `RECOMP_PB_BACKEND=d3d11`. Controllers work as they are; `RECOMP_KEYBOARD=1`
 adds the keyboard as player 1.
 
-`scripts/bench.sh` automates this on a remote x86-64 Linux host over SSH: it
+`./blinx2 bench` automates this on a remote x86-64 Linux host over SSH: it
 syncs the toolkit and this project, builds in a distrobox, runs the game under
-Proton and runs the golden-frame checks. See the comment at the top of the
-script for its settings (`BENCH_HOST` and so on).
+Proton and runs the golden-frame checks. `./blinx2 bench --help` lists its
+commands and settings (`BENCH_HOST` and so on).
 
 ## Install on your own machines
 
@@ -271,10 +300,11 @@ in [docs/env.md](docs/env.md).
 - **No sound at all:** audio is on by default; check that nothing sets
   `RECOMP_AC97_READY=0`, and that `SDL_AUDIODRIVER` is not `dummy` (headless
   runs set it).
-- **No menu music, or missing voice lines:** the dump is incomplete. The game
-  runs, silent where those files would play. `./blinx2 doctor` names the
-  missing files; extract the whole disc again into `game_files/`.
-- **The keyboard does nothing on macOS:** not wired up yet; use a controller.
+- **The keyboard does nothing:** the game window must have the focus. The
+  bundles turn the keyboard on; a development build needs
+  `RECOMP_KEYBOARD=1`, and on macOS also `RECOMP_HOST_PAD=1`, since the
+  keyboard is read only while host pads are on. A scripted run
+  (`RECOMP_INPUT_SCRIPT`) leaves it off unless `RECOMP_HOST_PAD=1` is set.
 - **The controller is not seen:** on macOS, connect it before starting the
   game (no hot-plug yet) and make sure `RECOMP_HOST_PAD=1` is set for a
   development build.
@@ -284,10 +314,12 @@ in [docs/env.md](docs/env.md).
 - `src/`: boot code (`main.c`), hand-written XDK replacements
   (`recomp_manual.c`), pad input, save seeding and the game's rows of the
   environment-variable table (`env/`).
-- `blinx2.py`: the command-line tool (setup, pipeline, build, package).
+- `game.toml`: what the CLI knows about this game, and the toolkit and CLI pins.
+- `blinx2.py`: the bootstrap that runs the CLI (setup, pipeline, build,
+  package, bench).
 - `packaging/`: the installers, launchers and defaults the bundles carry.
-- `scripts/`: the remote bench, golden-frame and audio checks, packaging
-  helpers.
+- `scripts/`: this game's helpers (input scripts, xemu references, the
+  public export, `compare-bundles.py`) and tests.
 - `config/`: pipeline inputs, such as seed functions for the disassembler.
 - `docs/`: notes, including the [environment variables](docs/env.md).
 - `openspec/`: specs and change proposals.

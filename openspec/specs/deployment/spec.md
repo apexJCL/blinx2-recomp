@@ -6,7 +6,7 @@ Defines what each installer does on its target (Windows, steamos, macOS): where 
 ## Requirements
 
 ### Requirement: Saves and settings survive every install, update, rollback and uninstall
-On every target, the saves and the emulated hard disk SHALL live in a user-data directory outside the program files and outside any Wine prefix: `%LOCALAPPDATA%\BLiNX2\hdd\` on Windows, `<root>/hdd/` on steamos, `~/Library/Application Support/BLiNX2/hdd/` on macOS. No installer, update, rollback or uninstaller SHALL create, write, rename or delete anything under `hdd/`, `config/` or `logs/`, with one exception: the steamos `--import-saves` option, which writes `hdd/` only when it is absent or empty. Installing a bundle onto a target whose user data already exists SHALL leave that data byte-identical.
+On every target, the saves and the emulated hard disk SHALL live in a user-data directory outside the program files and outside any Wine prefix: `%LOCALAPPDATA%\BLiNX2\hdd\` on Windows, `<root>/hdd/` on steamos, `~/Library/Application Support/BLiNX2/hdd/` on macOS. No installer, update, rollback or uninstaller SHALL create, write, rename or delete anything under `hdd/`, `config/` or `logs/`, with two exceptions on steamos: `install` creates `config/` when it is absent (empty), and the `--import-saves` option writes `hdd/` only when it is absent or empty. Installing a bundle onto a target whose user data already exists SHALL leave that data byte-identical.
 
 #### Scenario: Update keeps a save (steamos)
 - **WHEN** `<root>/hdd/` holds a save and `config/enhance.toml` holds `render.scale = 2`, and a newer bundle's `install.sh` runs
@@ -56,8 +56,12 @@ On every target, the saves and the emulated hard disk SHALL live in a user-data 
 - **THEN** prune leaves it and reports it
 
 #### Scenario: Wrong host
-- **WHEN** `install.sh` runs on a host that is not Linux x86-64 or has no `umu-run`
+- **WHEN** `install.sh` runs on a host that is not Linux x86-64
 - **THEN** it refuses before writing anything
+
+#### Scenario: No umu-run (a stock Steam Deck)
+- **WHEN** `install.sh` finds no `umu-run` on PATH, in `~/.local/bin` or in the copy it fetched before
+- **THEN** it offers to download the umu-launcher release the CLI pins (asked y/N, or `--fetch-umu`), installs it only if its sha256 matches the pin, and otherwise refuses before writing anything, naming `--fetch-umu`
 
 ### Requirement: Steam entry from Desktop Mode
 With `--steam`, `install.sh` SHALL add `<root>/BLiNX2` to Steam through `steamos-add-to-steam`, which hands the path to the running client; the scripts SHALL NOT edit `shortcuts.vdf`. When no desktop session or no running Steam is detected, or the helper is missing, the install SHALL complete without the entry and print how to add it: from Desktop Mode with Steam open, or by hand. The registered path SHALL be the stable launcher at the install root, never a path under `versions/`.

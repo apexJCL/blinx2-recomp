@@ -56,10 +56,12 @@
 /* xboxrecomp runtime headers */
 #include <xbox/xboxrecomp.h>
 #include "video_player.h"   /* xbox_HostWindowSetTitle, xbox_HostWindowMain */
+#include "kernel_missing.h"  /* xbox_missing_counts, for the crash report */
 #ifdef RECOMP_ENV_HAVE_ENHANCE_KEYS   /* the toolkit's opt-in enhancements layer */
 #include "enhance.h"
 #include "enhance_cfg.h"
 #include "recomp_exe_dir.h"
+#include "glow.h"
 #endif
 
 /*
@@ -303,6 +305,17 @@ static void print_guest_context(void *pc)
             for (i = 0; stack_ok && i < 20; i++)
                 crash_printf("    raw[esp+%-4d] 0x%08X\n", i * 4, sp[i]);
         }
+    }
+
+    /* A file the dump lacks can be why the title went somewhere it never
+     * goes on a console. Counts only, no lock: the faulting thread may hold
+     * the report's lock (kernel_missing.h). */
+    {
+        uint32_t hi = 0, lo = 0;
+        xbox_missing_counts(&hi, &lo, NULL);
+        if (hi + lo)
+            crash_printf("  [FILE] missing at crash: %u high, %u low\n",
+                         (unsigned)hi, (unsigned)lo);
     }
 }
 
@@ -911,6 +924,9 @@ static void host_install_thread_dump(void) {}
  * RECOMP_MEM_DUMP_EVERY=<seconds> (default 20): a thread writes that range
  * of guest memory to <prefix>_<n>.bin every interval, so a texture or table
  * can be looked at offline from the moment it holds what a frame used.
+ * mem_dump_every=0 starts no thread: the range is written only by the input
+ * script's `memdump LABEL` step (cat_mem_dump_now), to <prefix>_<LABEL>.bin,
+ * so a dump lands on a game event rather than on the wall clock.
  * Debug only; off unless set. */
 #if !defined(_WIN32)
 #include <pthread.h>
@@ -937,6 +953,25 @@ static void *mem_dump_main(void *arg)
     return NULL;
 }
 
+/* The input script's `memdump LABEL` step: one dump of the mem_dump range
+ * now, from the pad thread. Without mem_dump set it says so and does nothing. */
+void cat_mem_dump_now(const char *label)
+{
+    char path[300];
+    FILE *f;
+    if (!s_md_len) {
+        fprintf(stderr, "[MEMDUMP] memdump %s: RECOMP_DEBUG=mem_dump is not set\n", label);
+        return;
+    }
+    snprintf(path, sizeof path, "%s_%s.bin", s_md_pre, label);
+    f = fopen(path, "wb");
+    if (!f)
+        return;
+    fwrite((const uint8_t *)(uintptr_t)xbox_GetMemoryOffset() + s_md_addr, 1, s_md_len, f);
+    fclose(f);
+    fprintf(stderr, "[MEMDUMP] %s: 0x%08X + 0x%X\n", path, s_md_addr, s_md_len);
+}
+
 static void host_install_mem_dump(void)
 {
     const char *e = recomp_env(RENV_MEM_DUMP), *ev = recomp_env(RENV_MEM_DUMP_EVERY);
@@ -953,12 +988,13 @@ static void host_install_mem_dump(void)
     snprintf(s_md_pre, sizeof s_md_pre, "%s", q);
     s_md_every = ev ? (uint32_t)atoi(ev) : 20u;
     if (!s_md_every)
-        s_md_every = 20;
+        return;     /* script steps only */
     if (pthread_create(&t, NULL, mem_dump_main, NULL) == 0)
         pthread_detach(t);
 }
 #else
 static void host_install_mem_dump(void) {}
+void cat_mem_dump_now(const char *label) { (void)label; }
 #endif
 
 /* ── Startup failures ──────────────────────────────────────── */
@@ -1284,13 +1320,21 @@ static BOOL load_xbe(const char *path, void **out_data, size_t *out_size)
  * fps.mode is the game's key. Only lock30 exists: the stage logic advances a
  * fixed 1/30 s per frame, so running it at 60 doubles the game's speed (the
  * fps spike, docs/env.md). lock60 and free say so and run lock30; nothing
- * changes in the guest. Read before the unused-key report, so a file that
- * sets it is not told the key is unknown. */
+ * changes in the guest.
+ *
+ * fx.glow and fx.glow_intensity are the game's too: off, or a scale of the
+ * mode-3 glow layer (0..2), applied by the sub_0005B7D0 wrapper in
+ * recomp_manual.c. At on and 1 the wrapper never touches the guest.
+ *
+ * All game keys are read before the unused-key report, so a file that sets
+ * one is not told the key is unknown. */
 static void host_enhance_init(void)
 {
 #ifdef RECOMP_ENV_HAVE_ENHANCE_KEYS
     static const char *const fps_modes[] = { "lock30", "lock60", "free", NULL };
-    int fps;
+    static const char *const glow_modes[] = { "on", "off", NULL };
+    int fps, glow_off;
+    double glow_k;
 
     xbox_enhance_init(recomp_exe_dir(), NULL);
     enhance_cfg_bind_env("fps.mode", RENV_FPS_MODE);
@@ -1301,6 +1345,19 @@ static void host_enhance_init(void)
         fprintf(stderr, "[ENHANCE] fps.mode=%s not available for this title"
                         " (stage logic advances a fixed 1/30 s per frame;"
                         " see docs/env.md); using lock30\n", fps_modes[fps]);
+    enhance_cfg_bind_env("fx.glow", RENV_GLOW);
+    enhance_cfg_bind_env("fx.glow_intensity", RENV_GLOW_INTENSITY);
+    glow_off = enhance_cfg_choice("fx.glow", glow_modes, 0) == 1;
+    glow_k = enhance_cfg_float("fx.glow_intensity", 1.0);
+    if (!(glow_k >= 0.0 && glow_k <= 2.0)) {
+        double c = glow_k > 2.0 ? 2.0 : glow_k < 0.0 ? 0.0 : 1.0;   /* NaN: stock */
+        fprintf(stderr, "[ENHANCE] fx.glow_intensity=%g out of range 0..2;"
+                        " using %g\n", glow_k, c);
+        glow_k = c;
+    }
+    glow_configure(glow_off, glow_k);
+    fprintf(stderr, "[ENHANCE] fx.glow=%s fx.glow_intensity=%g\n",
+            glow_off ? "off" : "on", glow_k);
     enhance_cfg_report_unused();
     fflush(stderr);
 #endif

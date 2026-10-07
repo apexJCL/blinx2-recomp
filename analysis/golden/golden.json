@@ -1,5 +1,5 @@
 {
-  "about": "Golden frames for scripts/bench.sh golden (scripts/golden.py). D3D11 under Proton on the Linux/Proton host; RECOMP_DEBUG=d3d11_dump writes present 60*k+1 as frame_k. Frames are not bit-exact across runs (title-movie, idle-animation and timer phase vary with wall time), so a frame passes on an exact pixel hash or else on the tolerant compare below. Reference PNGs live in analysis/golden/frames/ (gitignored). Hashes are SHA-256 of width,height (LE u32) + RGB rows top-down.",
+  "about": "Golden frames for blinx2 bench golden (blinx2 golden). D3D11 under Proton on the Linux/Proton host; RECOMP_DEBUG=d3d11_dump writes present 60*k+1 as frame_k. Frames are not bit-exact across runs (title-movie, idle-animation and timer phase vary with wall time), so a frame passes on an exact pixel hash or else on the tolerant compare below. Reference PNGs live in analysis/golden/frames/ (gitignored). Hashes are SHA-256 of width,height (LE u32) + RGB rows top-down.",
   "compare": {
     "method": "exact pixel hash, else per-channel mean abs diff and share of pixels off by more than pixel_tol in any channel; also the worst 64x64 tile's share of such pixels",
     "pixel_tol": 8,
@@ -17,7 +17,9 @@
     "RECOMP_INPUT_STRICT": "1",
     "RECOMP_ENHANCE_CONFIG": "none",
     "RECOMP_RENDER_SCALE": "1",
-    "RECOMP_PRESENT_PACING": "spin"
+    "RECOMP_PRESENT_PACING": "spin",
+    "RECOMP_GLOW": "on",
+    "RECOMP_GLOW_INTENSITY": "1"
   },
   "scenarios": {
     "attract": {
@@ -186,7 +188,7 @@
           }
         }
       ],
-      "followups": "Structural, not done: (1) count tap periods in polls/presents, not wall seconds, so a busy host cannot move a press across an accept edge; (2) rebase dumps to events instead of fixed present numbers from boot, which carry the +-6 present stage-start jitter: done for runs that dump by flip (RECOMP_FB_DUMP_AT, golden.py dumpat; the `anchors` here), not yet for bench.sh's D3D11 runs, whose dumper writes every 60th present; (3) record a measured margin per frame (presents between the dump and the nearest input or scene edge) next to its limits; (4) an in-band presence region kind for stage1-enemies-objectives, independent of the gunners' phase (share of band pixels that are not sky/terrain colour, or band mean luminance against the reference with a wide tolerance), so the gunners themselves are checked",
+      "followups": "Structural, not done: (1) count tap periods in polls/presents, not wall seconds, so a busy host cannot move a press across an accept edge; (2) rebase dumps to events instead of fixed present numbers from boot, which carry the +-6 present stage-start jitter: done for runs that dump by flip (RECOMP_FB_DUMP_AT, golden.py dumpat; the `anchors` here), not yet for blinx2 bench's D3D11 runs, whose dumper writes every 60th present; (3) record a measured margin per frame (presents between the dump and the nearest input or scene edge) next to its limits; (4) an in-band presence region kind for stage1-enemies-objectives, independent of the gunners' phase (share of band pixels that are not sky/terrain colour, or band mean luminance against the reference with a wide tolerance), so the gunners themselves are checked",
       "anchors": {
         "first-3d": {
           "min_batches": 1000,

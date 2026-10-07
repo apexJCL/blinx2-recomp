@@ -35,7 +35,7 @@ without Steam Input. It exists only while this script runs.
                         they are destroyed when the command ends)
     --lock-owner TEXT   run-ownership guard: create the devices only while the
                         host's run lock text (~/.recomp-run.lock or $RECOMP_RUN_LOCK, the line
-                        bench.sh writes when a run takes the lock) contains
+                        blinx2 bench writes when a run takes the lock) contains
                         TEXT, e.g. a stamp or "recomp-inspike/cat/bench-logs/";
                         exit 3 if it names another run. Once matched, that
                         exact line is pinned: when the lock text changes (the
@@ -58,51 +58,74 @@ Refuses (exit 2) when /dev/uinput is not writable; it never escalates.
 Exit 1 when a device cannot be created or a command fails.
 Never touches xemu: it only creates its own devices and reads /proc.
 """
+
 import argparse
 import os
 import shlex
 import signal
 import sys
 import threading
-import traceback
 import time
+import traceback
 
 PAD_NAME = "Microsoft X-Box 360 pad"
 PAD_BUS, PAD_VID, PAD_PID, PAD_VER = 0x03, 0x045E, 0x028E, 0x0110
 
 STICKS = {"LX": "ABS_X", "LY": "ABS_Y", "RX": "ABS_RX", "RY": "ABS_RY"}
 TRIGGERS = {"LT": "ABS_Z", "RT": "ABS_RZ"}
-KEYS = {"A": "BTN_A", "B": "BTN_B", "X": "BTN_X", "Y": "BTN_Y",
-        "LB": "BTN_TL", "RB": "BTN_TR", "START": "BTN_START",
-        "BACK": "BTN_SELECT", "GUIDE": "BTN_MODE",
-        "LTHUMB": "BTN_THUMBL", "RTHUMB": "BTN_THUMBR"}
-HAT = {"UP": ("ABS_HAT0Y", -1), "DOWN": ("ABS_HAT0Y", 1),
-       "LEFT": ("ABS_HAT0X", -1), "RIGHT": ("ABS_HAT0X", 1)}
+KEYS = {
+    "A": "BTN_A",
+    "B": "BTN_B",
+    "X": "BTN_X",
+    "Y": "BTN_Y",
+    "LB": "BTN_TL",
+    "RB": "BTN_TR",
+    "START": "BTN_START",
+    "BACK": "BTN_SELECT",
+    "GUIDE": "BTN_MODE",
+    "LTHUMB": "BTN_THUMBL",
+    "RTHUMB": "BTN_THUMBR",
+}
+HAT = {
+    "UP": ("ABS_HAT0Y", -1),
+    "DOWN": ("ABS_HAT0Y", 1),
+    "LEFT": ("ABS_HAT0X", -1),
+    "RIGHT": ("ABS_HAT0X", 1),
+}
 
 _out_lock = threading.Lock()
 
 
 def say(*a):
     with _out_lock:
-        print("[VPAD] wall=%.6f" % time.clock_gettime(time.CLOCK_REALTIME),
-              *a, flush=True)
+        print("[VPAD] wall=%.6f" % time.clock_gettime(time.CLOCK_REALTIME), *a, flush=True)
 
 
 class Pad:
     def __init__(self, idx):
-        from evdev import UInput, ecodes as e, AbsInfo
+        from evdev import AbsInfo, UInput
+        from evdev import ecodes as e
+
         self.e, self.idx = e, idx
         stick = AbsInfo(0, -32768, 32767, 16, 128, 0)
         trig = AbsInfo(0, 0, 255, 0, 0, 0)
         hat = AbsInfo(0, -1, 1, 0, 0, 0)
         caps = {
             e.EV_KEY: [getattr(e, k) for k in KEYS.values()],
-            e.EV_ABS: [(e.ABS_X, stick), (e.ABS_Y, stick), (e.ABS_RX, stick),
-                       (e.ABS_RY, stick), (e.ABS_Z, trig), (e.ABS_RZ, trig),
-                       (e.ABS_HAT0X, hat), (e.ABS_HAT0Y, hat)],
+            e.EV_ABS: [
+                (e.ABS_X, stick),
+                (e.ABS_Y, stick),
+                (e.ABS_RX, stick),
+                (e.ABS_RY, stick),
+                (e.ABS_Z, trig),
+                (e.ABS_RZ, trig),
+                (e.ABS_HAT0X, hat),
+                (e.ABS_HAT0Y, hat),
+            ],
         }
-        self.ui = UInput(caps, name=PAD_NAME, vendor=PAD_VID, product=PAD_PID,
-                         version=PAD_VER, bustype=PAD_BUS)
+        self.ui = UInput(
+            caps, name=PAD_NAME, vendor=PAD_VID, product=PAD_PID, version=PAD_VER, bustype=PAD_BUS
+        )
         self.lock = threading.Lock()
         say("pad %d created %s" % (idx, self.ui.device.path if self.ui.device else "?"))
 
@@ -184,7 +207,7 @@ def run_cmd(pads, words, stop):
         if "--hold" in args:
             i = args.index("--hold")
             hold = float(args[i + 1])
-            del args[i:i + 2]
+            del args[i : i + 2]
         pad.button(args[0].upper(), True)
         stop.wait(hold)
         pad.button(args[0].upper(), False)
@@ -255,8 +278,11 @@ def wait_lock_owner(text, wait, stop):
             say("lock owner: %s" % line)
             return line
         if wait <= 0 or time.monotonic() >= end or stop.is_set():
-            print("vpad: the run lock names another run (%r), not %r; "
-                  "not creating a device" % (line, text), file=sys.stderr)
+            print(
+                "vpad: the run lock names another run (%r), not %r; "
+                "not creating a device" % (line, text),
+                file=sys.stderr,
+            )
             return None
         stop.wait(0.1)
 
@@ -273,9 +299,11 @@ def guard_lock_owner(owner, stop, lost):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0],
-                                 formatter_class=argparse.RawDescriptionHelpFormatter,
-                                 epilog=__doc__.split("\n\n", 1)[1])
+    ap = argparse.ArgumentParser(
+        description=__doc__.split("\n\n")[0],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__.split("\n\n", 1)[1],
+    )
     ap.add_argument("--count", type=int, default=1)
     ap.add_argument("--destroy-after", type=float)
     ap.add_argument("--lock-owner")
@@ -285,9 +313,12 @@ def main():
     if not a.command:
         ap.error("no command")
     if not os.access("/dev/uinput", os.W_OK):
-        print("vpad: /dev/uinput is not writable by this user (%s); not creating "
-              "a device. Give the user access (e.g. a uaccess/ACL rule) instead "
-              "of running this as root." % os.getuid(), file=sys.stderr)
+        print(
+            "vpad: /dev/uinput is not writable by this user (%s); not creating "
+            "a device. Give the user access (e.g. a uaccess/ACL rule) instead "
+            "of running this as root." % os.getuid(),
+            file=sys.stderr,
+        )
         sys.exit(2)
     try:
         import evdev  # noqa: F401
@@ -316,8 +347,7 @@ def main():
             rc = 1
             return
         if owner is not None:
-            threading.Thread(target=guard_lock_owner, args=(owner, stop, lost),
-                             daemon=True).start()
+            threading.Thread(target=guard_lock_owner, args=(owner, stop, lost), daemon=True).start()
         t_end = time.monotonic() + a.destroy_after if a.destroy_after else None
         if t_end:
             threading.Timer(a.destroy_after, stop.set).start()

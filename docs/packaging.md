@@ -30,12 +30,35 @@ targets:
 
 ### Prerequisites
 
+`./blinx2` (`blinx2.py`) is a small bootstrap. The tool itself is
+[xboxrecomp-cli](https://github.com/apexJCL/xboxrecomp-cli), at the commit
+`game.toml` pins (`[cli] commit`). The bootstrap looks for it in this order:
+1. `$XBOXRECOMP_CLI_DIR`.
+2. `external/xboxrecomp-cli` in this checkout, used only at the pin. A
+   clone the bootstrap made is moved to a new pin; any other checkout there
+   at another commit is refused.
+3. `../xboxrecomp-cli` beside this checkout.
+4. Otherwise it clones it at the pin into `external/xboxrecomp-cli`, which
+   needs git. A failed clone leaves nothing behind.
+
 Everything else (CMake, Ninja, the Python packages, the llvm-mingw
 cross-compiler, the toolkit) is fetched by `setup` into this checkout, each
-download checked against a pinned sha256.
+download checked against a pinned sha256. The Python environment (`.venv/`)
+is made by [uv](https://docs.astral.sh/uv/) from the committed `uv.lock`,
+which pins every package by its sha256.
 
-- **All hosts:** Python 3.9 or newer, git, about 15 GB free, and your dump in
-  `game_files/` (`game_files/default.xbe` plus the game's files).
+- **All hosts:** Python 3.9 or newer (for the bootstrap; uv gives the CLI
+  the 3.12 it needs), uv on `PATH`, git, about 15 GB free,
+  and your dump in `game_files/` (`game_files/default.xbe` plus the game's
+  files). `setup` does not install uv; without it, `setup` and `doctor`
+  print the command for your system:
+  - macOS: `brew install uv`;
+  - Linux, SteamOS included: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+    (it installs into `~/.local/bin`), or the distribution's uv package;
+  - Windows: `winget install --id=astral-sh.uv -e`.
+
+  If uv has to fetch a Python for the environment (`.python-version` asks
+  for 3.12 or newer), it checks the download against hashes built into uv.
 - **macOS:** the Command Line Tools (`xcode-select --install`). For the macos
   target, Homebrew's `sdl2`, `sdl3`, `openssl` and `libepoxy`. For the windows
   target, `brew install makensis`.
@@ -44,8 +67,8 @@ download checked against a pinned sha256.
   `sudo pacman -S nsis`). On an immutable system (SteamOS, Fedora Atomic and
   similar), `makensis` goes in a toolbox or distrobox: build on the host,
   then run `blinx2 package windows --no-build` inside the box, which only
-  stages the files and runs `makensis` (the host's `.venv` does not run in
-  the box). `blinx2 doctor` prints the commands.
+  stages the files and runs `makensis` (the build needs the host's `.venv`
+  and llvm-mingw; the box needs only `makensis`). `blinx2 doctor` prints the commands.
 - **Windows:** Python from python.org (the `py` launcher) and Git for
   Windows. Use a short checkout path such as `C:\b2`, and run
   `git config --global core.longpaths true`; `doctor` warns when the path is
@@ -103,7 +126,7 @@ The separate steps are developer commands (`./blinx2 --help` lists them
 apart):
 
 ```sh
-./blinx2 setup              # .venv, llvm-mingw, toolkit; ends with doctor
+./blinx2 setup              # .venv (uv sync from uv.lock), llvm-mingw, toolkit; ends with doctor
 ./blinx2 analyze            # parse the XBE, find functions, classify, recover ABIs
 ./blinx2 recomp             # lift to C: src/recomp/gen/
 ./blinx2 build [windows|macos]   # build-win/ or build/
@@ -113,15 +136,15 @@ Every stage invalidates `gen.key.json` and `recomp` writes it again, so a
 stage run by hand with extra arguments always makes the next `package`
 regenerate.
 
-`setup` clones the toolkit at the commit pinned in
-`config/setup-pins.json`. The pin must be at least as new as this tree
+`setup` clones the toolkit at the commit pinned in `game.toml`
+(`[toolkit] commit`). The pin must be at least as new as this tree
 needs; if `build` fails on a missing toolkit header, point
 `XBOXRECOMP_DIR` at a newer toolkit checkout (`setup` then leaves it
 alone).
 
-`scripts/pipeline.sh build` (for developers) runs `blinx2 build macos` on
-macOS; on Linux it runs `blinx2 build`, whose default there is the Windows
-cross-build into `build-win/`, since Linux has no native target of its own.
+`blinx2 build` with no target builds `macos` on macOS and `windows` (into
+`build-win/`) elsewhere; on Linux that is the cross-build, since Linux has
+no native target of its own.
 
 `package` always builds (incrementally), so a bundle always matches the tree
 it names. `blinx2 <command> --help` lists the options. The optional
@@ -169,10 +192,13 @@ The interactive setup pages, the Start Menu and desktop shortcuts, and the
 Settings > Apps entry are not tested, and neither is building on a Windows
 host.
 
-## 4. Linux gaming PC (steamos)
+## 4. Steam Deck or Linux gaming PC (steamos)
 
-The game runs under Proton through `umu-run`, which SteamOS-like gaming
-distributions ship. From Desktop Mode:
+The steamos bundle runs on a Steam Deck with stock SteamOS and on a Linux
+gaming distribution that ships `umu-run`. The game runs under Proton
+through `umu-run` (umu-launcher); a stock Steam Deck does not have it, and
+the installer offers to download it (below). The installer and launcher are
+xboxrecomp-cli's own, shared by every game it packages. From Desktop Mode:
 
 ```sh
 tar -xf BLiNX2-<v>-steamos.tar     # or Dolphin: right-click > Extract > here
@@ -193,7 +219,19 @@ file modes), run `bash install.sh` with the same options.
 | `./install.sh uninstall` | removes the program, keeps `hdd/`, `config/` and `logs/` |
 
 Options: `--root DIR` (default `~/Games/BLiNX2`), `--keep N`,
-`--import-saves DIR` (copies an older save root into an empty `hdd/`).
+`--import-saves DIR` (copies an older save root into an empty `hdd/`),
+`--fetch-umu` and `--umu-dir DIR` (below). The install creates `config/`
+when it is absent, so a setting can go in `config/launch.env` before the
+first launch; it never changes what is in it.
+
+**umu-run.** The installer and the launcher look for `umu-run` on PATH,
+then in `~/.local/bin` (Game Mode's PATH lacks it), then in the copy the
+installer downloaded. With none (a stock Steam Deck), the installer asks
+whether to download umu-launcher 1.4.4, the release xboxrecomp-cli pins,
+checked against its sha256; `--fetch-umu` does it without asking. The copy
+goes to `~/.local/share/xboxrecomp/umu` (or `--umu-dir`), in the home
+folder that SteamOS updates keep. `./install.sh status` shows which
+`umu-run` the game uses; `UMU_RUN` in `config/launch.env` picks another.
 
 **Steam.** The installer adds the stable launcher `~/Games/BLiNX2/BLiNX2`
 as a non-Steam game, so the entry keeps working across updates. Without
@@ -202,9 +240,11 @@ Library > Browse > `~/Games/BLiNX2/BLiNX2`. Leave "Force the use of a
 specific Steam Play compatibility tool" **off** for it: the launcher starts
 Proton itself. Then play from Game Mode.
 
-The first launch creates the Wine prefix (`~/Games/BLiNX2/prefix`) and shows
-nothing for 20 to 60 seconds. The prefix holds nothing of yours and is
-recreated if deleted.
+The first launch downloads the Steam Linux Runtime and GE-Proton and creates
+the Wine prefix (`~/Games/BLiNX2/prefix`), which takes a few minutes. A
+zenity or kdialog window says so (in Game Mode, also a notification) and
+closes when the game starts; `LAUNCH_NOTICE=0` in `config/launch.env` turns
+it off. The prefix holds nothing of yours and is recreated if deleted.
 
 ## 5. macOS
 
@@ -226,11 +266,10 @@ environment settings, `KEY=value` per line, read after the bundle's
 `launch.env.default`. `logs/` keeps one log per launch, the newest
 `LOG_KEEP` (10).
 
-Controllers work as player 1 on every target. On Windows and the Linux
-gaming PC the keyboard does too (`RECOMP_KEYBOARD=1` in
-`launch.env.default`; the keys are in the bundle's README.txt). On macOS the
-app turns host pads on (`RECOMP_HOST_PAD=1`) and the keyboard does not drive
-the game yet.
+Controllers work as player 1 on every target, and so does the keyboard
+(`RECOMP_KEYBOARD=1` in `launch.env.default`; the keys are in the bundle's
+README.txt). On macOS the app also turns host pads on (`RECOMP_HOST_PAD=1`),
+which the keyboard needs there.
 
 `BLINX2_DATA_DIR` moves the user-data folder for the macOS app and the
 Windows launcher. It exists for tests, which must never touch your real
@@ -240,6 +279,23 @@ packaged game from a script (`open --env BLINX2_DATA_DIR=... BLiNX2.app`).
 ## 7. Troubleshooting
 
 - **`blinx2 doctor`** names whatever is missing and how to install it.
+- **"no uv on PATH":** install uv with the command `setup` printed (above,
+  Prerequisites), open a new terminal so `PATH` picks it up, and run setup
+  again. A `.venv` that already works keeps building and packaging without
+  uv; only `setup` needs it.
+- **"no xboxrecomp-cli":** the bootstrap found no CLI and could not clone
+  it: git is missing, there is no network, or the pinned commit is not on
+  the remote (the line above it says which). Clone
+  `https://github.com/apexJCL/xboxrecomp-cli.git` beside this checkout, or
+  set `XBOXRECOMP_CLI_DIR` to a checkout of it. `blinx2 doctor` shows which
+  CLI commit runs, and whether it is the pinned one. If
+  `external/xboxrecomp-cli` is "not the pin" and the bootstrap did not
+  clone it, delete it, or point `XBOXRECOMP_CLI_DIR` at it to use it as it
+  is.
+- **"uv lock --check failed":** most likely someone changed
+  `pyproject.toml` without re-locking. Update your checkout; maintainers run
+  `blinx2 pins refresh` (or `uv lock`) and commit `uv.lock`. `.venv` is left
+  as it was.
 - **"checksum mismatch" during setup:** the download is deleted and nothing
   is unpacked. Retry; if it persists, the pinned file changed upstream.
 - **llvm-mingw "quarantined" on macOS:** it came from a browser download;
@@ -250,18 +306,40 @@ packaged game from a script (`open --env BLINX2_DATA_DIR=... BLiNX2.app`).
   incomplete. Install again (steamos and windows) or replace the app (macos).
   A dev build run from the checkout finds `game_files/` in the current
   directory, or wherever `RECOMP_GAME_FILES` points.
-- **"the dump looks incomplete":** the XBE names songs, voice lines or
-  movies that `game_files/` lacks (doctor and package list them). The game
-  runs, silent where they would play. Extract the whole disc again into
-  `game_files/`. The check is a heuristic and never blocks packaging.
-- **steamos: nothing happens at launch:** the first launch takes up to a
-  minute. `~/Games/BLiNX2/logs/` has the game's log and `umu.log`.
+- **Music, voices or a movie are missing, or the game says the disc is
+  dirty or damaged:** a file is missing from `game_files/`. The game's log
+  (in `logs/`) names it on a `[FILE] missing` line, and the `[FILE]
+  summary` line at the end counts them. Extract the whole disc again into
+  `game_files/`.
+- **steamos: "umu-run is not installed":** on a stock Steam Deck, run
+  `./install.sh --fetch-umu` from the unpacked bundle, in Desktop Mode.
+  `./install.sh status` names the `umu-run` the game uses.
+- **steamos: nothing happens at launch:** the first launch downloads the
+  runtime and Proton for a few minutes. `~/Games/BLiNX2/logs/umu.log` shows
+  the progress, and the newest `logs/game-*.log` is the game's own log. If
+  a first launch failed half-way (no network), launch again; if it keeps
+  failing, delete `~/Games/BLiNX2/prefix`.
 - **A bench run warns about a game outside the bench:** the installed game
   is still open on the same PC. Close it, or pass `--kill-game`.
 
 ## 8. Maintainers
 
-`blinx2 pins refresh` rewrites `config/setup-pins.json` and the two
-`config/requirements-*.txt` files from the GitHub and PyPI APIs (the
-llvm-mingw tag comes from `config/toolchain.env`). Review the diff before
-committing: setup trusts these hashes.
+`blinx2 pins refresh` rewrites `config/setup-pins.json` from the GitHub
+API (the llvm-mingw tag comes from `game.toml`'s `[toolchain]`) and then runs
+`uv lock --upgrade`, which re-resolves `uv.lock` against PyPI. Last, it
+prints the newest heads of the toolkit's branch and of xboxrecomp-cli's
+`main` beside the commits `game.toml` pins. It never edits `game.toml`. To
+move a pin, edit the `commit` line under `[toolkit]` or `[cli]` and test. Python
+dependencies are declared in `pyproject.toml`: capstone and pefile stay on
+exact versions there, since the lifter decodes with capstone and another
+version could change `gen/`. Review the diff before committing: setup trusts
+these hashes.
+
+Developer checks, from the dev group (`blinx2 setup --dev`, or any
+`uv run`, which syncs it):
+
+```sh
+uv run pytest scripts       # this game's tests; the CLI's are in xboxrecomp-cli
+uv run ruff check . && uv run ruff format --check .
+git config blame.ignoreRevsFile .git-blame-ignore-revs   # skip the ruff format commit
+```

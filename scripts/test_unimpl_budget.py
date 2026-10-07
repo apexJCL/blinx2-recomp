@@ -59,10 +59,8 @@ def _run(driver=DRIVER):
         c, exe = os.path.join(d, "t.c"), os.path.join(d, "t")
         with open(c, "w") as f:
             f.write(driver)
-        subprocess.run([_cc(), "-std=c11", "-Wall", "-Werror", "-I", SRC,
-                        "-o", exe, c], check=True)
-        out = subprocess.run([exe], check=True, capture_output=True,
-                             text=True).stdout
+        subprocess.run([_cc(), "-std=c11", "-Wall", "-Werror", "-I", SRC, "-o", exe, c], check=True)
+        out = subprocess.run([exe], check=True, capture_output=True, text=True).stdout
     return [line.split() for line in out.splitlines()]
 
 
@@ -72,10 +70,13 @@ def test_budget():
         return
     lines = _run()
     assert lines == [
-        ["00301AB7", "1"], ["00301AB7", "2"], ["00301AB7", "3"],
+        ["00301AB7", "1"],
+        ["00301AB7", "2"],
+        ["00301AB7", "3"],
         ["00301AB7", "0"],
         ["00301AB7", "10"],
-        ["00000000", "1"], ["00000000", "0"],
+        ["00000000", "1"],
+        ["00000000", "0"],
         ["FFFFFFFF", str(0xFFFFFFFF)],
         ["02000000", str(0xFFFFFFFF)],
         ["00301AB7", "0"],
@@ -86,10 +87,11 @@ def test_chatty_site_reports_powers_of_ten():
     if not _cc():
         return
     driver = DRIVER.replace(
-        'HIT(0x00301AB7u, 3);                        /* new: prints */',
-        'for (i = 2000; i < 9999; i++) unimpl_budget_hit(&b, 0x00355000u, 3);'
-        ' HIT(0x00355000u, 3); HIT(0x00355000u, 3);'
-        ' HIT(0x00301AB7u, 3);')
+        "HIT(0x00301AB7u, 3);                        /* new: prints */",
+        "for (i = 2000; i < 9999; i++) unimpl_budget_hit(&b, 0x00355000u, 3);"
+        " HIT(0x00355000u, 3); HIT(0x00355000u, 3);"
+        " HIT(0x00301AB7u, 3);",
+    )
     lines = _run(driver)
     assert lines[:2] == [["00355000", "10000"], ["00355000", "0"]], lines
 

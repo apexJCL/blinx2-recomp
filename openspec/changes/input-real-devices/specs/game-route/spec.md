@@ -19,14 +19,14 @@ A built-in preset `@story-hub` SHALL take the title from boot through the intro 
 The host SHALL honour `RECOMP_SAVE_DIR` as the root for the title's UDATA and TDATA on every host, and the bench SHALL give each story run a fresh, empty directory under that run's log directory, so a second run still takes the SAVE GAME path and not LOAD GAME. The directory SHALL stay local and gitignored.
 
 #### Scenario: Two story runs in a row
-- **WHEN** `bench.sh golden` runs the `story` scenario twice on the same host
+- **WHEN** `blinx2 bench golden` runs the `story` scenario twice on the same host
 - **THEN** both runs show the SAVE GAME menu (not LOAD GAME) and both `[INPUT]` logs match step for step
 
 ### Requirement: The story route is a golden scenario
 `golden.json` SHALL hold a `story` scenario on `@story-hub` with the host pad and keyboard pinned off, with at least these reference frames: the Story Mode / SAVE GAME menu, the team editor, and the first hub frame. The scenario SHALL pass three runs in a row on the Linux/Proton host before its references are merged, under the same record and limit rules as the existing scenarios.
 
 #### Scenario: Story golden passes
-- **WHEN** `bench.sh golden` runs on the integration heads
+- **WHEN** `blinx2 bench golden` runs on the integration heads
 - **THEN** the `story` frames pass their limits alongside `attract` and `stage1`
 
 ### Requirement: The route to stage 1-1 without the debug menu

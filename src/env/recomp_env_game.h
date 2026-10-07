@@ -17,15 +17,18 @@
     X(HOST_PAD,          CONFIG, "RECOMP_HOST_PAD",          NULL, "0/1: host gamepads in or out") \
     X(RUMBLE,            CONFIG, "RECOMP_RUMBLE",            NULL, "0: no rumble") \
     X(FPS_MODE,          CONFIG, "RECOMP_FPS_MODE",          NULL, "enhancements: fps.mode, lock30 only (lock60 and free are not available)") \
+    X(GLOW,              CONFIG, "RECOMP_GLOW",              NULL, "enhancements: fx.glow, on|off (the mode-3 glow pass)") \
+    X(GLOW_INTENSITY,    CONFIG, "RECOMP_GLOW_INTENSITY",    NULL, "enhancements: fx.glow_intensity, 0.0..2.0 (scales the glow layer)") \
     X(INPUT_TRACE,       TRACE, "input",           "RECOMP_INPUT_TRACE",       "pad handles and states") \
     X(UNIMPL_BUDGET,     TRACE, "unimpl_budget",   NULL,                       "=n: [UNIMPL] lines per address before only hits 10, 100, ... (3)") \
     X(APU_FAULT_BENCH,   DEBUG, "apu_fault_bench", "RECOMP_APU_FAULT_BENCH",   "=n: time n trapped APU accesses") \
     X(MEM_DUMP,          DEBUG, "mem_dump",        "RECOMP_MEM_DUMP",          "=va,bytes,prefix: guest memory dumps") \
     X(MEM_DUMP_EVERY,    DEBUG, "mem_dump_every",  "RECOMP_MEM_DUMP_EVERY",    "=s: mem_dump period, default 20") \
+    X(PAD_PEEK,          DEBUG, "pad_peek",        NULL,                       "=va:n[:x],...: guest dwords on every scripted pad poll") \
     X(THREAD_DUMP,       DEBUG, "thread_dump",     "RECOMP_THREAD_DUMP",       "dump every thread: SIGUSR1 (macOS), touch thread_dump.trigger (Windows)")
 
 /* Game keys whose values contain commas (see recomp_env.h). */
-#define RECOMP_ENV_GAME_COMMA_KEYS "mem_dump",
+#define RECOMP_ENV_GAME_COMMA_KEYS "mem_dump", "pad_peek",
 
 /* Defaults this game gives toolkit keys, D(ID, "value"): used when neither
  * the key nor its old variable is set. The GP doorbell (GP scratch page 0 +

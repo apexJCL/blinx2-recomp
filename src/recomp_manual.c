@@ -474,3 +474,57 @@ void recomp_unimpl(const char *text, uint32_t va)
     if (stop) abort();
 }
 
+
+/* ── fx.glow: the weight of the mode-3 glow pass ─────────────────────────
+ *
+ * sub_0005B7D0 (one caller, sub_0005B550 in post mode 3) screen-blends a
+ * 4-tap blur of the 320x240 downsample over the frame, with the game's glow
+ * weight 0xADC744 as the quad's vertex colour. The generator emits its body
+ * as sub_0005B7D0_gen (the extern below, tools/recomp/manual_scan.py) and
+ * every call lands here.
+ *
+ * At the defaults (glow on, intensity 1) this is the generated body and
+ * nothing else: the guest is never touched. Otherwise the weight is scaled
+ * (glow.c says why by a cube root) for the call only. `off` is weight 0, not
+ * a skipped call: a zero vertex colour makes every combiner stage 0, and the
+ * screen blend d + 0*(1-d) leaves the frame's bytes as they were on every
+ * backend, while the D3D state the pass sets and sub_0005B550 resets stays
+ * exactly as stock.
+ *
+ * The game's value goes back afterwards because sub_000E4140 fades the word
+ * from whatever it holds each frame. The restore happens only if the word
+ * still holds the scaled value, so a write by another thread is kept. Every
+ * path out of the body is its one ret, so the restore always runs. */
+#include "glow.h"
+
+extern void sub_0005B7D0_gen(void);
+
+void sub_0005B7D0(void)
+{
+    uint32_t orig, scaled;
+
+    if (!glow_active()) {
+        RECOMP_ABI_CALL(0x0005B7D0u, sub_0005B7D0_gen);
+        return;
+    }
+    orig = MEM32(0xADC744);
+    scaled = glow_weight(orig, glow_factor());
+    {
+        /* One line, so a run can place the wrapper's stack against the
+         * game's writers of the word (RECOMP_DEBUG=watch=0xADC744). */
+        static int said;
+        if (!said) {
+            said = 1;
+            fprintf(stderr, "[GLOW] weight %08X -> %08X esp=%08X\n",
+                    orig, scaled, g_esp);
+        }
+    }
+    if (scaled == orig) {
+        RECOMP_ABI_CALL(0x0005B7D0u, sub_0005B7D0_gen);
+        return;
+    }
+    MEM32(0xADC744) = scaled;
+    RECOMP_ABI_CALL(0x0005B7D0u, sub_0005B7D0_gen);
+    if (MEM32(0xADC744) == scaled)
+        MEM32(0xADC744) = orig;
+}

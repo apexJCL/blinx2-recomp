@@ -9,6 +9,7 @@ place. The window chrome (border, title bar) is static and the guest image
 is not, so the rectangle is the bounding box of the pixels that change over
 the session's frames, snapped to WxH around its centre.
 """
+
 import argparse
 import glob
 import os
@@ -25,7 +26,7 @@ def main():
     ap.add_argument("--h", type=int, default=480)
     a = ap.parse_args()
     files = sorted(glob.glob(os.path.join(a.src, "f*.png")))
-    sample = files[::max(1, len(files) // 40)]
+    sample = files[:: max(1, len(files) // 40)]
     stack = np.stack([np.asarray(Image.open(f).convert("L"), dtype=np.int16) for f in sample])
     moving = (stack.max(0) - stack.min(0)) > 16
     ys, xs = np.nonzero(moving)
@@ -37,7 +38,8 @@ def main():
     os.makedirs(a.dst, exist_ok=True)
     for f in files:
         Image.open(f).convert("RGB").crop((x0, y0, x0 + a.w, y0 + a.h)).save(
-            os.path.join(a.dst, os.path.basename(f)))
+            os.path.join(a.dst, os.path.basename(f))
+        )
 
 
 if __name__ == "__main__":

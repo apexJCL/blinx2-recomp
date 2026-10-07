@@ -10,4 +10,4 @@
 ## 3. Tests and checks
 - [ ] 3.1 nv2a_backend_smoke: a scene with a CLIPPLANE stage (a quad whose T0 crosses 0 along x, both sign settings), compared with the CPU path. Metal on the Mac.
 - [ ] 3.2 Mac build, POSIX ctests, Metal goldens (attract, stage1, story) unchanged.
-- [ ] 3.3 llvm-mingw cross build; Proton: d3d11_backend_smoke (with the 3.1 scene) and `bench.sh golden`.
+- [ ] 3.3 llvm-mingw cross build; Proton: d3d11_backend_smoke (with the 3.1 scene) and `blinx2 bench golden`.

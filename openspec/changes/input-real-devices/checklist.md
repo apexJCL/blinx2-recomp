@@ -1,6 +1,6 @@
 # Manual checklist: the normal route with a real controller (Proton)
 
-Run on the Linux/Proton host through `scripts/bench.sh run` (it takes the run lock and writes
+Run on the Linux/Proton host through `blinx2 bench run` (it takes the run lock and writes
 `bench-logs/<stamp>/`), with the D3D11 backend, no `RECOMP_INPUT_SCRIPT`, the host
 pad on (the default without a script) and an empty `RECOMP_SAVE_DIR`. Keep the
 filled copy locally as `analysis/bringup/input/manual-<stamp>.md` (local analysis, not published); never commit
@@ -9,7 +9,7 @@ frames or saves. Mark each item pass / fail / n.a. and note the time in the run.
 How to launch (from the Mac, `cat/scripts`; a fresh save dir under the run's
 log dir, kept locally):
 
-    BENCH_ENV="RECOMP_SAVE_DIR=@run" BENCH_TIMEOUT=1800 scripts/bench.sh run
+    BENCH_ENV="RECOMP_SAVE_DIR=@run" BENCH_TIMEOUT=1800 blinx2 bench run
 
 For D5 (relaunch with the save made in the first run), pass that run's save dir
 instead, as a Wine path: `BENCH_ENV="RECOMP_SAVE_DIR=Z:<host path of
@@ -65,7 +65,7 @@ build, the `[INPUT] sources` line.
 - [ ] G3 `[INPUT]` log shows `ports=0x0` and `ports=0x1` at the right moments.
 
 ## H. Keyboard (optional, `RECOMP_KEYBOARD=1`)
-- [ ] H1 Enter = START on the title; Z = A in the story opening; arrows move menu cursors.
+- [ ] H1 Enter = START on the title; Z = A in the story opening; arrows move menu cursors; W/S/A/D walk Stick in the hub (laptop map, D9).
 - [ ] H2 With the window unfocused, keys do nothing.
 
 Findings go back into `openspec/changes/input-real-devices/tasks.md` (6.6) and, for

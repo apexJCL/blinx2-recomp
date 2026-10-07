@@ -9,7 +9,6 @@
 *.toml                    text eol=lf
 *.toml.*                  text eol=lf
 blinx2                    text eol=lf
-packaging/steamos/*       text eol=lf
 packaging/macos/*         text eol=lf
 packaging/*.default*      text eol=lf
 packaging/README*         text eol=lf

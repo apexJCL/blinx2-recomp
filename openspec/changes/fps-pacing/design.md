@@ -270,7 +270,7 @@ Under `sleep` as the default, `present.pacing` stays an enhancement key (Decided
 
 ### D10. Generated code and the gen key
 
-- `gen/` must be regenerated. In `wt/pacing/cat`, with `XBOXRECOMP_DIR` pointing at `wt/pacing/xboxrecomp`: `scripts/pipeline.sh analyze`, then `scripts/pipeline.sh recomp`. `recomp` alone misses seeds, so `analyze` runs first.
+- `gen/` must be regenerated. In `wt/pacing/cat`, with `XBOXRECOMP_DIR` pointing at `wt/pacing/xboxrecomp`: `blinx2 analyze`, then `blinx2 recomp`. `recomp` alone misses seeds, so `analyze` runs first.
 - `blinx2.py`:
   - `recomp_cmds()` gains `--spin-waits config/spin_waits.json`;
   - `gen_inputs()` gains `config/spin_waits.json`.
@@ -281,7 +281,7 @@ Under `sleep` as the default, `present.pacing` stays an enhancement key (Decided
 
   `GEN_KEY_VERSION` stays 1, because the key's format is unchanged. `scripts/test_blinx2_cli.py` `test_gen_key_inputs` covers the new input.
 - The expected diff of `gen/` against main's is the lowered back edge in every body containing `0x00060475`, and nothing else. The check is a scripted diff whose only changed lines contain `RECOMP_SPIN_WAIT`.
-- After the merges, the orchestrator regenerates `gen/` in the main `cat/` checkout before `bench.sh integrate`, because integrate syncs that `gen/` and checks its hash.
+- After the merges, the orchestrator regenerates `gen/` in the main `cat/` checkout before `blinx2 bench integrate`, because integrate syncs that `gen/` and checks its hash.
 - `config/setup-pins.json` moves to the merged toolkit commit.
 
 ### D11. Backends agree

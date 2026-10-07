@@ -15,6 +15,6 @@
 
 ## 3. Report
 
-- [ ] 3.1 A report step (`bench.sh report` or a script under `scripts/`) that classes frames as movie, 2D or 3D, and prints flips/s, p50/p95/p99 frame ms and fence per frame for 3D frames, with the dump names.
+- [ ] 3.1 A report step (`blinx2 bench report` or a script under `scripts/`) that classes frames as movie, 2D or 3D, and prints flips/s, p50/p95/p99 frame ms and fence per frame for 3D frames, with the dump names.
 - [ ] 3.2 Map `top-threads.txt` tids to `[THREAD]` roles in the same report.
 - [ ] 3.3 First baseline on the Linux/Proton host after the `NtFreeVirtualMemory` fix (wt/kmem) lands.

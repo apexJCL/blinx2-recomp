@@ -26,6 +26,7 @@ stg0101 demo), stage1 (debug stage select into stg0101 gameplay) and story
 on a per-run copy of the private HDD (in --out, removed afterwards), so its
 save never reaches the private copy and the next run starts the same way.
 """
+
 import argparse
 import json
 import os
@@ -74,7 +75,9 @@ def pad_guid():
 # ── private config ──
 def toml_get(text, key):
     """A string value from the user's TOML; literal '...' or basic "..." form."""
-    m = re.search(r"""^\s*%s\s*=\s*(?:'([^']*)'|"((?:[^"\\]|\\.)*)")""" % re.escape(key), text, re.M)
+    m = re.search(
+        r"""^\s*%s\s*=\s*(?:'([^']*)'|"((?:[^"\\]|\\.)*)")""" % re.escape(key), text, re.M
+    )
     if not m:
         return None
     if m.group(1) is not None:
@@ -144,7 +147,10 @@ hdd_path = {tq(files["hdd_path"])}
 dvd_path = {tq(iso)}
 """
     if vk:
-        cfg = cfg.replace("[display.window]", f"[display.vulkan]\npreferred_physical_device = {tq(vk)}\n\n[display.window]")
+        cfg = cfg.replace(
+            "[display.window]",
+            f"[display.vulkan]\npreferred_physical_device = {tq(vk)}\n\n[display.window]",
+        )
     path = os.path.join(ref_dir, "xemu.toml")
     with open(path, "w") as f:
         f.write(cfg)
@@ -159,8 +165,12 @@ def xemu_instances():
     """{instance_id: (wrapper_pid, sandbox_child_pid)} for running app.xemu.xemu,
     or None when `flatpak ps` fails or times out (state unknown)."""
     try:
-        p = subprocess.run(["flatpak", "ps", "--columns=instance,application,pid,child-pid"],
-                           capture_output=True, text=True, timeout=20)
+        p = subprocess.run(
+            ["flatpak", "ps", "--columns=instance,application,pid,child-pid"],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
     except (OSError, subprocess.TimeoutExpired):
         return None
     if p.returncode != 0:
@@ -269,8 +279,8 @@ class GDB:
             i = self.buf.find(b"$")
             j = self.buf.find(b"#", i + 1) if i >= 0 else -1
             if i >= 0 and j >= 0 and len(self.buf) >= j + 3:
-                data = self.buf[i + 1:j]
-                self.buf = self.buf[j + 3:]
+                data = self.buf[i + 1 : j]
+                self.buf = self.buf[j + 3 :]
                 self.s.sendall(b"+")
                 return data.decode()
             chunk = self.s.recv(65536)
@@ -312,22 +322,51 @@ class GDB:
 # ── virtual pad ──
 class Pad:
     def __init__(self):
-        from evdev import UInput, ecodes as e, AbsInfo
+        from evdev import AbsInfo, UInput
+        from evdev import ecodes as e
+
         self.e = e
         stick = AbsInfo(0, -32768, 32767, 16, 128, 0)
         trig = AbsInfo(0, 0, 255, 0, 0, 0)
         hat = AbsInfo(0, -1, 1, 0, 0, 0)
         caps = {
-            e.EV_KEY: [e.BTN_A, e.BTN_B, e.BTN_X, e.BTN_Y, e.BTN_TL, e.BTN_TR,
-                       e.BTN_SELECT, e.BTN_START, e.BTN_MODE, e.BTN_THUMBL, e.BTN_THUMBR],
-            e.EV_ABS: [(e.ABS_X, stick), (e.ABS_Y, stick), (e.ABS_RX, stick), (e.ABS_RY, stick),
-                       (e.ABS_Z, trig), (e.ABS_RZ, trig), (e.ABS_HAT0X, hat), (e.ABS_HAT0Y, hat)],
+            e.EV_KEY: [
+                e.BTN_A,
+                e.BTN_B,
+                e.BTN_X,
+                e.BTN_Y,
+                e.BTN_TL,
+                e.BTN_TR,
+                e.BTN_SELECT,
+                e.BTN_START,
+                e.BTN_MODE,
+                e.BTN_THUMBL,
+                e.BTN_THUMBR,
+            ],
+            e.EV_ABS: [
+                (e.ABS_X, stick),
+                (e.ABS_Y, stick),
+                (e.ABS_RX, stick),
+                (e.ABS_RY, stick),
+                (e.ABS_Z, trig),
+                (e.ABS_RZ, trig),
+                (e.ABS_HAT0X, hat),
+                (e.ABS_HAT0Y, hat),
+            ],
         }
-        self.ui = UInput(caps, name=PAD_NAME, vendor=PAD_VID, product=PAD_PID,
-                         version=PAD_VER, bustype=PAD_BUS)
-        self.keys = {"A": e.BTN_A, "B": e.BTN_B, "X": e.BTN_X, "Y": e.BTN_Y,
-                     "START": e.BTN_START, "BACK": e.BTN_SELECT,
-                     "LB": e.BTN_TL, "RB": e.BTN_TR}
+        self.ui = UInput(
+            caps, name=PAD_NAME, vendor=PAD_VID, product=PAD_PID, version=PAD_VER, bustype=PAD_BUS
+        )
+        self.keys = {
+            "A": e.BTN_A,
+            "B": e.BTN_B,
+            "X": e.BTN_X,
+            "Y": e.BTN_Y,
+            "START": e.BTN_START,
+            "BACK": e.BTN_SELECT,
+            "LB": e.BTN_TL,
+            "RB": e.BTN_TR,
+        }
         log("uinput pad", self.ui.device.path if self.ui.device else "?", "guid", pad_guid())
 
     def tap(self, name, hold=0.12):
@@ -369,9 +408,14 @@ class Capturer(threading.Thread):
             if err and err.get("class") == "CommandNotFound":
                 self.qmp_shot = False
         if not self.qmp_shot:
-            p = subprocess.run(["spectacle", "-b", "-n", "-a", "-o", path],
-                               capture_output=True, timeout=20)
-            err = None if p.returncode == 0 and os.path.exists(path) else (p.stderr.decode()[-200:] or "rc %d" % p.returncode)
+            p = subprocess.run(
+                ["spectacle", "-b", "-n", "-a", "-o", path], capture_output=True, timeout=20
+            )
+            err = (
+                None
+                if p.returncode == 0 and os.path.exists(path)
+                else (p.stderr.decode()[-200:] or "rc %d" % p.returncode)
+            )
         self.tags.append({"n": self.n, "t": round(t, 3), "file": name, "tag": tag, "err": err})
         self.n += 1
         return {"error": err} if err else {}
@@ -425,8 +469,11 @@ def main():
     ap.add_argument("--interval", type=float, default=0.5)
     ap.add_argument("--out", required=True)
     ap.add_argument("--ref-dir", default=os.path.join(HOME, "xemu-ref"))
-    ap.add_argument("--iso", default=os.environ.get("XEMU_ISO"),
-                    help="your own dump of the game disc (default: $XEMU_ISO; required)")
+    ap.add_argument(
+        "--iso",
+        default=os.environ.get("XEMU_ISO"),
+        help="your own dump of the game disc (default: $XEMU_ISO; required)",
+    )
     ap.add_argument("--scale", type=int, default=1, help="xemu surface_scale (1 = native 640x480)")
     ap.add_argument("--no-pad", action="store_true")
     ap.add_argument("--no-gdb", action="store_true")
@@ -440,11 +487,15 @@ def main():
 
     running = xemu_instances()
     if running is None:
-        sys.exit("xemu-ref: refusing to start: `flatpak ps` failed, so it is unknown "
-                 "whether an app.xemu.xemu instance (maybe the user's) is running.")
+        sys.exit(
+            "xemu-ref: refusing to start: `flatpak ps` failed, so it is unknown "
+            "whether an app.xemu.xemu instance (maybe the user's) is running."
+        )
     if running:
-        sys.exit("xemu-ref: refusing to start: app.xemu.xemu is already running "
-                 "(instances %s); it may be the user's. Close it first." % ", ".join(running))
+        sys.exit(
+            "xemu-ref: refusing to start: app.xemu.xemu is already running "
+            "(instances %s); it may be the user's. Close it first." % ", ".join(running)
+        )
     os.makedirs(a.ref_dir, exist_ok=True)
     os.makedirs(a.out, exist_ok=True)
     run_hdd = os.path.join(a.out, "story-hdd.qcow2") if a.scenario == "story" else None
@@ -463,14 +514,24 @@ def main():
     env.setdefault("WAYLAND_DISPLAY", "wayland-0")
     env.setdefault("DISPLAY", ":0")
     env.setdefault("DBUS_SESSION_BUS_ADDRESS", "unix:path=%s/bus" % env["XDG_RUNTIME_DIR"])
-    cmd = ["flatpak", "run", "app.xemu.xemu", "-config_path", cfg, "-dvd_path", a.iso,
-           "-qmp", "unix:%s,server=on,wait=off" % qsock]
+    cmd = [
+        "flatpak",
+        "run",
+        "app.xemu.xemu",
+        "-config_path",
+        cfg,
+        "-dvd_path",
+        a.iso,
+        "-qmp",
+        "unix:%s,server=on,wait=off" % qsock,
+    ]
     if not a.no_gdb:
         cmd += ["-s"]
     logf = open(os.path.join(a.out, "xemu.log"), "w")
     log("launch:", " ".join(cmd))
-    proc = subprocess.Popen(cmd, env=env, stdout=logf, stderr=subprocess.STDOUT,
-                            start_new_session=True)
+    proc = subprocess.Popen(
+        cmd, env=env, stdout=logf, stderr=subprocess.STDOUT, start_new_session=True
+    )
     cap = None
     rc = 0
     ours = {}
@@ -499,7 +560,13 @@ def main():
             wait_mem(gdb, 0x5EB620, 5, 150, pad, "START", 2.0)
             wait_mem(gdb, 0x5EB620, 0, 30)
             time.sleep(1)
-            for addr, val in ((0xB22E3C, 1), (0xAE7A10, 0), (0x5EB630, 0), (0x5EB638, 0), (0x5EB620, 1)):
+            for addr, val in (
+                (0xB22E3C, 1),
+                (0xAE7A10, 0),
+                (0x5EB630, 0),
+                (0x5EB638, 0),
+                (0x5EB620, 1),
+            ):
                 log("poke %#x = %#x ->" % (addr, val), gdb.write32(addr, val))
             time.sleep(4)
             wait_mem(gdb, 0x5EB620, 0xB, 30, pad, "A", 0.5)
@@ -519,24 +586,42 @@ def main():
             # through the editor until the title is back in 0xD (Story Mode /
             # SAVE GAME), A (slot 1, 1P) until 0x13 (next scene 0xA, hub).
             # With a save on the HDD, START leads straight to 0xD (LOAD GAME).
-            st = lambda: gdb.read32(0x5EB620)
+            def st():
+                return gdb.read32(0x5EB620)
+
             wait_mem(gdb, 0x5EB5F4, 0x5EB620, 120)
             wait_mem(gdb, 0x5EB620, 5, 150, pad, "START", 2.0)
             wait_mem(gdb, 0x5EB620, 0, 30)
             time.sleep(1)
-            v = wait_until(gdb, "title left press-start", lambda: (st() in (0x14, 0xD)) and st(),
-                           60, pad, "START", 1.0)
+            v = wait_until(
+                gdb,
+                "title left press-start",
+                lambda: (st() in (0x14, 0xD)) and st(),
+                60,
+                pad,
+                "START",
+                1.0,
+            )
             if v == 0x14:
                 log("story: new game (no save on the HDD)")
-                wait_until(gdb, "R0_opening (next scene 0x1B)",
-                           lambda: gdb.read32(0xAE7424) == 0x1B, 30)
+                wait_until(
+                    gdb, "R0_opening (next scene 0x1B)", lambda: gdb.read32(0xAE7424) == 0x1B, 30
+                )
                 time.sleep(2)
-                wait_until(gdb, "tsedit (next scene 0x16)",
-                           lambda: gdb.read32(0xAE7424) == 0x16, 60, pad, "A", 1.0)
+                wait_until(
+                    gdb,
+                    "tsedit (next scene 0x16)",
+                    lambda: gdb.read32(0xAE7424) == 0x16,
+                    60,
+                    pad,
+                    "A",
+                    1.0,
+                )
                 with cap.lock:
                     cap.shot("story-tsedit-in")
                 n = 0
                 t_tag = time.monotonic()
+
                 def editor_done():
                     nonlocal n, t_tag
                     if time.monotonic() - t_tag >= 5:
@@ -545,14 +630,22 @@ def main():
                         n += 1
                         t_tag = time.monotonic()
                     return st() == 0xD
+
                 wait_until(gdb, "Story Mode (state 0xD)", editor_done, 400, pad, "A", 1.5)
             else:
                 log("story: LOAD GAME (a save is on the HDD)")
             time.sleep(2)
             with cap.lock:
                 cap.shot("story-menu")
-            wait_until(gdb, "leaving for the hub (state 0x13)",
-                       lambda: st() in (0x13, 0x14), 120, pad, "A", 1.5)
+            wait_until(
+                gdb,
+                "leaving for the hub (state 0x13)",
+                lambda: st() in (0x13, 0x14),
+                120,
+                pad,
+                "A",
+                1.5,
+            )
             log("story: next scene %#x stage %#x" % (gdb.read32(0xAE7424), gdb.read32(0xB871AC)))
             time.sleep(10)
             with cap.lock:

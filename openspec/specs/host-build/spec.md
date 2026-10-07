@@ -13,7 +13,7 @@ Configuring and building the project SHALL produce one executable named after th
 On macOS the executable SHALL be a console program (no app bundle), so that its stdout and stderr reach the terminal. The build SHALL NOT hard-code host-specific toolchain paths. A cross toolchain SHALL be located through a configurable root or `PATH`.
 
 #### Scenario: macOS build
-- **WHEN** `scripts/pipeline.sh build` runs on macOS arm64 after a successful recomp
+- **WHEN** `blinx2 build` runs on macOS arm64 after a successful recomp
 - **THEN** `build/cat_recomp` exists, is a Mach-O arm64 executable, and can be run from a terminal
 
 #### Scenario: Windows build with MSVC (unverified)

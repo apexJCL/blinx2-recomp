@@ -1,0 +1,95 @@
+# game.toml: what xboxrecomp-cli needs to know about this game. The CLI reads
+# it on every command; see the CLI's docs/manifest.md for every key.
+schema = 1
+
+[game]
+name = "BLiNX 2"
+slug = "blinx2"
+env_header = "src/env/recomp_env_game.h"
+env_doc = "docs/env.md"
+
+[xbe]
+path = "game_files/default.xbe"
+title_id = 0x4D530065
+# The known dumps: the goldens were recorded on the old one (aa186954). The
+# two have the same section bytes, entry point and kernel thunk; only the
+# header differs (TASKS.md, 2026-10-06), so both are known. Another dump
+# builds, packages and plays with a warning; bench golden refuses it.
+sha256 = [
+    "0c57fd72053077bc938876d1f2477b937e1f70566500c0e020bb45bbfa4ddc5e",
+    "aa186954c47d9f0a98f8690948e8c43bae15201aa49c3457a42402a142b0c60e",
+]
+
+[cli]
+commit = "023c77eee626169aeb91d49c2adfe3ebd39f4eb7"
+url = "https://github.com/apexJCL/xboxrecomp-cli.git"
+
+[toolkit]
+url = "https://github.com/apexJCL/xboxrecomp.git"
+branch = "blinx2/portability"
+commit = "52e6ca89dc2ce9f7d21e913d96394afe6d9652ee"
+
+[toolchain]
+llvm_mingw = "20260922"
+nsis = "3.13"
+
+[pipeline]
+game_name = "cat"
+gen = "src/recomp/gen"
+out = "analysis"
+seeds = ["config/seed_functions.json"]
+icall_seeds = true
+spin_waits = "config/spin_waits.json"
+exclude_manual = "src/recomp_manual.c"
+split = 250
+names_hooks = ["scripts/host_reserved_names.py"]
+ghidra = true
+
+[pipeline.disasm]
+text_only = true
+extra_sections = ["D3D", "D3DX", "XGRPH", "DSOUND", "PSFD_I", "PSFD_B", "PSFD_P", "PSFD00", "SRCADV", "SRCED", "SRCAC", "XPP"]
+
+[build]
+exe = "cat_recomp"
+targets = ["windows", "macos"]
+windows_dir = "build-win"
+macos_dir = "build"
+# Passed on every packaging configure so a cache cannot keep a non-stock
+# value; nonstock_vars are what package refuses without --allow-nonstock.
+stock_cmake = ["-DXBOXRECOMP_ENHANCE=ON", "-UCAT_GEN_OPT"]
+nonstock_vars = ["CAT_GEN_OPT"]
+icon_var = "CAT_APP_ICON"
+
+[data]
+game_files = "game_files"
+game_files_exclude = ["default_analysis.json", "UDATA", "TDATA"]
+dir_env = "BLINX2_DATA_DIR"
+windows = "%LOCALAPPDATA%\\BLiNX2"
+steamos = "~/Games/BLiNX2"
+macos = "~/Library/Application Support/BLiNX2"
+
+[input]
+script_env = "RECOMP_INPUT_SCRIPT"
+presets = ["@attract", "@stage1", "@stage1-enemies", "@story-hub", "@story-load"]
+
+[golden]
+json = "analysis/golden/golden.json"
+frames = "analysis/golden/frames"
+audio = "analysis/golden/audio.json"
+
+[package]
+app = "BLiNX2"
+product = "blinx2-recomp"
+targets = ["windows", "steamos", "macos"]
+brew = ["sdl2", "sdl3", "openssl", "libepoxy"]
+dylib_companions = ["libSDL3.dylib=brew:sdl3"]
+content = "packaging"
+templates = "packaging"
+icon = "xbe"
+
+[bench]
+remote_name = ""
+main_branch = "main"
+toolkit_branch = "posix-host/portability"
+toolkit_tests = true
+pacing_scenario = "stage1"

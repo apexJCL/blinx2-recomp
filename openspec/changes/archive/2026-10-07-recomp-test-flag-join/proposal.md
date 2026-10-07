@@ -1,0 +1,33 @@
+## Why
+
+Stage 1 (mission 1) has a water bug. Before the underwater-panel puzzle is solved, the cat stutters while wading: its walk animation restarts every few frames and a splash ring repeats. It shows on Metal on the Mac and on D3D11 on the Steam Deck. The spike `spike/stage1-water` (`openspec/changes/stage1-water-spike/spike.md`, raw runs in `xbox-recomp/runs/stage1-water/`) traced it to the recompiler, not the renderer or timing.
+
+- **The symptom is a 4-frame input lock.** The player update `sub_00176150` zeroes the stick whenever the player's hit-stun byte `[0xCD2440+0x60]` is above 0. Each time that happens the walk state starts over, and the animation restarts with it. In the warp-and-wade run (`warp7p.txt`, Metal, deterministic and the same with `metal_occ=sync`), the byte is set every 4th frame, including while the cat stands still. The stick is dropped on 2 frames out of every 4: the walk-ramp counter `[+0x84]` cycles 0, 1, 2, 0 and the speed cycles 0.52, 0.66, 0.84, 0.69.
+- **The setter is a sign-and-talk zone.** A write watchpoint on the byte (`watch=0xCD24A0,watch_delay=60`) names its writer: `sub_000F1C20(2)`, the "freeze every player for n frames" helper, called from `sub_000F7C50`. That function is a small state machine at `0xB8BD70`:
+  - 0 or 1: show the message, freezing the players;
+  - 2: wait until a player is inside the zone;
+  - 3: wait for the A press (bit `0x100` of `0xAE46EC`);
+  - 4: wait for the release, then go back to 1.
+
+  It runs only while the zone's object is live. That is before the puzzle is solved, and never while time is stopped, which matches both conditions in the bug report.
+- **The lifted code skips the waits.** States 2 and 3 share the tail `loc_000F7F7C: je loc_000F7F85`. One path into it ends in `cmp eax, 0` (from `loc_000F7F76`) and the other in `test esi, 0x100` (from `loc_000F7F95`, which jumps straight to the join). `_merge_flag_states` merges predecessors only when they carry the same operation, so the block inherits no flag state. Its `je` then compiles to the `_flags` fallback, `if (_flags /* je */)`. Nothing ever writes `_flags`, so the branch is never taken. States 2 and 3 therefore always advance, and the machine runs 1→2→3→4→1 every 4 frames, freezing the cat once per cycle. The same body is emitted twice, as `sub_000F7C50` and its tail-jump alias `sub_000F7C81` (`recomp_0028.c`), so the fix has to come from the lifter, not from a seed.
+
+The fix belongs in the recompiler. `normalise_zero_test` already turns `test X, X` into `cmp X, 0` for this reason (lifter.py, "saying so keeps a branch alive"), but it covers only the same-register form. `test reg, imm`, `test mem, imm` and `test reg, reg2` still block the merge.
+
+**The headline count is misleading.** BLiNX 2's generated code has 21,003 `if (_flags` sites (8,517 `je`). Two things inflate it. 16,964 of the 26,180 detected functions are `tail_jump_alias` entries, each of which re-emits its owner's body, so one guest branch is counted several times. And 5,276 of the sites are `jo` and 424 are `jp`: no compiler emits a `jo` after a `test` or a `cmp`, so those are ASCII and tables decoded as code (0x70 `p` is `jo`, 0x74 `t` is `je`, 0x75 `u` is `jne`). The number that matters is unique guest sites, and why each lost its state. A classification run over the current translation (design.md, Context) finds 2,004 unique sites, 1,643 of them a jcc at the entry of a split-off body, and 43 joins, of which this change revives about 20.
+
+## What Changes
+
+- **Every `test a, b` lifts as `cmp (a & b), 0`.** The snapshot holds the masked AND result in `_fa` and 0 in `_fb`, and the recorded flag state is a cmp at the operand width. TEST and CMP-against-zero set exactly the same flags (ZF, SF and PF come from the result; CF and OF are 0 for both). A cmp joined with a test then passes `_merge_flag_states` as written; the merge itself does not change.
+- **cmp states of different widths merge** for the conditions that do not depend on width (everything but js/jns/jo/jno), because the snapshot masks and sign-extends each edge's operands at its own width. The classification found 17 such joins, two of them in the player update `sub_00176150`, next to one that D1 alone fixes.
+- **`cmp` answers `jo`/`jno`.** Today the `test` arm of `_make_condition` answers them with the constants 0 and 1 and the `cmp` arm returns None. Without this, the normalisation would turn a `test; jno` from always-taken into never-taken. OF of a subtraction is exact and cheap at the operand width, so the `cmp` arm gets it, which also repairs every real `cmp; jo` site.
+- **A fallback report.** `recomp` writes every `_flags` site it still emits (function, guest address, condition, why the state was lost) to `analysis/recomp/flag_fallbacks.json`, puts the counts in `summary.json`, prints one summary line, and lists the functions in the observed seed set. It is a counted diagnostic, not an error (design.md D3 says why). It lands before the lifter change so the before/after difference is the exact list of branches that come back to life.
+- **Verify the wading fix first, cheaply.** Before the full regeneration and gates: apply the lifter change in the toolkit worktree, regenerate into the cat worktree's own `gen/`, build on the Mac, and run the spike's `warp7p.txt` repro headless with the `pad_peek` probe. This is the hand-edit the spike could not do, done the allowed way.
+- **Regenerate BLiNX 2** (`blinx2 analyze`, then `blinx2 recomp`) and **Burnout 3** (`b3/regen.sh`), because the change is title-agnostic and upstream-bound.
+
+## Impact
+
+- Toolkit: `tools/recomp/lifter.py` (`normalise_zero_test`, `_snapshot_flags`, `_lift_test`, `_make_condition`'s cmp arm, `_fmt_operand_read`/`_operand_width` for the AND operand), `tools/recomp/translator.py` (fallback counting; `_merge_flag_states` unchanged), `tools/recomp/__main__.py` (report). New unit tests next to `test_flag_join.py` and `test_lifter_zero_test_merge.py`; two existing assertions in the latter change meaning (design.md D1).
+- Generated code: every function with a `test` changes text (`TEST_*(_fa, _fb)` becomes `CMP_*(_fa, _fb)` with `_fa` holding the AND). Behaviour changes only where a fallback `_flags` branch becomes real, and D4 enumerates those sites before any run. That can move goldens; a moved golden is compared with xemu before it is re-blessed.
+- No runtime, renderer or env change. Stock behaviour changes only where the old behaviour was wrong.
+- Upstream: a clean, title-agnostic lifter fix with tests, a candidate for the PR set once Burnout 3 has run on it under Proton.

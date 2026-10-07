@@ -11,6 +11,7 @@ Stats: per-channel mae, mean colour of both, the share of pixels off by >8
 and >48, and a 8x6 tile grid of mae (worst tiles listed).
 Frames stay local: analysis/reference/xemu/ is gitignored.
 """
+
 import argparse
 import glob
 import json
@@ -31,10 +32,10 @@ def best_shift(g, x, maxs):
     best = (1e9, 0, 0)
     h, w, _ = g.shape
     m = maxs
-    gc = g[m:h - m, m:w - m]
+    gc = g[m : h - m, m : w - m]
     for dy in range(-maxs, maxs + 1, 2 if maxs > 4 else 1):
         for dx in range(-maxs, maxs + 1, 2 if maxs > 4 else 1):
-            xc = x[m + dy:h - m + dy, m + dx:w - m + dx]
+            xc = x[m + dy : h - m + dy, m + dx : w - m + dx]
             e = np.abs(gc - xc).mean()
             if e < best[0]:
                 best = (e, dy, dx)
@@ -44,7 +45,7 @@ def best_shift(g, x, maxs):
         for dx in range(dx0 - 1, dx0 + 2):
             if abs(dy) > maxs or abs(dx) > maxs:
                 continue
-            xc = x[m + dy:h - m + dy, m + dx:w - m + dx]
+            xc = x[m + dy : h - m + dy, m + dx : w - m + dx]
             e = np.abs(gc - xc).mean()
             if e < best[0]:
                 best = (e, dy, dx)
@@ -59,9 +60,11 @@ def stats(g, x):
     for ty in range(6):
         row = []
         for tx in range(8):
-            row.append(round(float(d[ty * th:(ty + 1) * th, tx * tw:(tx + 1) * tw].mean()), 1))
+            row.append(round(float(d[ty * th : (ty + 1) * th, tx * tw : (tx + 1) * tw].mean()), 1))
         tiles.append(row)
-    flat = sorted(((v, ty, tx) for ty, r in enumerate(tiles) for tx, v in enumerate(r)), reverse=True)
+    flat = sorted(
+        ((v, ty, tx) for ty, r in enumerate(tiles) for tx, v in enumerate(r)), reverse=True
+    )
     return {
         "mae": round(float(d.mean()), 2),
         "mae_rgb": [round(float(d[..., c].mean()), 2) for c in range(3)],
@@ -70,7 +73,9 @@ def stats(g, x):
         "bad8": round(float((d.max(-1) > 8).mean()), 4),
         "bad48": round(float((d.max(-1) > 48).mean()), 4),
         "tiles_mae_8x6": tiles,
-        "worst_tiles": [{"mae": v, "x": tx * tw, "y": ty * th, "w": tw, "h": th} for v, ty, tx in flat[:6]],
+        "worst_tiles": [
+            {"mae": v, "x": tx * tw, "y": ty * th, "w": tw, "h": th} for v, ty, tx in flat[:6]
+        ],
     }
 
 
@@ -78,8 +83,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("golden")
     ap.add_argument("xemu", nargs="+")
-    ap.add_argument("--out", required=True,
-                    help="output dir; keep it under analysis/reference/xemu/ (gitignored)")
+    ap.add_argument(
+        "--out",
+        required=True,
+        help="output dir; keep it under analysis/reference/xemu/ (gitignored)",
+    )
     ap.add_argument("--shift", type=int, default=8)
     ap.add_argument("--top", type=int, default=3)
     a = ap.parse_args()
@@ -96,13 +104,19 @@ def main():
         scored.append((float(np.abs(g - x).mean()), f))
     scored.sort()
     results = []
-    for e, f in scored[:a.top]:
+    for e, f in scored[: a.top]:
         x = load(f, size)
         e2, dy, dx = best_shift(g, x, a.shift)
         xs = np.roll(x, (-dy, -dx), axis=(0, 1))
         st = stats(g, xs)
-        st.update({"file": f, "mae_noshift": round(e, 2), "shift_dy_dx": [dy, dx],
-                   "src_size": list(Image.open(f).size)})
+        st.update(
+            {
+                "file": f,
+                "mae_noshift": round(e, 2),
+                "shift_dy_dx": [dy, dx],
+                "src_size": list(Image.open(f).size),
+            }
+        )
         results.append(st)
     best = results[0]
     name = os.path.splitext(os.path.basename(a.golden))[0]
@@ -114,8 +128,26 @@ def main():
     Image.fromarray(heat).save(os.path.join(a.out, f"{name}-diff.png"))
     with open(os.path.join(a.out, f"{name}-stats.json"), "w") as f:
         json.dump(results, f, indent=1)
-    print(json.dumps({k: best[k] for k in ("file", "mae", "mae_rgb", "mean_golden_rgb", "mean_xemu_rgb",
-                                           "bad8", "bad48", "shift_dy_dx", "src_size", "worst_tiles")}, indent=1))
+    print(
+        json.dumps(
+            {
+                k: best[k]
+                for k in (
+                    "file",
+                    "mae",
+                    "mae_rgb",
+                    "mean_golden_rgb",
+                    "mean_xemu_rgb",
+                    "bad8",
+                    "bad48",
+                    "shift_dy_dx",
+                    "src_size",
+                    "worst_tiles",
+                )
+            },
+            indent=1,
+        )
+    )
 
 
 if __name__ == "__main__":

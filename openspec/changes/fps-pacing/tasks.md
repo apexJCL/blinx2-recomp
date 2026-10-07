@@ -115,7 +115,7 @@ Worktrees: `wt/pacing/cat` and `wt/pacing/xboxrecomp`, both on `feat/fps-pacing`
 - [x] 8.4 Proton D3D11 goldens (`bench.sh golden`, which takes the run lock itself; BLiNX first): the same verdicts as main.
 - [x] 8.5 Clock gate (D8): `@stage1` with `RECOMP_DEBUG=vblank_clock=ms` against the ns clock, both at `spin`, three runs each with at least 1,000 3D flips after the checkpoint, on Metal and Proton D3D11 (`bench.sh pacing` with the two environments; Mac via `pacing_stats.py`). Record every 600-vblank window and the 3D interval p5/p50/p95/max per run. Gate (medians of three): p95 − p5 at most half the ms arm's; p50 within 33.3 ± 0.5 ms on both arms; median window spread at most 3 ms and at least 80% of windows within 16.67 ± 1.5 ms, load and restart windows listed and excluded.
   Metal: PASS (p95-p5 0.14 vs 5.64 ms; p50 33.33 / 33.25; window spread 0.00 vs 8.9 ms, 100% vs 0% in tolerance; runs/pacing/clock-gate-metal.txt). Proton D3D11: PASS (0.35 vs 20.00 ms; p50 33.32 / 33.09; spread 0.10 ms, 100%; bench-logs/20261006-041432-pacing). The macOS timer thread needed a time-constraint policy (e9a701f; design Decided, 7): plain nanosleep overshot 3.7 ms on average. On the Mac this gate therefore measures the ns schedule plus that policy against the old loop.
-- [ ] 8.6 Pacing A/B (`spin` against `sleep`), three runs each, on Mac Metal, Mac CPU, Proton D3D11 and Proton CPU (`bench.sh pacing`; Mac via `pacing_stats.py` with runs in `runs/pacing/`). Record in-wait CPU, thread CPU, process CPU, intervals, flips/s and raster ms. Check the 25% and 1.5x flags. Gate, on Metal and Proton D3D11: in-wait CPU at most 10%; process CPU down by at least 25 points; timeout exits at most 5% of the site's loop exits in every summary (mid-loop timeouts reported, not gated); flips/s and each percentile inside `spin`'s widened spread; nothing flagged. The CPU paths are recorded.
+- [ ] 8.6 Pacing A/B (`spin` against `sleep`), three runs each, on Mac Metal, Mac CPU, Proton D3D11 and Proton CPU (`blinx2 bench pacing`; Mac via `pacing_stats.py` with runs in `runs/pacing/`). Record in-wait CPU, thread CPU, process CPU, intervals, flips/s and raster ms. Check the 25% and 1.5x flags. Gate, on Metal and Proton D3D11: in-wait CPU at most 10%; process CPU down by at least 25 points; timeout exits at most 5% of the site's loop exits in every summary (mid-loop timeouts reported, not gated); flips/s and each percentile inside `spin`'s widened spread; nothing flagged. The CPU paths are recorded.
   First series: every check passed on Metal and Proton D3D11 except the first draft's "wakes outnumber timeouts", which cannot pass with the 1 ms timeout (3.5 to 4 mid-loop timeouts per signalled wake on both hosts). Fable's review replaced it with the loop-exit measure (design D4, D8).
   - Mac Metal, exit metric (toolkit e18a210, six 90 s runs, runs/pacing/m2-*, report runs/pacing/sleep-gate-metal-exits.txt): timeout exits 0 of ~2,393 per run (0.0%), in-wait 0.2%, process CPU 128% -> 56%, flips/s and p5/p50/p95 inside the spread, no flags. One check fails: the interval max, 36.81 ms (sleep runs 36.39 / 36.81 / 40.02) against a spin spread of [33.97, 36.55] (spin runs 34.47 / 35.71 / 36.05), 0.26 ms over. The first series had sleep's max inside (34.43 in [33.88, 35.44]). A single-flip statistic; reported for the orchestrator to decide (D8), not re-run here.
   - The Proton re-read with exit counts rides on section 9.
@@ -137,7 +137,7 @@ Worktrees: `wt/pacing/cat` and `wt/pacing/xboxrecomp`, both on `feat/fps-pacing`
 Do this only after section 11 has merged `feat/fps-pacing` and the upstream PR-E2 head has passed 10.3.
 
 - [ ] 9.1 Metal goldens: all scenarios, three runs at `sleep` (`golden.py --allow-enhance present.pacing=sleep`) and three at `spin`. The same verdict for every frame; a frame exact in all three `spin` runs is exact in all three `sleep` runs.
-- [ ] 9.2 Proton D3D11 goldens: the same as 9.1, through `bench.sh golden` with `BENCH_ENV` setting `sleep` and the allow flag.
+- [ ] 9.2 Proton D3D11 goldens: the same as 9.1, through `blinx2 bench golden` with `BENCH_ENV` setting `sleep` and the allow flag.
 - [ ] 9.3 Flip-indexed A/B on `@stage1` and `@story-hub` (`fb_dump_at` at the same flips, three runs per mode): for each flip, every `sleep`-against-`spin` difference is no larger than the largest `spin`-against-`spin` difference, and a flip identical across the `spin` runs is identical under `sleep`.
 - [ ] 9.4 Burnout 3 under Proton on the exact PR-E2 head, at `sleep` and at `spin` (10.3): the same screens at the same flips, race pace within spread, no new `[AUDIO-HOST]` starves, and no site with more than 5% of its loop exits on the timeout; a site above that goes on b3's `exclude` list with its reason.
 - [ ] 9.5 `audio_check.py` on a Proton BLiNX `@attract` run at `sleep`: no new starves.
@@ -172,13 +172,13 @@ Do this only after section 11 has merged `feat/fps-pacing` and the upstream PR-E
 
 - [ ] 11.1 Fable reviews `feat/fps-pacing` in both repos (code, specs, the measurements from section 8, and backend agreement). Fixes go back to this branch's agent, never to the main session.
 - [ ] 11.2 The orchestrator merges the toolkit `feat/fps-pacing` into `posix-host/portability` as a squash merge, then cat `feat/fps-pacing` into `main` as a squash merge (one commit per feature, the branches kept), then sets `setup-pins.json` to the public mirror's commit (`apexJCL/xboxrecomp` `blinx2/portability`) once the toolkit has been scrubbed and pushed there, not to the local merge commit (6.5).
-- [ ] 11.3 The orchestrator regenerates `gen/` in the main `cat/` checkout (`pipeline.sh analyze`, then `recomp`), because `bench.sh integrate` syncs that `gen/` and checks its hash.
+- [ ] 11.3 The orchestrator regenerates `gen/` in the main `cat/` checkout (`blinx2 analyze`, then `recomp`), because `blinx2 bench integrate` syncs that `gen/` and checks its hash.
 
 ## 12. After the merge
 
 - [ ] 12.1 Copy the agent's untracked notes (the recomp candidate report, measurement sheets, scratch) to `notes/pacing/`.
 - [ ] 12.2 Copy any run referenced by `golden.json`, the timeline, `RESUME` or `TASKS` to `runs/pacing/` with `cp -c`.
 - [ ] 12.3 Remove the worktrees with `git worktree remove --force` (both repos), then `rm -rf wt/pacing`. Keep the branches.
-- [ ] 12.4 `scripts/bench.sh integrate` (sync and rebuild the Linux/Proton host), then `bench.sh golden`.
+- [ ] 12.4 `blinx2 bench integrate` (sync and rebuild the Linux/Proton host), then `blinx2 bench golden`.
 - [ ] 12.5 Update `cat/TASKS.md` (done items, measured numbers, follow-ups from 7.3, the default-flip state) and `cat/RESUME.md`.
 - [ ] 12.6 Sync the specs: `openspec sync` or archive `fps-pacing` once section 9's outcome is known.

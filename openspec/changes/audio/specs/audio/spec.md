@@ -59,7 +59,7 @@ When `RECOMP_AUDIO_WAV=<path>` is set, the toolkit SHALL write every sample it s
 - **THEN** `scripts/audio_check.py <path>` parses the file, reports duration, first sound, RMS per window, dropouts and clipping, and exits 0
 
 ### Requirement: Scripted checks against thresholds and a reference
-`scripts/audio_check.py` SHALL verify a dump against `analysis/golden/audio.json`: sample-rate ratio, time of first sound within a window, no zero-run longer than 2 ms after first sound, clipping below a fraction, and, when a reference capture is present, envelope lag within 500 ms and per-band spectral correlation above the scenario's threshold. It SHALL be invoked by `scripts/bench.sh` when `BENCH_AUDIO=1`, with the dump written into the run's log directory. Dumps and references SHALL live under `analysis/golden/audio/` (gitignored); only `audio.json` is committed.
+`scripts/audio_check.py` SHALL verify a dump against `analysis/golden/audio.json`: sample-rate ratio, time of first sound within a window, no zero-run longer than 2 ms after first sound, clipping below a fraction, and, when a reference capture is present, envelope lag within 500 ms and per-band spectral correlation above the scenario's threshold. It SHALL be invoked by `blinx2 bench` when `BENCH_AUDIO=1`, with the dump written into the run's log directory. Dumps and references SHALL live under `analysis/golden/audio/` (gitignored); only `audio.json` is committed.
 
 #### Scenario: Silent run fails
 - **WHEN** a run produces a dump with no sample above the silence floor in the first-sound window

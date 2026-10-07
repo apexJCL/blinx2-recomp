@@ -1,10 +1,10 @@
 ## ADDED Requirements
 
-### Requirement: the Linux/Proton host runs the bench through bench.sh
-Proton bench runs SHALL be started from the Mac with `scripts/bench.sh` (sync, build, run, logs) against the Linux/Proton host. Each run SHALL write its own `bench-logs/<stamp>/` directory.
+### Requirement: the Linux/Proton host runs the bench through blinx2 bench
+Proton bench runs SHALL be started from the Mac with `blinx2 bench` (sync, build, run, logs) against the Linux/Proton host. Each run SHALL write its own `bench-logs/<stamp>/` directory.
 
 #### Scenario: One run, one directory
-- **WHEN** `scripts/bench.sh run` finishes
+- **WHEN** `blinx2 bench run` finishes
 - **THEN** `bench-logs/<stamp>/` holds `run-info.txt`, `console.log`, `game-stdio.log`, `exit-code` and, when present, `xbox_kernel.log`
 
 ### Requirement: A bench run is reproducible from its record
@@ -15,10 +15,10 @@ Each run directory SHALL hold `run-info.txt` with the host, the Proton build, th
 - **THEN** it names the toolkit commit, the cat commit and the `gen/` stamp, so that the same exe can be rebuilt and checked against the recorded sha
 
 ### Requirement: The bench syncs only integration state
-`bench.sh sync` SHALL refuse while `src/recomp/.gen-regenerating` exists, and SHALL sync only from the integration checkouts: cat on `main` and the toolkit on its integration branch.
+`blinx2 bench sync` SHALL refuse while `src/recomp/.gen-regenerating` exists, and SHALL sync only from the integration checkouts: cat on `main` and the toolkit on its integration branch.
 
 #### Scenario: Regeneration in progress
-- **WHEN** `src/recomp/.gen-regenerating` exists and `bench.sh sync` runs
+- **WHEN** `src/recomp/.gen-regenerating` exists and `blinx2 bench sync` runs
 - **THEN** it exits non-zero without copying anything
 
 ### Requirement: Movie windows are excluded from performance statistics
@@ -43,7 +43,7 @@ Per-thread CPU figures SHALL be mapped to roles through the `[THREAD] tid=.. rol
 - **THEN** its tid maps to a role in the `[THREAD]` lines of the same run
 
 ### Requirement: Crash reports are symbolized offline
-`bench.sh logs` SHALL produce `crash-symbols.txt` for every `[CRASH]` in a run, using the PDB shipped beside the exe.
+`blinx2 bench logs` SHALL produce `crash-symbols.txt` for every `[CRASH]` in a run, using the PDB shipped beside the exe.
 
 #### Scenario: Crash in a run
 - **WHEN** a run's log has a `[CRASH]` report

@@ -61,3 +61,7 @@ TDATA/
 saves/
 # Local Claude Code settings
 .claude/settings.local.json
+.ruff_cache/
+
+# The pin mark blinx2.py writes in a CLI or toolkit clone (kept out of git).
+.xbr-pin

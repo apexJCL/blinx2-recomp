@@ -6,13 +6,14 @@
  *   1. A script: RECOMP_INPUT_SCRIPT="wait open logo_mgs; tap START until
  *      open blinx2_opening", a path to a file of the same steps (one per
  *      line, # comments), or @name for a built-in preset (see PRESETS below).
- *   2. The host pad through the toolkit's xbox_input (XInput + RECOMP_KEYBOARD
- *      on Windows/Proton, SDL2 GameController elsewhere). RECOMP_HOST_PAD=0
+ *   2. The host pad through the toolkit's xbox_input (XInput on
+ *      Windows/Proton, SDL2 GameController elsewhere). RECOMP_HOST_PAD=0
  *      always disables it and =1 always enables it; unset, it is off when a
  *      script is set (so scripted and golden runs never see a pad on the
  *      machine), else on by default on Windows and off elsewhere. The
- *      keyboard is read through the host backend, so it is on only when
- *      RECOMP_KEYBOARD=1 and the host pad is on.
+ *      keyboard (RECOMP_KEYBOARD=1, every host; its keys are in the
+ *      toolkit's src/input/README.md) is read through the host backend, so
+ *      it is on only when the host pad is on too.
  *
  * The connected-port mask is the script's port 0 | the keyboard's port 0 |
  * the ports with a host device: no source, no pad.
@@ -39,6 +40,8 @@
  *                                not depend on frame rate; each press logs
  *                                "[INPUT] t=... poll=<count> press BUTTON"
  *   poke ADDR V                  write the 32-bit guest dword at ADDR once
+ *   memdump LABEL                write the RECOMP_DEBUG=mem_dump range now,
+ *                                to <prefix>_LABEL.bin (main.c)
  *   ACTION[,ACTION...]           now
  *
  *   ACTION  BUTTON        press (analog buttons to 255)
@@ -346,6 +349,27 @@ extern void (*xbox_FileOpenHook)(const char *guest_path, uint32_t status);
                    "tap A every 1 until mem 0xae7424 == 0xa;"     /* skip the intermission */ \
                    "wait open song_HUBsw"
 
+/* @hub-stage1: @story-hub, then from the hub into stage 1-1 by poking the
+ * scene switch the hub's own exits use (sub_00062550 / sub_00062640:
+ * [0xAE7424] next scene, [0xAE46EC] = 2 to leave), with stage index
+ * [0xB871AC] = 0 (stg0101). The hub runs its CHALLENGE drill, and the stage
+ * loader (0x60A09) picks the drill's mgtu_ts files while [0xEC4CF8] or
+ * [0xEC4CE0] is set, so both are cleared first. The hub's 512x512 targets
+ * (0x0169D000, 0x0119B000) are made by then, and stage 1 loads its textures
+ * and water targets into the same memory: the render-target alias of
+ * openspec rt-stale-alias. Ends at the first checkpoint, as @stage1. Run it
+ * from an empty RECOMP_SAVE_DIR, as @story-hub. */
+#define HUB_STAGE1 STORY_HUB ";" \
+                   "wait 15;"                      /* the hub draws its targets */ \
+                   "poke 0xb871ac 0;"              /* stage index: stg0101 */ \
+                   "poke 0xae7424 0xa;"            /* next scene: stage load */ \
+                   "poke 0xec4cf8 0;"              /* not the drill's stage */ \
+                   "poke 0xec4ce0 0;" \
+                   "poke 0xae46ec 2;"              /* leave the hub */ \
+                   "wait open stg0101;" \
+                   "wait open jingle_stagestart;" \
+                   "tap A every 3 until mem 0xae73fc == 1"
+
 static const struct { const char *name, *script; } PRESETS[] = {
     { "skip-intro", SKIP_INTRO },               /* ends idle on the title */
     { "attract",    SKIP_INTRO },               /* the same; the demo is the title's timer */
@@ -355,6 +379,7 @@ static const struct { const char *name, *script; } PRESETS[] = {
     { "stage1",     STAGE1 },
     { "story-hub",  STORY_HUB },                /* empty save -> team editor -> SAVE GAME -> hub */
     { "story-load", STORY_LOAD },               /* seeded save -> LOAD GAME -> hub */
+    { "hub-stage1", HUB_STAGE1 },               /* story-hub, then poked into stage 1-1 */
     { "stage1-enemies", STAGE1 ";" WALK_TO_ENEMIES },
 };
 
@@ -424,7 +449,7 @@ typedef struct { double t; int button; int value; long poll; } Event;
  * that many port-0 polls later (BUTTON/Np). */
 typedef struct { int button; int value; double dur; long dpolls; } Act;
 
-enum { S_ACTS, S_WAIT_SECS, S_WAIT_UNTIL, S_WAIT_POLLS, S_WAIT_COND, S_TAP, S_POKE };
+enum { S_ACTS, S_WAIT_SECS, S_WAIT_UNTIL, S_WAIT_POLLS, S_WAIT_COND, S_TAP, S_POKE, S_MEMDUMP };
 enum { C_OPEN, C_MEM };     /* the condition of a wait / tap: open TEXT, mem ADDR OP V */
 typedef struct {
     int    kind;
@@ -672,6 +697,11 @@ static void parse_line(char *e)
         }
         return;
     }
+    if (word(&p, "memdump")) {
+        Step *s = add_step(S_MEMDUMP, text);
+        s->match = strdup(*trim(p) ? trim(p) : "x");
+        return;
+    }
     if (word(&p, "wait")) {
         if (!strncasecmp(p, "open", 4) || !strncasecmp(p, "mem", 3)) {
             Step *s = add_step(S_WAIT_COND, text);
@@ -846,15 +876,10 @@ static const char *script_name(const char *v)
 }
 
 /* The keyboard is part of the host backend (it is merged into port 0 inside
- * xbox_InputGetState on Windows), so it is on only when the host pad is. */
+ * xbox_InputGetState), so it is on only when the host pad is. */
 static int keyboard_on(void)
 {
-#ifdef _WIN32
-    const char *k = recomp_env(RENV_KEYBOARD);
-    return g_host_on && k && *k && *k != '0';
-#else
-    return 0;
-#endif
+    return g_host_on && recomp_env_on(RENV_KEYBOARD);
 }
 
 static double t_now(void) { return g_started ? now_s() - g_t0 : 0.0; }
@@ -1072,6 +1097,13 @@ static void run_steps(double t)
             guest_write(s->addr, s->val);
             done = 1;
             break;
+        case S_MEMDUMP: {
+            extern void cat_mem_dump_now(const char *label);
+            fprintf(stderr, "[INPUT] t=%.3f poll=%ld memdump %s\n", t, g_poll, s->match);
+            cat_mem_dump_now(s->match);
+            done = 1;
+            break;
+        }
         case S_TAP:
             if (cond_met(s, t)) {
                 cancel_releases(s->button);
@@ -1147,6 +1179,52 @@ uint32_t cat_pad_connected_mask(void)
     return m;
 }
 
+/* RECOMP_DEBUG=pad_peek=VA:N[:x][,VA:N[:x]...]: on every scripted port-0
+ * poll (about one a game frame), one "[PEEK] poll=P t=T" line with N dwords
+ * from each VA, as floats or, with :x, as hex. A frame-by-frame view of game
+ * state (a position, an animation timer) lined up with the script's steps.
+ * Debug only; up to 8 ranges of 32 dwords. */
+static int      g_peek_n = -1;
+static uint32_t g_peek_va[8], g_peek_len[8];
+static int      g_peek_hex[8];
+
+static void peek_poll(double t)
+{
+    char line[2048];
+    int len, i;
+    uint32_t k;
+
+    if (g_peek_n < 0) {
+        const char *e = recomp_env(RENV_PAD_PEEK);
+        g_peek_n = 0;
+        while (e && *e && g_peek_n < 8) {
+            char *end;
+            uint32_t va = (uint32_t)strtoul(e, &end, 0), n = 1;
+            if (end == e) break;
+            if (*end == ':') n = (uint32_t)strtoul(end + 1, &end, 0);
+            g_peek_hex[g_peek_n] = 0;
+            if (*end == ':') { g_peek_hex[g_peek_n] = end[1] == 'x'; end += 2; }
+            g_peek_va[g_peek_n] = va;
+            g_peek_len[g_peek_n] = n < 1 ? 1 : n > 32 ? 32 : n;
+            g_peek_n++;
+            e = *end == ',' ? end + 1 : "";
+        }
+    }
+    if (!g_peek_n) return;
+    len = snprintf(line, sizeof line, "[PEEK] poll=%ld t=%.3f", g_poll, t);
+    for (i = 0; i < g_peek_n && len < (int)sizeof line - 64; i++) {
+        len += snprintf(line + len, sizeof line - len, " |%X:", g_peek_va[i]);
+        for (k = 0; k < g_peek_len[i] && len < (int)sizeof line - 32; k++) {
+            uint32_t v = guest_read(g_peek_va[i] + 4 * k);
+            float f;
+            memcpy(&f, &v, 4);
+            len += g_peek_hex[i] ? snprintf(line + len, sizeof line - len, " %08X", v)
+                                 : snprintf(line + len, sizeof line - len, " %.5f", f);
+        }
+    }
+    fprintf(stderr, "%s\n", line);
+}
+
 int cat_pad_get_state(uint32_t port, uint8_t out[18], uint32_t *packet)
 {
     XBOX_GAMEPAD g;
@@ -1172,6 +1250,7 @@ int cat_pad_get_state(uint32_t port, uint8_t out[18], uint32_t *packet)
                 g_rel[i] = g_rel[--g_nrel];
             } else i++;
         run_steps(t);
+        peek_poll(t);
         if (memcmp(&before, &g_script, sizeof before)) log_state(t, &g_script);
         fflush(stderr);
         g = g_script;

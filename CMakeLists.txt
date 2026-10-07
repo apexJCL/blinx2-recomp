@@ -75,6 +75,7 @@ set(GAME_SOURCES
     src/recomp_manual.c
     src/pad_input.c
     src/save_seed.c
+    src/glow.c
     # Add game-specific sources here, e.g.:
     # src/asset_loader.c
     # src/custom_renderer.c
