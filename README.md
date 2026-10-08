@@ -7,7 +7,8 @@ together with a host runtime: a replacement Xbox kernel, NV2A (GPU) pushbuffer
 execution and APU/audio pieces.
 
 **Status:** runs with sound, controllers and saves on macOS (Apple silicon,
-Metal) and on Linux under Proton (Direct3D 11, the Windows build) | stage 1 is
+Metal) and on Linux under Proton (Direct3D 11, the Windows build), the Steam
+Deck included | stage 1 is
 checked on every build; every later stage and boss has been reached in
 scripted runs | one command builds a private, installable bundle (macOS app,
 Windows setup program, SteamOS installer) | **no game data included: bring
@@ -67,7 +68,7 @@ apexJCL/xboxrecomp, not upstream.
 
 | Platform | Render backend | Status |
 |---|---|---|
-| Windows / Linux (Proton) | Direct3D 11 (DXVK under Proton) | Runs with audio (XAudio2, FAudio under Proton), controllers and the keyboard. The tested route is a Windows x86-64 build run under Proton; native Windows is untested. |
+| Windows / Linux (Proton) | Direct3D 11 (DXVK under Proton) | Runs with audio (XAudio2, FAudio under Proton), controllers and the keyboard. The tested route is a Windows x86-64 build run under Proton, on a Linux desktop and on the Steam Deck (SteamOS); native Windows is untested. |
 | macOS (Apple silicon) | Metal, shown in an SDL2 window | Runs with audio (SDL2), controllers (SDL2 GameController) and the keyboard. |
 
 Both routes pass the same automated checks on every build: the attract mode,
@@ -85,6 +86,13 @@ What works today, and what does not yet:
   boss-stage artefacts (sky wedges in Boss 1, shadow shapes in two later
   bosses) are the same on every backend and are still being checked against
   the original hardware.
+- **Threads:** the Xbox has one CPU, and the game relies on it: two of its
+  threads add stage lights to one list without a lock, and on a multi-core
+  PC they could lose entries, which left the ground and water unlit (dark
+  water under Proton). The runtime now runs the game's threads on one host
+  core, as on the Xbox (`RECOMP_GUEST_CPUS=all` turns this off). macOS has
+  no way to pin a thread to a core, so there the race is still possible,
+  although the Metal checks have not shown it.
 - **Audio:** on by default on every platform (`RECOMP_AC97_READY`).
 - **Input:** controllers work as player 1 on every platform, and so does
   the keyboard (`RECOMP_KEYBOARD=1`, on by default in the Windows, SteamOS
@@ -103,7 +111,12 @@ What works today, and what does not yet:
 - **Enhancements (opt-in, off by default):** `render.scale` 1 to 4 (Metal
   and Direct3D 11), `present.filter` (`nearest`, `linear`, `integer`),
   `present.fullscreen` and `present.pacing`, read from `enhance.toml` next to
-  the executable or from the matching `RECOMP_*` variables.
+  the executable (in a bundle: `config/enhance.toml` in its data folder, see
+  [docs/packaging.md](docs/packaging.md)) or from the matching `RECOMP_*`
+  variables. On the Steam Deck in Gaming Mode, set the game's Steam
+  properties to the native resolution (1280x800): with the default, the
+  game gets a 1920x1080 screen and fullscreen ends up with bars on all four
+  sides.
   `present.pacing = "sleep"` lets the game's frame wait sleep until the next
   vblank instead of spinning on a CPU core as the Xbox does: less heat and
   battery on a laptop or a Steam Deck, the same frames. `fps.mode` accepts
@@ -112,6 +125,10 @@ What works today, and what does not yet:
   implemented. Checked on Metal and on Direct3D 11 under Proton; resizing
   the Direct3D 11 window under Proton does not reach the game on the tested
   desktop (GE-Proton 11, KWin), while fullscreen and render scale do.
+- **Known hang:** the game can freeze on the results screen at the end of
+  mission 1 and after the mission 3 boss (seen on macOS and on the Steam
+  Deck). A fix is being tested: a build with it cleared mission 3 on the
+  Steam Deck.
 - **Known crash:** one scripted run on macOS crashed in stage 5-1 after
   about 90 s; it is being investigated.
 
@@ -274,10 +291,11 @@ files and survive every update. [docs/packaging.md](docs/packaging.md) has
 the steps for each machine.
 
 How far each bundle has been tested: the macOS `.dmg` has been built from a
-fresh clone and the installed app run on the Mac that built it. The Windows
-setup program and the SteamOS tar build, and their unit tests pass, but
-neither has been installed and run on a Linux/Proton PC yet (those checks
-are in progress), and nothing has been tested on native Windows.
+fresh clone and the installed app run on the Mac that built it. The SteamOS
+tar has been installed and played on a Steam Deck, across several updates
+and a rollback. The Windows setup program builds and its unit tests pass,
+but it has not been installed and run yet, and nothing has been tested on
+native Windows.
 
 A bundle contains your own copy of the game: keep it on your own machines.
 
