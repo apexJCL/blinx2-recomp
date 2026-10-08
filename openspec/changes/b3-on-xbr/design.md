@@ -194,7 +194,7 @@ env_doc = "docs/running.md"
 [xbe]
 path = "Burnout 3 Takedown/default.xbe"
 title_id = 0x4541005B
-# The user's dump (burnout_3/, 2026-10-04). The the Linux/Proton host copy is checked
+# The user's dump (burnout_3/, 2026-10-04). The Linux/Proton copy is checked
 # against it in task 1.9.
 sha256 = ["9f497acd82adb8edfb72cc31aeeb35010b45d32b13a3f1fc6540717ff24d13f9"]
 
@@ -239,7 +239,7 @@ targets = ["windows"]
 windows_dir = "build-win"
 macos_dir = "build"      # unused (no macos target); the default
 toolchain_file = "cmake/llvm-mingw-x86_64.cmake"   # phase 1: a copy of cat's; phase 2: key removed, the CLI's own
-# No enhancements layer: the build every the Linux/Proton host run used. With D7.0 the
+# No enhancements layer: the build every Linux/Proton run used. With D7.0 the
 # stock rule is this list, so a cache without XBOXRECOMP_ENHANCE is stock.
 stock_cmake = []
 nonstock_vars = []

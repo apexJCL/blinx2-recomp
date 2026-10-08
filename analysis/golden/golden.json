@@ -70,7 +70,7 @@
             "ref_pace": 29.56
           },
           "max_pace_diff": null,
-          "max_pace_diff_why": "no pace check: the demo scene follows flips, not wall time. the Linux/Proton host CPU run 20261004-112314 reached it at 2.5 fps from first-3d (reference 29.6) and still gave CLOSE (mae 0.14, bad 0.08%)"
+          "max_pace_diff_why": "no pace check: the demo scene follows flips, not wall time. The Linux/Proton host CPU run 20261004-112314 reached it at 2.5 fps from first-3d (reference 29.6) and still gave CLOSE (mae 0.14, bad 0.08%)"
         }
       ],
       "anchors": {

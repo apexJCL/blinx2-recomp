@@ -21,13 +21,13 @@ sha256 = [
 ]
 
 [cli]
-commit = "023c77eee626169aeb91d49c2adfe3ebd39f4eb7"
+commit = "161f48a459ed6bfb2675bdb429111f4cb8adc824"
 url = "https://github.com/apexJCL/xboxrecomp-cli.git"
 
 [toolkit]
 url = "https://github.com/apexJCL/xboxrecomp.git"
 branch = "blinx2/portability"
-commit = "52e6ca89dc2ce9f7d21e913d96394afe6d9652ee"
+commit = "9722cface780fd463ef28bb7d07e2bbf8e26c077"
 
 [toolchain]
 llvm_mingw = "20260922"
@@ -76,6 +76,9 @@ presets = ["@attract", "@stage1", "@stage1-enemies", "@story-hub", "@story-load"
 json = "analysis/golden/golden.json"
 frames = "analysis/golden/frames"
 audio = "analysis/golden/audio.json"
+# The game's own enhancement keys at their stock values (docs/env.md): a
+# golden run showing another value is not a stock run.
+enhance_stock = { "fps.mode" = "lock30", "fx.glow" = "on", "fx.glow_intensity" = "1" }
 
 [package]
 app = "BLiNX2"
@@ -93,3 +96,23 @@ main_branch = "main"
 toolkit_branch = "posix-host/portability"
 toolkit_tests = true
 pacing_scenario = "stage1"
+
+[bench.gc]
+# Where this workspace's notes name runs, beside the docs every game keeps.
+# ../notes is the maintainer's layout: in a plain clone gc refuses until
+# refs names only paths that exist there.
+refs = ["timeline", "../notes", "analysis", "docs", "README.md"]
+# Inventories that list every run the P1 merge touched and every run the
+# 2026-10-06 disk audit sorted (read, they would protect them all), the
+# host inventories, gc's own saved dry runs, and raw run logs a worktree
+# still holds (data, not docs).
+refs_exclude = [
+    "../notes/cleanup-scripts/*",
+    "../notes/disk-audit-*/*",
+    "../notes/MANIFEST.md",
+    "../notes/*/gc-dry*.txt",
+    "analysis/*inventory*.md",
+    "analysis/runs/*",
+]
+# The audit's tier split: runs from the last three days may still be named.
+days = 3

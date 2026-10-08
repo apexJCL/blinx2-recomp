@@ -15,7 +15,7 @@ remain in `scripts/`:
 | `bench.sh` | 1160 | the Proton bench: setup, sync, build, run, golden, tests, pacing, logs, symbolize, integrate, the run lock, `--kill-game`, the gen digest check | the controlling host, over ssh to the Linux/Proton host |
 | `pipeline.sh` | 48 | a forwarder to `blinx2 <stage>` | any |
 | `export-public.sh` | 140 | the public-tree export (private, excluded from the export) | the Mac |
-| `xemu_capture.sh` | 34 | xemu reference capture under the run lock | the Linux/Proton host itself |
+| `xemu_capture.sh` | 34 | xemu reference capture under the run lock | The Linux/Proton host itself |
 
 `bench.sh` is the one that matters: every merge gate runs through
 `bench.sh golden` and `bench.sh integrate`, and it is the only path to the

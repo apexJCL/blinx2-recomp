@@ -23,6 +23,7 @@
 #include "host_time.h"  /* xbox_HostNowNs, xbox_HostSleepNs: the vblank pacer */
 #include <stddef.h>   /* ptrdiff_t: <windows.h> supplied it on Windows only */
 #include <stdint.h>
+#include "glow.h"       /* fx.glow: the sub_0005B7D0 wrapper below */
 /* The pacer's interlocked epoch. Before recomp_types.h, whose register
  * macros (eax, esp, ...) would otherwise reach the system headers. */
 #ifdef _WIN32
@@ -495,7 +496,6 @@ void recomp_unimpl(const char *text, uint32_t va)
  * from whatever it holds each frame. The restore happens only if the word
  * still holds the scaled value, so a write by another thread is kept. Every
  * path out of the body is its one ret, so the restore always runs. */
-#include "glow.h"
 
 extern void sub_0005B7D0_gen(void);
 

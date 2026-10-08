@@ -120,7 +120,7 @@ are marked as carried out here (D2).
 | `setup`, `doctor`, `pins refresh` | yes | uv venv, llvm-mingw, NSIS, the toolkit at the pin |
 | `parse disasm funcid abi recomp`, `analyze`, `all` | yes | Phase 1 gate B1: gen/ is byte-identical to `regen.sh`'s output |
 | `ghidra`, `names` | no | `pipeline.ghidra = false` |
-| `build` | `windows` only | A cross build on the Mac, native in the the Linux/Proton host box. No macos target until Burnout 3 has a POSIX host (out of scope). |
+| `build` | `windows` only | A cross build on the Mac, native in the Linux/Proton box. No macos target until Burnout 3 has a POSIX host (out of scope). |
 | `bench setup/sync/build/run/logs/symbolize/shell/all/doctor` | yes, after phase 2 | The boot, menu and race pad scripts become documented `bench run` lines. |
 | `bench integrate` | yes, after phase 2 | `main_branch = "main"` (D1) |
 | `bench golden`, `bench pacing`, `golden`, `pacing-stats` | no | Burnout 3 has no golden.json. That is a follow-up (D9). |
@@ -133,7 +133,7 @@ are marked as carried out here (D2).
 - A POSIX or macOS host for Burnout 3. It does not boot on the Mac.
 - Golden scenarios for Burnout 3 (D9 drafts them as a follow-up change).
 - Enhancements for Burnout 3. The bundle is built without the layer, as
-  every the Linux/Proton host run has been.
+  every Linux/Proton run has been.
 - Any public push. b3's push URL stays disabled. The CLI's next push round
   is batched as always.
 - Upstream PRs to `sp00nznet/burnout3`.

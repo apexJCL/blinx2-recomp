@@ -91,7 +91,7 @@ Both branches were merged with the irq-safe-points fix (toolkit 37201d8, cat 933
 - Toolkit pytest: 592 passed.
 - Wading repro (Metal, 1x, `merged/wade1`): 978 polls, 0 stun frames, walk ramp up to 0x4B.
 - Metal goldens (`merged/golden-metal`): pass, all 8 CLOSE.
-- the Linux/Proton host, Proton (`bench host/`): build OK; all 13 Proton ctests pass; `blinx2 bench golden` (D3D11) passes. attract-cliff is EXACT and the other 7 are CLOSE. Pace is 29.5 to 30.0 fps against the reference.
+- The Linux/Proton host, Proton (`bench host/`): build OK; all 13 Proton ctests pass; `blinx2 bench golden` (D3D11) passes. attract-cliff is EXACT and the other 7 are CLOSE. Pace is 29.5 to 30.0 fps against the reference.
 - No golden moved, so none was re-recorded.
 
 Burnout 3 (`b3/`, `b3gate.sh`):

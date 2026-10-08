@@ -20,7 +20,7 @@ Branches `fix/pb-index-batch-cap`. Toolkit: off `posix-host/portability` 4773a01
 | Metal goldens (`golden-final.txt`) | exit 0, all 8 frames CLOSE |
 | Metal horizon, lighthouse warp flip 2490 (`lh-metal-final/`) | cyan to the horizon, matches xemu |
 | CPU horizon, the same warp (`lh-cpu-final/`) | cyan to the horizon, no `index batch over` |
-| the Linux/Proton host Proton build and the 13 Proton ctests | pass; the `d3d11_backend_smoke` index probes pass |
+| The Linux/Proton host Proton build and the 13 Proton ctests | pass; the `d3d11_backend_smoke` index probes pass |
 | D3D11 goldens, `blinx2 bench golden` (`bench host-golden.log`) | pass: attract-cliff EXACT, the other 7 CLOSE |
 | D3D11 horizon, the same warp (`lh-d3d11-final/d0041.png`, present 2461) | cyan to the horizon |
 | Burnout 3 race under Proton, 900 s (`b3/20261006-221820-new-race/`) | reaches the race and renders it with the HUD, no [CRASH], `max 3909, 0 overflowed` |

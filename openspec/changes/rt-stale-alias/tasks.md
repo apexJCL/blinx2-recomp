@@ -22,7 +22,7 @@
 - [x] 5.1 Mac build, POSIX ctests (including rt_alias and nv2a_backend_smoke), Metal goldens (attract, stage1, story) unchanged.
 - [x] 5.2 Task 1.2 rerun: the Metal dumps match the CPU dump, no decode sync on the stale target, and the plates and barrels match the CPU frames at 1x and 3x.
 - [ ] 5.3 Water: rerun the water spot (user, or a preset if 1.3 finds one) and record whether the jitter is gone; if 1.3 found only rendering data in the blocks, record that the jitter is a separate issue for TASKS.
-- [ ] 5.4 Proton (ask before taking the the Linux/Proton host queue): llvm-mingw build, d3d11_backend_smoke, `blinx2 bench golden`.
+- [ ] 5.4 Proton (ask before taking the Linux/Proton queue): llvm-mingw build, d3d11_backend_smoke, `blinx2 bench golden`.
 - [x] 5.5 Metal `metal_prof` hash cost and flips/s before and after on stage1 3x and on `@hub-stage1` (flag a 25% drop in flips/s or a 1.5x rise in raster ms); decide on the row-sampled hash from the numbers.
 
 ## Results (Mac, 2026-10-06; runs in runs/rt-alias/)
@@ -32,4 +32,4 @@
 - 5.1 POSIX ctests pass (rt_alias new; nv2a_backend_smoke with the new cases, and its `noalias` run shows they fail without the check). Metal goldens attract, stage1, story CLOSE/pass.
 - 5.5 `@hub-stage1` at 3x, metal_prof: ownership hashes 0.16-0.17 ms/flip, on_flip 1.56-1.59 ms against 1.58-1.61 with the check off; same flip count in 150 s. The full hash stays.
 - Deviations from the design: (a) the hash reads the resolved address (the contiguous window, where the seed and write-back go); only address compares use the low 27 bits. Hashing the low-window VA hashed the XBE's D3D section under the front buffer and dropped it every other flip. (b) A reset (creation, write-back) does not count as the flip's check: a title write later in the same flip would be missed (the smoke test's pattern fill showed it), so the bound is one check per flip plus one after each reset. (c) D3D11 marks a target drawn when surface() hands it out, so the target of the batch being drawn is never dropped mid-draw. (d) Front buffers are dropped when the title reallocates and clears them at scene changes (2-4 per run), as the risks section expects.
-- Open: 4.2 d3d11_backend_smoke cases are written (syntax-checked with llvm-mingw; the smoke now commits its surface memory, since the backend reads it), 4.x and 5.4 wait for the the Linux/Proton host queue; 5.3 is moot (water is not this change).
+- Open: 4.2 d3d11_backend_smoke cases are written (syntax-checked with llvm-mingw; the smoke now commits its surface memory, since the backend reads it), 4.x and 5.4 wait for the Linux/Proton queue; 5.3 is moot (water is not this change).

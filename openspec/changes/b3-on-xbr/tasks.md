@@ -15,7 +15,7 @@ Rules for every task:
 - Mac runs: none here. Burnout 3 does not boot on the Mac.
 - The dump is read-only: nothing writes inside `burnout_3/`, and every
   pipeline gate checks that (`find ../burnout_3 -newer <stamp>` is empty).
-- the Linux/Proton host runs go through `<game> bench` (it takes the lock itself): one
+- The Linux/Proton runs go through `<game> bench` (it takes the lock itself): one
   agent at a time, BLiNX 2 first, windows and sound allowed.
 - The Steam Deck only with the user's go-ahead.
 - Evidence goes under `runs/b3xbr/`. Commit identities:
@@ -75,9 +75,9 @@ b3 (D5, D6):
 - [ ] 1.10 The dump. Check:
   - `Burnout 3 Takedown` → `../burnout_3` has the sha256 in `xbe.sha256` (`9f497acd…`, verified 2026-10-06);
   - its title ID is 0x4541005B and its certificate title `Burnout 3` (verified);
-  - the the Linux/Proton host copy matches. The orchestrator or the user checks this with `sha256sum ~/xbox-recomp/burnout_3/default.xbe` at the next allowed the Linux/Proton host session; no agent ssh here.
+  - the Linux/Proton copy matches. The orchestrator or the user checks this with `sha256sum ~/xbox-recomp/burnout_3/default.xbe` at the next allowed Linux/Proton session; no agent ssh here.
 
-  If the the Linux/Proton host copy differs (TASKS: "re-extracted dump", S6 round 2), list both hashes after comparing their section tables, as cat's 1.13 did.
+  If the Linux/Proton copy differs (TASKS: "re-extracted dump", S6 round 2), list both hashes after comparing their section tables, as cat's 1.13 did.
 - [ ] 1.11 The README section "Building with ./burnout3 (xboxrecomp-cli)" (D6): prerequisites (uv, git, Python 3), then setup, analyze/recomp, build, and later bench and package as the phases land, and how this differs from upstream's MSVC path.
 
 Gates (record evidence in the commit messages):

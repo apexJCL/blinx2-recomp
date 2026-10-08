@@ -346,7 +346,7 @@ Real gates on the Linux/Proton host, in order and each before the next phase mer
 |---|---|---|---|
 | 0 tooling | `pyproject.toml`, `uv.lock`, `.python-version`, ruff config, the format commit, `setup`/`doctor`/`pins` on uv (uv from `PATH`) | `requirements-*.txt`, the hand resolver | `uv run pytest scripts`; ruff gates; fresh-clone `./blinx2 setup` on the Mac; Mac build; one Metal golden |
 | 1 controller | `scripts/benchlib/`, `blinx2 bench` with `bench doctor` (D7), parity and checks tests | nothing (`bench.sh` untouched) | pytest; parity test; the Linux/Proton host gates 1 and 2 |
-| 2 shims | `bench.sh` → `exec python3 blinx2.py bench "$@"`; `pipeline.sh` prints a deprecation line; references updated (README, docs, env.md, TASKS, comments in `golden.py`, `running_game.py`, `benchlog-retention.py`, `vpad.py`, `openspec/config.yaml`) | the bench.sh body | the Linux/Proton host gate 3; `grep -rn 'bench\.sh\|pipeline\.sh'` lists only the shims, the archive and history |
+| 2 shims | `bench.sh` → `exec python3 blinx2.py bench "$@"`; `pipeline.sh` prints a deprecation line; references updated (README, docs, env.md, TASKS, comments in `golden.py`, `running_game.py`, `benchlog-retention.py`, `vpad.py`, `openspec/config.yaml`) | the bench.sh body | The Linux/Proton gate 3; `grep -rn 'bench\.sh\|pipeline\.sh'` lists only the shims, the archive and history |
 | 3 Windows host | **deferred (Q4)**: the manifest transfer, Windows path handling, docs for OpenSSH on Windows | nothing | not in this change; a follow-up in TASKS.md |
 | 4 removal | `.git-blame-ignore-revs` tidy; packaging spec sync | `scripts/bench.sh`, `scripts/pipeline.sh` | pytest; the orchestrator has amended CLAUDE.md and the memory notes first |
 

@@ -27,7 +27,7 @@ Conventions: `toolkit` = `wt/audio-mac/xboxrecomp` (branch `audio/macos` off `po
 - [x] 5.1 When `consolidate/env` (toolkit 5b1d8e9) merges: `recomp_env.c` `default_on(values, RENV_AC97_READY, 1)` also for `!defined(_WIN32) && defined(__aarch64__)`; the `AC97_READY` key text and `README.md`/`docs/pipeline/06-debugging.md` name macOS arm64 as supported; cat `main.c`'s own "unsupported on this host" branch stays for other hosts. Repo: toolkit (env branch) and cat.
   - Archive note: done. `recomp_env.c` defaults `RECOMP_AC97_READY` on for `!_WIN32 && __aarch64__` (the env consolidation), and docs/env.md names macOS/Linux arm64.
 - [x] 5.2 mingw check on the Linux/Proton host (Windows path): `apu_sdl2.c` compiles to nothing there, `apu_xaudio2.c` is unchanged apart from the removed POSIX stubs; the clock shim change is shared. Repo: toolkit.
-  - Archive note: done. Every the Linux/Proton host build since the merge (bench.sh integrate, the S1-S8 gates) compiles the Windows path with these files.
+  - Archive note: done. Every Linux/Proton build since the merge (bench.sh integrate, the S1-S8 gates) compiles the Windows path with these files.
 - [x] 5.3 Proton verification on the Linux/Proton host of the shared-model fixes 6.1-6.3 (the Linux/Proton host was down during this change): 60 s `@attract` with `RECOMP_AUDIO_WAV`, `audio_check.py --scenario boot-title` PASS (no noise-like window, 0 dropouts), `[APU-VSTAT]` shows no `wrap` and music voices at 44098 source frames/s; the golden frames unchanged. Repo: cat (log only).
   - Archive note: done. The shared fixes have run under Proton since: `audio_check` passes in the upstream-merge gates S1-S5 and later batches, with the goldens unchanged.
 

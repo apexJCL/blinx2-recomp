@@ -135,6 +135,6 @@ From the classification (Context), the shapes that lose their state at a join ar
 ## User decisions
 
 1. Re-blessing a golden that moves toward xemu: the user signs off on each, as for every golden move.
-2. The Burnout 3 Proton gate runs on the Linux/Proton host, so it waits for the user's go, like every the Linux/Proton host run; the cat merge can land before it, the toolkit squash to `posix-host/portability` cannot.
+2. The Burnout 3 Proton gate runs on the Linux/Proton host, so it waits for the user's go, like every Linux/Proton run; the cat merge can land before it, the toolkit squash to `posix-host/portability` cannot.
 3. D5's follow-ups (the cmp + result-setter join, and whether the entry-block aliases are ever entered) get TASKS.md entries; the user decides when.
 4. D1b widens the change beyond the bug's own shape. It is in because the revived sites sit in the player update and are attributable one by one; the user can ask for it to be split out, at the cost of a second regeneration round.
