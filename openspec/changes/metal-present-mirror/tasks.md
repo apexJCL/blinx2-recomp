@@ -14,7 +14,7 @@ or the merge notes record.
 - [x] 1.1 `nv2a_clear_box` in nv2a_backend_common.h; D3D11's `clear_region` calls it and `clear_box` goes (D2). Verify: `git diff` of nv2a_pb_d3d11.c is the call site only; `d3d11_backend_smoke` under Proton (3.1) passes unchanged.
 - [x] 1.2 CPU `clear_surface` fills the clear box, swizzled and linear, 16- and 32-bit (D2, D5); the nv2a_pb_state.h comment says every path bounds by it. Verify: smoke cases 1 and 2 on the CPU path (1.6).
 - [x] 1.3 Metal `surface()` second loop and `rt_grow` (D1, steps 1-7, including `rt->dt = NULL`, the black pass when `rt_seed` does not apply, `s_grows`); `present_target` and `metal_sync_guest` accept a covering target (D4). Verify: smoke cases 3 and 4; `ctest -R rt_alias` and `nv2a_backend_smoke_noalias` still pass (the ownership hash is reset at the new height).
-- [x] 1.4 Metal partial colour clears (D3): `vs_clear`/`fs_clear`, `s_clear_pso[2]`, the scissored draw in `metal_on_clear`, visibility off and on around it, the scissor reset, the load-action fallback on a pipeline failure, `s_partial_clears`. Verify: smoke cases 1 and 2 on Metal; case 2 at scale 2 is covered by case 4's rect.
+- [x] 1.4 Metal partial colour clears (D3): `vs_clear`/`fs_clear`, `s_clear_pso[2]`, the scissored draw in `metal_on_clear`, visibility off for it and the pass ended after it while a query counts (S1 of the 2026-10-07 merge review; the scissor reset otherwise), the load-action fallback on a pipeline failure, `s_partial_clears`. Verify: smoke cases 1 and 2 on Metal; case 2 at scale 2 is covered by case 4's rect.
 - [x] 1.5 Metal `present_extent` for the layer blit, the readback pushes and `s_shown_w/h` (D4); `nv2a_pb_metal_shown` for the smoke. Verify: smoke case 5; a windowed stage1 run on the Mac shows the frame as before (the window is a 640x480 fit; nothing grows in BLiNX 2, so the extent equals the target).
 - [x] 1.6 `nv2a_backend_smoke` `clip_cases` (D7, cases 1-5), BUF3/BUF4 constants, the guest pattern re-filled before each path's run of cases 3 and 4, the header comment's case list. Verify: `ctest -R nv2a_backend_smoke` (default, `guard`, `noalias`) passes; each case prints a PASS line with its probe values, as the D3D11 smoke does, and the full-frame compare line.
 - [x] 1.7 Metal present summary line reports `grows` and `partial clears`; flip_log untouched. Verify: the counters are 0 on a BLiNX 2 stage1 golden log, or 2.5 runs.
@@ -36,9 +36,11 @@ or the merge notes record.
 
 - [ ] 4.1 Depth/stencil clears bounded by the clear rect (D3D11 and Metal).
 - [ ] 4.2 A grown target sampled with normalised coordinates (D3D11 and Metal).
-- [ ] 4.3 A 16-bit surface's grown margin is black, not the guest bytes (Metal; D3D11's is black for every surface).
-- [ ] 4.4 The Metal grow on Burnout 3, once it boots on the Mac: the 640x464 / 623x401 / 159x344 clips, the grow and partial-clear counts per frame, and the pace against D3D11's.
-- [ ] 4.5 Remove the "Metal and CPU mirror" Pending entry's first two bullets from TASKS.md at the merge; the third (D3D11 write-back, hash cost) stays.
+- [ ] 4.3 A 16-bit surface's grown margin is black, not the guest bytes (Metal; D3D11's is black for every surface). Metal's `!keep` grow (the host size changes with the factor) also loses a 16-bit target's old contents: written back as R5G6B5, not re-seeded. D3D11's `rt_grow` copies host pixels unscaled when the host factor changes, where Metal writes back and re-seeds. Both are reachable only past METAL_MAX_DIM at the chosen scale (5 or more); merge review round 4, follow-ups 2 and 3.
+- [ ] 4.4 The Metal grow on Burnout 3, once it boots on the Mac: the 640x464 / 623x401 / 159x344 clips, the grow and partial-clear counts per frame, and the pace against D3D11's. Check the partial clears inside an occlusion query too: since S1 each one spends a slot of the query (two when the clear opens its own pass, whose slot counts nothing), and past OCC_QSLOTS (16) the query overflows and reports visible.
+- [x] 4.5 Remove the "Metal and CPU mirror" Pending entry's first two bullets from TASKS.md at the merge; the third (D3D11 write-back, hash cost) stays.
+- [ ] 4.6 The CPU walker's zpass count for a 100x100 pre-transformed quad is 10100, not 10000 (`occ_case` prints it): with the occlusion count semantics item.
+- [ ] 4.7 A pixel-level pin for the Metal crop (the blit or push extent, or the slot size), paired with the D3D11 uv_scale test (merge review round 4, follow-up 1).
 
 ## Results (Mac, 2026-10-07)
 
@@ -73,3 +75,23 @@ Raw logs: `xbox-recomp/runs/metalmirror/`.
   present mismatches (2432, 3270, 4727 flips), no crash; bench-logs
   20261007-063537, -063656, -063847. The "game process is running" warnings
   were other agents' Mac runs, not on the host.
+
+## Merge review fixes (fix/metal-mirror-review, 2026-10-07)
+
+Fable round 4 (notes/fable-reviews/2026-10-07.md): S1 and S2 on toolkit
+7bc1d3c and e68689f, on posix-host/portability dce73d4 (first written off
+a0b9a55).
+
+- S1: the partial clear ends the counting pass (design D3). `occ_case` in
+  nv2a_backend_smoke: Metal 20000. It pins the new slot after the clear
+  (10000 without it) and the clear's exclusion (22500 when counted); the
+  set-once rule is not observable on Apple silicon (the pre-fix code also
+  reads 20000 on an M4 Max).
+- S2: the CPU halves of the clip clear and clear rect run before the backend
+  check in nv2a_backend_smoke, and, since that test builds on macOS only,
+  `cpu_clip_cases` in d3d11_backend_smoke runs them under Proton.
+- Nit: D1 step 2 says the grow ends any open encoder.
+- Nit: the D3D11 present summary counts grows and partial clears (d27aa68).
+- Opus review of 7bc1d3c/e68689f (MERGE): nits 1, 6 and 7 in toolkit 3cb97da
+  (smoke comments, the occ_case poll, the clear rect's inclusive max edge
+  probed at (339,339) and (340,339) in both smokes); nits 2, 3, 5 and 8 here.

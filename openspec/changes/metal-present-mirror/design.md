@@ -45,9 +45,10 @@ position, as on D3D11.
    texture is seeded from guest memory instead. `rt_sync` waits for the GPU
    and restores the ring positions itself; `surface()` runs before
    `ring_alloc` in `metal_on_draw`, so no vertex data is in flight.
-2. End the open encoder when it is on this target (`s_enc_rt == rt`): a
-   render command encoder must not outlive its attachment's swap, and the
-   blit below needs no encoder open. The old texture stays alive until the
+2. End any open encoder, on this target or another: a render command
+   encoder must not outlive its attachment's swap, and the blit and clear
+   passes below cannot open while a render encoder is open on the command
+   buffer. The old texture stays alive until the
    command buffer that holds those draws and the blit retires it (Metal
    retains an encoded resource); the backend releases its own reference only
    after the blit is encoded, never while an encoder on it is open.
@@ -114,12 +115,25 @@ new work. Otherwise:
   attachment, made on first use (`s_clear_pso[2]`); a failure logs once and
   falls back to a whole-target load-action clear, as D3D11 does without a
   11.1 context.
-- Visibility: while a query counts on the pass (`s_occ_slot >= 0`), counting
-  is switched off before the clear draw and back on at the same slot after
-  it; a clear is not a zpass sample. Not testable by the smoke (it drives no
-  occlusion queries); reasoned here.
-- The scissor is reset to the whole target after the draw: encoder state
-  persists for the pass and draws never set one.
+- Visibility: a clear is not a zpass sample. While a query counts on the
+  pass (`s_occ_slot >= 0`), counting is switched off before the clear draw,
+  and the pass ends after it (`end_encoder`) instead of counting again at
+  the same slot: Metal sets a visibility offset once per pass ("You can set
+  a specific offset value only once per render pass"), so a resumed slot
+  could drop the draws before the clear from the count. The next draw opens
+  a new pass and `occ_pass_begin` takes a new slot in the query's `slot[]`,
+  the mechanism a query spanning passes already uses: one extra pass, only
+  while a query counts. Fable merge review 2026-10-07 round 4, S1.
+  `nv2a_backend_smoke`'s `occ_case` counts two 100x100 quads around a
+  50x50 partial clear: 20000 on Metal. That pins the hand-off (10000 when
+  the pass after the clear gets no new slot) and the clear's exclusion
+  (22500 when it counts). The set-once rule itself is not observable on
+  Apple silicon: the pre-fix code, counting again at the same slot, also
+  reads 20000 on an M4 Max (Opus review of 7bc1d3c).
+- The scissor is reset to the whole target after the draw when no query
+  counts: encoder state persists for the pass and draws never set one.
+  While a query counts the pass ends instead, and the next encoder's
+  scissor is the whole attachment by default.
 - `s_clears++` as today, `s_partial_clears++` for the summary.
 
 Alternatives: a load-action clear with a sub-rectangle does not exist on
