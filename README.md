@@ -279,7 +279,10 @@ adds the keyboard as player 1.
 `./blinx2 bench` automates this on a remote x86-64 Linux host over SSH: it
 syncs the toolkit and this project, builds in a distrobox, runs the game under
 Proton and runs the golden-frame checks. `./blinx2 bench --help` lists its
-commands and settings (`BENCH_HOST` and so on).
+commands and settings (`BENCH_HOST` and so on). On a Mac, `./blinx2 golden
+run` runs the same scenarios on the Metal build in `build/`: headless and
+silent, one at a time, each stopped once its last checked frame is dumped,
+with the verdict in `bench-logs/<stamp>-metal-<scenario>/golden.txt`.
 
 ## Install on your own machines
 

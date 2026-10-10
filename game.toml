@@ -21,13 +21,13 @@ sha256 = [
 ]
 
 [cli]
-commit = "161f48a459ed6bfb2675bdb429111f4cb8adc824"
+commit = "dde49a626c2b0cda7835485092f5db28e66740c6"
 url = "https://github.com/apexJCL/xboxrecomp-cli.git"
 
 [toolkit]
 url = "https://github.com/apexJCL/xboxrecomp.git"
 branch = "blinx2/portability"
-commit = "1eea244fa00338722595ac93de7df48bbbe99ffb"
+commit = "07920265cf49032816c57be0e3a6fe68c44046cb"
 
 [toolchain]
 llvm_mingw = "20260922"

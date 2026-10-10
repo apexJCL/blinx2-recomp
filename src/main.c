@@ -1153,6 +1153,27 @@ static int host_main(void)
     if (!recomp_env(RENV_VBLANK))
         recomp_env_set(RENV_VBLANK, "1");
 
+    /* D3D8 builds the KEVENT its vblank DPC sets inline, without
+     * KeInitializeEvent. The toolkit gives such an event a host event only on
+     * request (upstream's ke_guest_event, BLX-35); without it KeSetEvent hands
+     * the guest address to the host as a handle and the DPC faults on POSIX.
+     * An explicit RECOMP_TITLE_KEVENTS in the environment still wins. */
+    if (!recomp_env(RENV_TITLE_KEVENTS))
+        recomp_env_set(RENV_TITLE_KEVENTS, "1");
+
+    /* One guest thread runs guest code at a time, as on the console's one
+     * CPU (upstream's RECOMP_GUEST_LOCK, made a FIFO hand-off that yields at
+     * the lowered spin-waits: toolkit kernel_guest_cpu.c, openspec
+     * mac-one-cpu). The stage loader and its loader thread add lights to
+     * one global pool with an unlocked read-modify-write (sub_00037CE0); run
+     * on two host cores they lost entries and the terrain baked black (dark
+     * water, BLX-1). The one-core pin (RECOMP_GUEST_CPUS) narrows that where
+     * the host has thread affinity; macOS has none, and the lock closes it
+     * everywhere. An explicit RECOMP_GUEST_LOCK in the environment still
+     * wins (=0 is the A/B). */
+    if (!recomp_env(RENV_GUEST_LOCK))
+        recomp_env_set(RENV_GUEST_LOCK, "1");
+
 #if HOST_CAN_SERVICE_MMIO
     /* Step 4: Bring up the emulated APU.
      *

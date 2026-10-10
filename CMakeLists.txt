@@ -160,6 +160,14 @@ if(MINGW)
     endif()
 endif()
 
+# The lifter writes compares as `if ((a == b))`, which clang flags as
+# -Wparentheses-equality once per site: 32.7k warnings a full build, burying
+# the real ones in a 25 MB integrate log. Generated code only.
+if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    set_property(SOURCE ${RECOMP_GEN_SOURCES} APPEND PROPERTY
+        COMPILE_OPTIONS -Wno-parentheses-equality)
+endif()
+
 # Optimization override for the generated code only. Empty by default (the
 # build type decides); set e.g. -DCAT_GEN_OPT=-O1 when -O3 over ~800 MB of
 # generated C takes too long or too much memory. Host code keeps the default.

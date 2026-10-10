@@ -195,6 +195,8 @@
           "why": "the first 3D frame: stg0101's intro fly-over (6088 batches) after the menus (at most 41); flip 768-769"
         }
       },
+      "dump_slack": 60,
+      "dump_slack_why": "no slack was set, so dumpat used the default 12; over 66 Metal stage1 runs in runs/ (2026-10-02..09) first-3d sat p50 4, p90 12, max 42 flips off the references', and 6 of 66 frames fell outside 12 (INCOMPLETE). The first golden run gate (bench-logs/20261009-170153-metal-stage1) then had it 46 early, outside 40: 60 covers all 67",
       "skip_backends": [
         "cpu"
       ],
@@ -401,8 +403,8 @@
           "why": "the Sweepers hub's first 3D frame after NOW SAVING (1 batch); flip 3945-3953"
         }
       },
-      "dump_slack": 40,
-      "dump_slack_why": "Metal's story anchors fell 11-26 flips after D3D11's (the menus' wall-time A taps against a different flip rate), so dumpat asks for +-40 flips around each frame",
+      "dump_slack": 100,
+      "dump_slack_why": "Metal's story anchors sit off the references' by more than the other scenarios' (the menus' wall-time A taps against a different flip rate). Over 74-76 Metal story runs in runs/ (2026-10-02..09) the anchor's distance from the nearest reference's was p50 15-20, p90 29 (tsedit), 63 (slot-list), 45 (hub), max 81 / 63 / 112 leaving out the runs that took another menu path; 40 left 19 of 76 menu and 13 of 74 hub frames undumped (INCOMPLETE), 100 leaves one hub frame. The cost is disk until the prune: each flip of slack is one more dumped BMP (about 0.9 MB) per anchored frame, so a story run now writes up to ~600 flip dumps, ~0.55-0.7 GB (the first golden run gate: 495 dumps, 456 MB, pruned to 20 MB on its pass); a run that does not pass keeps them all",
       "skip_backends": [
         "cpu"
       ],

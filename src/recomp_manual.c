@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include "recomp_env.h"
 #include "host_time.h"  /* xbox_HostNowNs, xbox_HostSleepNs: the vblank pacer */
+#include "kernel.h"     /* xbox_GuestCpuRelease/Acquire: the pacer's sleep lets the guest CPU go */
 #include <stddef.h>   /* ptrdiff_t: <windows.h> supplied it on Windows only */
 #include <stdint.h>
 #include "glow.h"       /* fx.glow: the sub_0005B7D0 wrapper below */
@@ -157,8 +158,17 @@ void sub_002E0DB0(void)
     /* The first boundary strictly after now. */
     next = e + ((now - e) / period + 1) * period;
     /* The toolkit's clock (platform/host_time.h): a high-resolution
-     * waitable timer on Windows, where Sleep rounds to the 15.6 ms tick. */
-    xbox_HostSleepNs(next - now);
+     * waitable timer on Windows, where Sleep rounds to the 15.6 ms tick.
+     * A host sleep, not a kernel call: let the guest CPU go for it
+     * (RECOMP_GUEST_LOCK), or the ADX threads sleeping here would hold it
+     * for a vblank each while the main thread and the movie decoder wait
+     * (the title movie behind the story slot list ran at 15 fps). */
+    {
+        int held = xbox_GuestCpuRelease(XBOX_GUEST_CPU_HOST, 0x002E0DB0u);
+        xbox_HostSleepNs(next - now);
+        if (held)
+            xbox_GuestCpuAcquire();
+    }
 
     {
         uint32_t device = MEM32(0x2F1FB8);

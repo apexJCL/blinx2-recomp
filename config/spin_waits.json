@@ -2,7 +2,8 @@
   "about": "Guest busy-wait loops that tools.recomp --spin-waits lowers to RECOMP_SPIN_WAIT, which sleeps instead of spinning when present.pacing = \"sleep\" (docs/env.md RECOMP_PRESENT_PACING). Listed sites only: a listed site that fails the matcher stops the recomp stage. analysis/recomp/spin_waits.json lists every candidate seen.",
   "auto": false,
   "sites": [
-    {"va": "0x00060475", "note": "sub_0005F960 main loop: while ([0xAE7388] < [0x3FD344]), the frame counter the vblank callback sub_000604A0 bumps in the D3D vblank DPC"}
+    {"va": "0x00060475", "note": "sub_0005F960 main loop: while ([0xAE7388] < [0x3FD344]), the frame counter the vblank callback sub_000604A0 bumps in the D3D vblank DPC"},
+    {"va": "0x002E7F20", "note": "D3D KickOff: while ([regs+0x100410] & 0x10000), the PFB flush bit the toolkit's ack loop clears once the walker has caught up; behind a flip hold (present-vblank-pacing) it waits up to a vblank, so it yields the guest CPU and sleeps under present.pacing=sleep"}
   ],
   "exclude": []
 }
