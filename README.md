@@ -241,8 +241,8 @@ The commands themselves live in
 [xboxrecomp-cli](https://github.com/apexJCL/xboxrecomp-cli), which any game
 built on the toolkit can use. This project's `game.toml` describes BLiNX 2
 to it: names, paths, pipeline flags, packaging and bench settings, and the
-pins. `blinx2.py` runs the CLI at `game.toml`'s `[cli] commit`. It looks
-for the CLI in this order:
+pins. `blinx2.py` runs the CLI at `game.toml`'s `[cli]` release tag, locked
+to its `commit`. It looks for the CLI in this order:
 
 1. `$XBOXRECOMP_CLI_DIR`;
 2. `external/xboxrecomp-cli` inside this project, only at the pin;

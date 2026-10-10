@@ -31,8 +31,9 @@ targets:
 ### Prerequisites
 
 `./blinx2` (`blinx2.py`) is a small bootstrap. The tool itself is
-[xboxrecomp-cli](https://github.com/apexJCL/xboxrecomp-cli), at the commit
-`game.toml` pins (`[cli] commit`). The bootstrap looks for it in this order:
+[xboxrecomp-cli](https://github.com/apexJCL/xboxrecomp-cli), at the release
+`game.toml` pins (`[cli] tag`, locked to `[cli] commit`: a tag that names
+another commit is refused). The bootstrap looks for it in this order:
 1. `$XBOXRECOMP_CLI_DIR`.
 2. `external/xboxrecomp-cli` in this checkout, used only at the pin. A
    clone the bootstrap made is moved to a new pin; any other checkout there
@@ -327,13 +328,14 @@ packaged game from a script (`open --env BLINX2_DATA_DIR=... BLiNX2.app`).
 `blinx2 pins refresh` rewrites `config/setup-pins.json` from the GitHub
 API (the llvm-mingw tag comes from `game.toml`'s `[toolchain]`) and then runs
 `uv lock --upgrade`, which re-resolves `uv.lock` against PyPI. Last, it
-prints the newest heads of the toolkit's branch and of xboxrecomp-cli's
-`main` beside the commits `game.toml` pins. It never edits `game.toml`. To
-move a pin, edit the `commit` line under `[toolkit]` or `[cli]` and test. Python
-dependencies are declared in `pyproject.toml`: capstone and pefile stay on
-exact versions there, since the lifter decodes with capstone and another
-version could change `gen/`. Review the diff before committing: setup trusts
-these hashes.
+prints, beside the tags `game.toml` pins, the newest toolkit release
+(`blinx2-v*`) and the newest xboxrecomp-cli release (`v*`), with a warning
+when a remote tag no longer names the pinned commit. It never edits
+`game.toml`. To move a pin, edit the `tag` and `commit` lines under
+`[toolkit]` or `[cli]` together and test. Python dependencies are declared
+in `pyproject.toml`: capstone and pefile stay on exact versions there, since
+the lifter decodes with capstone and another version could change `gen/`.
+Review the diff before committing: setup trusts these hashes.
 
 Developer checks, from the dev group (`blinx2 setup --dev`, or any
 `uv run`, which syncs it):

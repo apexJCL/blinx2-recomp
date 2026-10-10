@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""The game's command: finds uv and the xboxrecomp-cli commit game.toml pins,
-then runs it. A copy of xboxrecomp-cli's wrapper/game.py, named after the
-game (`<this> wrapper --check` compares the two); standard library only,
-Python 3.9 or newer, so a host with only the system Python still gets the
-help and the uv hint. Docs: docs/packaging.md."""
+"""The game's command: finds uv and the xboxrecomp-cli release (tag) or
+commit game.toml pins, then runs it. A copy of xboxrecomp-cli's
+wrapper/game.py, named after the game (`<this> wrapper --check` compares
+the two); standard library only, Python 3.9 or newer, so a host with only
+the system Python still gets the help and the uv hint. Docs:
+docs/packaging.md."""
 
 import os
 import re
@@ -21,10 +22,32 @@ UV_HINT = {
 }
 UV_DOCS = "https://docs.astral.sh/uv/getting-started/installation/"
 MARK = ".xbr-pin"
+# xboxrecomp-cli's gitpin.TAG_RE and tag_ok(): nothing git would read as an
+# option or a revision expression (v1^ would run v1's parent).
+TAG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
+
+
+def tag_ok(tag):
+    return (
+        bool(TAG_RE.match(tag))
+        and ".." not in tag
+        and "//" not in tag
+        and "/." not in tag
+        and not tag.endswith(("/", ".", ".lock"))
+    )
+
+
+def check_pin(cli):
+    """The checks the CLI's manifest makes on [cli], before git sees any of
+    it: a plain tag name, and a url git cannot read as an option."""
+    if cli.get("tag") and not tag_ok(cli["tag"]):
+        raise NoCli("game.toml [cli] tag %r is not a plain tag name" % cli["tag"])
+    if cli.get("url", "").startswith("-"):
+        raise NoCli("game.toml [cli] url %r starts with '-'" % cli["url"])
 
 
 def cli_table():
-    """[cli] commit and url; game.toml keeps them plain one-line strings."""
+    """[cli] tag, commit and url; game.toml keeps them plain one-line strings."""
     vals, cur = {}, None
     with open(os.path.join(ROOT, "game.toml"), encoding="utf-8") as f:
         for raw in f:
@@ -32,7 +55,7 @@ def cli_table():
             if line.startswith("["):
                 cur = line.strip("[]").strip()
             elif cur == "cli":
-                m = re.match(r'^(commit|url)\s*=\s*"([^"\\]*)"\s*(#.*)?$', line)
+                m = re.match(r'^(tag|commit|url)\s*=\s*"([^"\\]*)"\s*(#.*)?$', line)
                 if m:
                     vals[m.group(1)] = m.group(2)
     return vals
@@ -77,27 +100,77 @@ def head(d):
         return ""
 
 
-def at_pin(d, pin):
+def describe(cli):
+    """'v0.2.0 (abcdef012345)', the tag alone, or the short commit."""
+    tag, commit = cli.get("tag", ""), cli.get("commit", "")
+    return "%s (%s)" % (tag, commit[:12]) if tag and commit else tag or commit[:12]
+
+
+def local_tag(d, tag):
+    """The commit tag names in d (^{commit} peels an annotated tag), or ''."""
+    try:
+        return git("-C", d, "rev-parse", "--verify", "--quiet", "refs/tags/%s^{commit}" % tag)
+    except NoCli:
+        return ""
+
+
+def resolve(d, cli, fresh=False):
+    """The commit the pin names, for clone d: the commit alone, else the
+    tag from d's tags, else that one tag fetched from origin (never forced:
+    a tag moved on the remote does not replace the local one). With both,
+    the tag must be the commit: a moved tag is refused, never run. fresh:
+    d was just cloned, so its tags are the remote's."""
+    tag, lock = cli.get("tag", ""), cli.get("commit", "")
+    if not tag:
+        return lock
+    remote = "on " + (cli.get("url") or "origin")
+    c, where = local_tag(d, tag), remote if fresh else "in " + d
+    if not c:
+        ref = "refs/tags/" + tag
+        git("-C", d, "fetch", "--quiet", "--no-tags", "origin", ref + ":" + ref)
+        c, where = local_tag(d, tag), remote
+    if not c:
+        raise NoCli("game.toml [cli] tag %s is not %s" % (tag, where))
+    if lock and c != lock:
+        hint = ""
+        if where != remote:
+            hint = "; if the remote's tag is right, run 'git -C %s tag -d %s' and rerun" % (d, tag)
+        raise NoCli(
+            "game.toml [cli] tag %s is %s %s, not the pinned commit %s: the tag moved, or "
+            "game.toml names the wrong pair%s" % (tag, c[:12], where, lock[:12], hint)
+        )
+    return c
+
+
+def at_pin(d, cli):
     """external/xboxrecomp-cli is this script's: it runs only at the pin. A
-    clone it made (MARK) at another commit is moved to the pin (the game
-    moved it); any other checkout there is refused, never run unpinned."""
+    clone it made (MARK) elsewhere is moved to the pin (the game moved it);
+    any other checkout there is refused, never run unpinned. At the lock,
+    or at a tag-only pin's local tag, nothing needs the network."""
     h = head(d)
-    if h == pin:
+    want = cli.get("commit") or (local_tag(d, cli["tag"]) if cli.get("tag") else "")
+    if h and h == want:
         return d
     if not os.path.isfile(os.path.join(d, MARK)):
         raise NoCli(
             "external/xboxrecomp-cli is at %s, not the pin %s, and this script did not "
             "clone it: delete it, or set XBOXRECOMP_CLI_DIR to use it as it is"
-            % (h[:12] or "no commit", pin[:12])
+            % (h[:12] or "no commit", describe(cli))
         )
-    print("%s: xboxrecomp-cli: the pin moved; checking out %s" % (SLUG, pin[:12]), file=sys.stderr)
-    try:
-        git("-C", d, "checkout", "--quiet", pin)
-    except NoCli:
-        git("-C", d, "fetch", "--quiet", "origin")
-        git("-C", d, "checkout", "--quiet", pin)
-    if head(d) != pin:
-        raise NoCli("external/xboxrecomp-cli would not check out the pin %s" % pin[:12])
+    pin = resolve(d, cli)
+    if h != pin:
+        print(
+            "%s: xboxrecomp-cli: the pin moved; checking out %s"
+            % (SLUG, describe({"tag": cli.get("tag", ""), "commit": pin})),
+            file=sys.stderr,
+        )
+        try:
+            git("-C", d, "checkout", "--quiet", pin)
+        except NoCli:
+            git("-C", d, "fetch", "--quiet", "origin")
+            git("-C", d, "checkout", "--quiet", pin)
+        if head(d) != pin:
+            raise NoCli("external/xboxrecomp-cli would not check out the pin %s" % pin[:12])
     with open(os.path.join(d, MARK), "w") as f:
         f.write(pin + "\n")
     return d
@@ -106,19 +179,20 @@ def at_pin(d, pin):
 def clone(cli, dest):
     """A clone at the pin, made aside and moved into place only once HEAD is
     the pin: a failed clone or checkout leaves nothing behind."""
-    if not cli.get("url") or not cli.get("commit"):
+    if not cli.get("url") or not (cli.get("commit") or cli.get("tag")):
         raise NoCli("game.toml [cli] names no url to clone it from")
+    check_pin(cli)
     if not shutil.which("git"):
         raise NoCli("no git on PATH to clone it with")
-    pin = cli["commit"]
     tmp = dest + ".partial"
     shutil.rmtree(tmp, ignore_errors=True)
     print(
-        "%s: cloning %s %s into external/xboxrecomp-cli" % (SLUG, cli["url"], pin[:12]),
+        "%s: cloning %s %s into external/xboxrecomp-cli" % (SLUG, cli["url"], describe(cli)),
         file=sys.stderr,
     )
     try:
-        git("clone", "--quiet", "--no-checkout", cli["url"], tmp)
+        git("clone", "--quiet", "--no-checkout", "--", cli["url"], tmp)
+        pin = resolve(tmp, cli, fresh=True)
         git("-C", tmp, "checkout", "--quiet", pin)
         if head(tmp) != pin:
             raise NoCli("the clone is not at the pin %s" % pin[:12])
@@ -144,9 +218,10 @@ def find_cli(cli, may_clone=True):
         if not os.path.isfile(os.path.join(d, "pyproject.toml")):
             raise NoCli("XBOXRECOMP_CLI_DIR=%s is not an xboxrecomp-cli checkout" % env)
         return d
+    check_pin(cli)
     dest = os.path.join(ROOT, "external", "xboxrecomp-cli")
     if os.path.isfile(os.path.join(dest, "pyproject.toml")):
-        return at_pin(dest, cli.get("commit", "")) if may_clone else dest
+        return at_pin(dest, cli) if may_clone else dest
     beside = os.path.join(ROOT, "..", "xboxrecomp-cli")
     if os.path.isfile(os.path.join(beside, "pyproject.toml")):
         return os.path.abspath(beside)
