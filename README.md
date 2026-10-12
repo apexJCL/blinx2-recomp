@@ -28,9 +28,9 @@ toolchain, testing, environment variables, docs, contributing, legal).
 
 | Item | Why |
 |---|---|
-| Your own, legally obtained copy of BLiNX 2, dumped from the disc: `default.xbe` plus the rest of the game's files | The game's code and assets come from it. This project does not provide or link to them, and refuses other titles. |
+| Your own, legally obtained copy of BLiNX 2: a disc image (`.iso`) or the extracted folder with `default.xbe` | The game's code and assets come from it. This project does not provide or link to them, and refuses other titles. |
 | A build machine: a Mac (Apple silicon), a Linux PC or a Windows PC, with about 15 GB free | The bundle is built from your dump on your machine. A Mac can build every target; Linux and Windows build the Windows and SteamOS bundles. |
-| [uv](https://docs.astral.sh/uv/getting-started/installation/), git and Python 3.9 or newer | `./blinx2` fetches everything else (CMake, Ninja, the compiler, the toolkit), each download checked against a pinned sha256. |
+| [uv](https://docs.astral.sh/uv/getting-started/installation/), git and Python 3.9 or newer | `./blinx2` fetches everything else (CMake, Ninja, the compiler, the toolkit), each download checked against a pinned sha256; it uses git to fetch the toolchain. **macOS:** `brew install uv`; git and Python come with the Command Line Tools (`xcode-select --install`). **Linux:** `curl -LsSf https://astral.sh/uv/install.sh \| sh`; git and Python from your distribution. **Windows:** `winget install --id=astral-sh.uv -e` (uv only), [Git for Windows](https://git-scm.com/download/win), and Python 3.9 or newer from [python.org](https://www.python.org/downloads/windows/) with the `py` launcher. |
 | A controller, or the keyboard | Any Xbox, PlayStation or other SDL-supported pad is player 1; the keyboard works too. |
 
 ## Platforms
@@ -51,22 +51,42 @@ Every stage and boss has been reached in scripted runs; the title, attract
 mode, stage 1 and the story route to the hub are checked frame by frame
 against reference frames on every build, on Metal and on Direct3D 11.
 
-## Install and run
+## Build the game
 
-Everything goes through one command, `./blinx2` (`blinx2` on Windows, the
-`blinx2.cmd` wrapper). Put your dump in `game_files/` in this checkout first
-(`game_files/default.xbe` plus the game's files; git ignores the folder).
+Get this project, then go into its folder (one line at a time, in Terminal
+on macOS and Linux or in PowerShell on Windows):
 
 ```sh
-./blinx2             # a bundle for this computer: macos on a Mac, steamos on Linux, windows on Windows
+git clone https://github.com/apexJCL/blinx2-recomp.git
+cd blinx2-recomp
+```
+
+Then give it your disc image, or the folder with `default.xbe`:
+
+```sh
+./blinx2 /path/to/your/BLiNX2.iso
+```
+
+In PowerShell that is `.\blinx2 C:\path\to\BLiNX2.iso` (`blinx2
+C:\path\to\BLiNX2.iso` in the Command Prompt). On Windows, keep the path
+short (`C:\b2`) and run `git config --global core.longpaths true` once
+before the clone.
+
+It checks that the disc is BLiNX 2, puts its files in `game_files/` in this
+folder (git ignores it), fetches the toolchain, lifts the game and builds a
+bundle for this computer: macos on a Mac, steamos on Linux, windows on
+Windows. The first run takes a while (between about 20 and 40 minutes in the
+runs timed so far); later runs only rebuild what changed. The bundle lands in
+`dist/`. You can also copy the disc's files into `game_files/` yourself and
+run `./blinx2` alone.
+
+```sh
 ./blinx2 package windows|steamos|macos   # the same, for another target
 ./blinx2 doctor      # what this machine has, what it can package, and what to install first
 ```
 
-The first run fetches the toolchain and lifts the game, which takes a while
-(between about 20 and 40 minutes in the runs timed so far); later runs only rebuild what
-changed. The bundle lands in `dist/`. Copy it to the machine you play on (a
-USB stick, `scp`, a share) and install it there:
+Copy the bundle to the machine you play on (a USB stick, `scp`, a share) and
+install it there:
 
 | Target | Install | Saves, settings and logs |
 |---|---|---|
@@ -156,7 +176,9 @@ stock size (1:1 crops; the timers differ because they are two runs).
 The pack is optional and off by default. No pack is distributed: you make
 your own from your own game files, and it stays on your machines like the
 game. On Linux and Windows install PT Sans Narrow (ParaType; a Google Fonts
-family) for your user first; macOS ships it. Then:
+family) for your user first; macOS ships it. Build the game first
+(`./blinx2 /path/to/your/BLiNX2.iso`, above), then make the pack and package
+with it:
 
 ```sh
 ./blinx2 enhance hud                   # writes dist/enhance/hud/hud.pack (--font FILE for another font file)
@@ -200,7 +222,7 @@ Quick fixes for the usual symptoms:
 
 | Symptom | Fix |
 |---|---|
-| "Files are missing", or music, voices or a movie are missing, or the game says the disc is dirty | Your `game_files/` is incomplete: the game's log names each missing file on a `[FILE] missing` line. Extract the whole disc again and rebuild. |
+| "Files are missing", or music, voices or a movie are missing, or the game says the disc is dirty | Your `game_files/` is incomplete: the game's log names each missing file on a `[FILE] missing` line. Import the disc again with `./blinx2 import /path/to/BLiNX2.iso --replace` (`import --check` lists what differs first), then rebuild with `./blinx2`. |
 | No sound | Audio is on by default. Check that `config/launch.env` does not set `RECOMP_AC97_READY=0`, and that `SDL_AUDIODRIVER` is not `dummy`. |
 | The keyboard does nothing | The game window must have the focus, and `RECOMP_KEYBOARD` must not be `0`. |
 | Steam Deck: "umu-run is not installed" | In Desktop Mode, run `./install.sh --fetch-umu` from the unpacked bundle. |
@@ -224,7 +246,7 @@ Quick fixes for the usual symptoms:
 Open an issue on this repository. Say which platform and bundle version you
 run (the version is in the bundle's name and in `logs/`), what you did, and
 attach the newest `logs/game-*.log` from the data folder in the
-[install table](#install-and-run). Never attach your game files, a save or
+[install table](#build-the-game). Never attach your game files, a save or
 the bundle itself.
 
 ---
@@ -298,6 +320,7 @@ No minimum versions have been established. Per host, before the first build:
   `git config --global core.longpaths true`.
 
 ```sh
+./blinx2 import /path/to/BLiNX2.iso   # once: the dump into game_files/ (or copy the files there by hand)
 ./blinx2 setup       # once: .venv (uv sync from uv.lock), llvm-mingw, the toolkit at its pin; ends with doctor
 ./blinx2 analyze     # parse the XBE, find functions, classify, recover ABIs
 ./blinx2 recomp      # lift to C: src/recomp/gen/

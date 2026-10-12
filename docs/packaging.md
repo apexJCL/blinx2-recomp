@@ -50,8 +50,10 @@ which pins every package by its sha256.
 
 - **All hosts:** Python 3.9 or newer (for the bootstrap; uv gives the CLI
   the 3.12 it needs), uv on `PATH`, git, about 15 GB free,
-  and your dump in `game_files/` (`game_files/default.xbe` plus the game's
-  files). `setup` does not install uv; without it, `setup` and `doctor`
+  and your dump: `blinx2 import /path/to/BLiNX2.iso` (or the disc's folder)
+  checks it is BLiNX 2 and puts it in `game_files/`, or copy the disc's
+  files there yourself (`game_files/default.xbe` plus the rest; `blinx2
+  PATH` imports and builds in one go). `setup` does not install uv; without it, `setup` and `doctor`
   print the command for your system:
   - macOS: `brew install uv`;
   - Linux, SteamOS included: `curl -LsSf https://astral.sh/uv/install.sh | sh`
@@ -361,8 +363,10 @@ is gitignored). `golden` runs never use one.
 - **Music, voices or a movie are missing, or the game says the disc is
   dirty or damaged:** a file is missing from `game_files/`. The game's log
   (in `logs/`) names it on a `[FILE] missing` line, and the `[FILE]
-  summary` line at the end counts them. Extract the whole disc again into
-  `game_files/`.
+  summary` line at the end counts them. `blinx2 import
+  /path/to/BLiNX2.iso --check` lists what differs from the disc; `blinx2
+  import /path/to/BLiNX2.iso --replace` puts the whole disc in again (or
+  extract it into `game_files/` yourself), then rebuild.
 - **steamos: "umu-run is not installed":** on a stock Steam Deck, run
   `./install.sh --fetch-umu` from the unpacked bundle, in Desktop Mode.
   `./install.sh status` names the `umu-run` the game uses.

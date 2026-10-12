@@ -1,5 +1,8 @@
 build/
 game_files
+# `blinx2 import` builds the dump beside it, then swaps it in.
+game_files.partial/
+game_files.old/
 # analysis/ is per-worktree scratch, except the golden-frame hashes
 # (golden.json); the reference frames in analysis/golden/frames/ are game
 # output and stay local.
