@@ -93,9 +93,7 @@ def fake_app(d):
     shutil.copy(
         os.path.join(PKG, "launch.env.default.macos"), os.path.join(res, "launch.env.default")
     )
-    shutil.copy(
-        os.path.join(PKG, "enhance.toml.default"), os.path.join(res, "enhance.toml.default")
-    )
+    shutil.copy(os.path.join(PKG, "config.default.toml"), os.path.join(res, "config.default.toml"))
     fake = os.path.join(macos, "cat_recomp")
     with open(fake, "w") as f:
         f.write("#!/bin/sh\nenv | grep -E '^(RECOMP_|SDL_)' | sort\necho \"cwd=$PWD\"\n")
@@ -130,19 +128,30 @@ def test_macos_data_dir_override(d):
     os.makedirs(os.path.join(data, "config"))
     with open(os.path.join(data, "config", "launch.env"), "w") as f:
         f.write("SDL_AUDIODRIVER=dummy\n")
+    # An earlier version's reference copy of the defaults.
+    with open(os.path.join(data, "config", "enhance.toml.default"), "w") as f:
+        f.write("[render]\nscale = 1\n")
+    env_before = snapshot(os.path.join(data, "config"))["launch.env"]
     env = {"PATH": "/usr/bin:/bin", "HOME": home, "BLINX2_DATA_DIR": data}
     r = run(["/bin/bash", launcher], env)
     assert r.returncode == 0, r.stderr
     got = dict(line.split("=", 1) for line in r.stdout.splitlines())
-    for k in ("RECOMP_HDD_DIR", "RECOMP_ENHANCE_CONFIG", "RECOMP_STDIO_LOG"):
+    for k in ("RECOMP_HDD_DIR", "RECOMP_CONFIG", "RECOMP_STDIO_LOG"):
         assert got[k].startswith(data + "/"), (k, got[k])
+    assert got["RECOMP_CONFIG"] == os.path.join(data, "config", "config.toml")
+    assert "RECOMP_ENHANCE_CONFIG" not in got
     assert os.path.realpath(got["cwd"]) == os.path.realpath(os.path.join(data, "logs"))
     assert got["SDL_AUDIODRIVER"] == "dummy"
     assert got["RECOMP_HOST_PAD"] == "1"
     # The scratch launch.env won; the "real" one was never read or touched.
     assert got["RECOMP_PB_BACKEND"] == "metal"
     assert snapshot(real) == before
-    assert os.path.isfile(os.path.join(data, "config", "enhance.toml"))
+    # The launcher copies nothing: the game reads Resources/config.default.toml
+    # and writes config/config.toml's header itself. The old reference copy is
+    # gone, launch.env is byte-identical.
+    cfg = snapshot(os.path.join(data, "config"))
+    assert sorted(cfg) == ["launch.env"], sorted(cfg)
+    assert cfg["launch.env"] == env_before
 
 
 def test_macos_default_data_dir(d):

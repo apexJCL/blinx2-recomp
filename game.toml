@@ -23,15 +23,15 @@ sha256 = [
 # The CLI and the toolkit, each at a release tag. The commit locks the tag:
 # a tag that names another commit (moved, re-pushed) is refused.
 [cli]
-tag = "v0.2.0"
-commit = "10e5078efa1e1e9dfb9912ca170c6663d6b65f7c"
+tag = "v0.5.1"
+commit = "2b95e720b0890cc835cab0fc3e2e11b4494aefec"
 url = "https://github.com/apexJCL/xboxrecomp-cli.git"
 
 [toolkit]
 url = "https://github.com/apexJCL/xboxrecomp.git"
-tag = "blinx2-v0.1.0"
+tag = "blinx2-v0.2.0"
 branch = "blinx2/portability"
-commit = "35ed68fc7f3c6ed33fbf85014439ba7463fe4d80"
+commit = "0692070cb41d53d225711d8a8183efce0a388019"
 
 [toolchain]
 llvm_mingw = "20260922"
@@ -93,6 +93,68 @@ dylib_companions = ["libSDL3.dylib=brew:sdl3"]
 content = "packaging"
 templates = "packaging"
 icon = "xbe"
+
+# The owner's HUD texture pack (blinx2 enhance hud; openspec change
+# enhancements-hud-pack). The UI set is the HUD, menu, icon and font
+# textures of media.ipk (names from the HUD spike, analysis/enhancements/
+# hud-typography.md); the per-language text strips are pre-rendered and
+# left out. The Latin font atlas is ten rows of proportionally packed
+# glyphs (24-px pitch for the six ASCII rows, ~28 for the four Latin-1
+# ones); font_rows names them in atlas order, read off the dump. '@' is
+# drawn as the copyright sign and '^' as an arrow icon, which stays stock.
+[enhance.hud]
+archives = ["media"]
+# Per language, the archives holding its text; `--language` picks (default
+# the first). A picked language's entries are TEXT (built at 2x, BC3) and
+# the rest is art. Only us has patterns below so far; the others' lng_*
+# trees come with the text patterns (enhance-menu-preview phase 5).
+languages = { us = ["lng_us"] }
+textures = [
+    "dds/font_*",
+    "dds/b2_gamen_*",
+    "dds/b2icon_*",
+    "dds/pause_*",
+    "dds/com_*",
+    "dds/radar*",
+    "dds/hub_*",
+    "dds/slc_*",
+    "dds/equip_*",
+    "dds/sav_*",
+    "dds/vs_*",
+    "dds/tcrmes*",
+    "dds/res_*",
+    "dds/tankchip*",
+    "dds/h_title*",
+    "dds/icon_*",
+    # Pre-rendered text (lng_us): the mission objectives (mis_mix, XPR0
+    # textures in MIXF files), their title and "OR" (mess_mix demo_font*,
+    # demo_or_*) and the result screen's banners and titles (dds/res_*).
+    "lng_us/mis_mix/*",
+    "lng_us/mess_mix/demo_font*",
+    "lng_us/mess_mix/demo_or_*",
+    "lng_us/dds/res_*",
+]
+scale = 4
+# 256x256 and under: the full-screen backgrounds (hub_bg, h_title2, vs_bg,
+# 1024x512) are not HUD and would be 32 MB each at 4x.
+max_texels = 65536
+font_atlas = "dds/font_arialnarrow_bold.dds"
+font_rows = [
+    " !\"#$%&'()*+,-./",
+    "0123456789:;<=>?",
+    "©ABCDEFGHIJKLMNO",
+    "PQRSTUVWXYZ[\\]\uFFFD_",
+    " abcdefghijklmno",
+    "pqrstuvwxyz{|}~",
+    "ÀÁÂÄÈÉÊËÌÍÎÏÒÓÔÕ",
+    "ÙÚÛÜÝŸÇßÑÆ¿\uFFFDÖ",
+    "àáâäèéêëìíîïòóôõ",
+    "ùúûüýÿçßñæ¡ö",
+]
+# The game's HUD face is Arial Narrow Bold. PT Sans Narrow Bold (OFL 1.1)
+# redraws the atlas: the fit draws each glyph into its stock ink box, so the
+# layout holds. The owner installs it (macOS ships it); never vendored.
+font = "PT Sans Narrow Bold"
 
 [bench]
 remote_name = ""

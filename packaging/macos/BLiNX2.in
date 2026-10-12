@@ -5,7 +5,10 @@
 # settings and logs live in ~/Library/Application Support/BLiNX2, so
 # replacing the app (an update) or trashing it (uninstall) keeps them.
 # Settings: Resources/launch.env.default, then config/launch.env (KEY=value
-# lines, yours win). No lock: this is the game for play.
+# lines, yours win). Options: the game reads Resources/config.default.toml,
+# then config/config.toml, which holds only the keys you change; it writes
+# that file's comment header itself, and renames an earlier version's
+# config/enhance.toml to it once. No lock: this is the game for play.
 #
 set -euo pipefail
 
@@ -42,16 +45,16 @@ load_env "$RES/launch.env.default"
 load_env "$DATA/config/launch.env"
 
 mkdir -p "$DATA/config" "$DATA/logs"
-[ -e "$DATA/config/enhance.toml" ] || cp "$RES/enhance.toml.default" "$DATA/config/enhance.toml"
-cmp -s "$RES/enhance.toml.default" "$DATA/config/enhance.toml.default" \
-    || cp "$RES/enhance.toml.default" "$DATA/config/enhance.toml.default"
+# An earlier version kept a reference copy of the defaults here; the game
+# reads them from Resources now, so the copy would only mislead.
+rm -f "$DATA/config/enhance.toml.default"
 
 keep=${LOG_KEEP:-10}
 ls -1t "$DATA"/logs/game-*.log 2>/dev/null | tail -n +"$keep" | while IFS= read -r old; do rm -f -- "$old"; done || true
 
 export RECOMP_GAME_FILES="$RES/game_files"
 export RECOMP_HDD_DIR="$DATA/hdd"
-export RECOMP_ENHANCE_CONFIG="$DATA/config/enhance.toml"
+export RECOMP_CONFIG="$DATA/config/config.toml"
 export RECOMP_STDIO_LOG="$DATA/logs/game-$(date +%Y%m%d-%H%M%S).log"
 
 # The game keeps one host file open per cache record on its Z: partition

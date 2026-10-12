@@ -21,6 +21,10 @@ third_party
 external/
 # blinx2 package output: private bundles holding the game. Never commit them.
 dist/
+# blinx2 enhance hud output (dist/enhance/hud/ by default, covered above):
+# texture packs made from the game files, wherever --out puts them.
+*.pack
+hud-pack.toml
 *.dmg
 *.exe
 *.pdb
@@ -65,3 +69,6 @@ saves/
 
 # The pin mark blinx2.py writes in a CLI or toolkit clone (kept out of git).
 .xbr-pin
+# The developer's own options (the game reads config/config.toml from the
+# working directory over the build's config.default.toml); never committed.
+config/config.toml

@@ -43,11 +43,11 @@ if(NOT WIN32)
 endif()
 
 # The toolkit's enhancements layer (render scale, present filter, fullscreen;
-# enhance.toml beside the executable). ON for this title, every key stock by
-# default; not FORCE, so -DXBOXRECOMP_ENHANCE=OFF builds a layer-free binary
-# for A/B.
+# config/config.toml over config.default.toml beside the executable). ON
+# for this title, every key stock by default; not FORCE, so
+# -DXBOXRECOMP_ENHANCE=OFF builds a layer-free binary for A/B.
 set(XBOXRECOMP_ENHANCE ON CACHE BOOL
-    "Build the enhancements layer (enhance.toml, RECOMP_RENDER_SCALE, ...)")
+    "Build the enhancements layer (config.toml, RECOMP_RENDER_SCALE, ...)")
 
 # Add xboxrecomp as a subdirectory -- this builds all 6 runtime libraries
 # and provides the 'xboxrecomp' umbrella target to link against.
@@ -106,6 +106,21 @@ if(CAT_APP_ICON AND WIN32)
                    ${CMAKE_CURRENT_BINARY_DIR}/cat_recomp_icon.rc @ONLY)
     target_sources(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/cat_recomp_icon.rc)
 endif()
+
+# The option defaults the layer reads beside the executable. Copied at build
+# time, as a file that depends on the template, so a developer build has
+# the defaults layer and an edit of the template refreshes it; a bundle
+# stages the template itself (blinx2 package).
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/config.default.toml
+    COMMAND ${CMAKE_COMMAND} -E copy
+            ${CMAKE_CURRENT_SOURCE_DIR}/packaging/config.default.toml
+            ${CMAKE_CURRENT_BINARY_DIR}/config.default.toml
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/packaging/config.default.toml
+    COMMENT "config.default.toml beside ${PROJECT_NAME}")
+add_custom_target(cat_config_default ALL
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/config.default.toml)
+add_dependencies(${PROJECT_NAME} cat_config_default)
 
 # Link against the xboxrecomp umbrella target (all 6 runtime libraries)
 target_link_libraries(${PROJECT_NAME} PRIVATE xboxrecomp)

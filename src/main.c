@@ -60,7 +60,6 @@
 #ifdef RECOMP_ENV_HAVE_ENHANCE_KEYS   /* the toolkit's opt-in enhancements layer */
 #include "enhance.h"
 #include "enhance_cfg.h"
-#include "recomp_exe_dir.h"
 #include "glow.h"
 #endif
 
@@ -1333,8 +1332,13 @@ static BOOL load_xbe(const char *path, void **out_data, size_t *out_size)
 /* ── Entry points ──────────────────────────────────────────── */
 
 /* The enhancements (render scale, present filter, fullscreen, pacing):
- * enhance.toml beside the executable, the environment over it, every key
- * stock by default. Before any thread, so the backends, the window and the
+ * config.default.toml beside the executable, config/config.toml over it,
+ * the environment over both, every key stock by default. The user root is
+ * the working directory: a developer runs from the repository root, as
+ * game_files/ already assumes, so their choices live in the gitignored
+ * cat/config/config.toml and no source path is baked into the binary; a
+ * bundle's launcher names the file with RECOMP_CONFIG, so there the root
+ * is never used. Before any thread, so the backends, the window and the
  * kernel read settled values. Without the layer (-DXBOXRECOMP_ENHANCE=OFF)
  * this is nothing.
  *
@@ -1357,7 +1361,7 @@ static void host_enhance_init(void)
     int fps, glow_off;
     double glow_k;
 
-    xbox_enhance_init(recomp_exe_dir(), NULL);
+    xbox_enhance_init(".", NULL);
     enhance_cfg_bind_env("fps.mode", RENV_FPS_MODE);
     fps = enhance_cfg_choice("fps.mode", fps_modes, 0);
     if (fps == 0)

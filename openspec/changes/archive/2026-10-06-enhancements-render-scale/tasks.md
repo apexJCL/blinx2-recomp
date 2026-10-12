@@ -73,7 +73,7 @@ Worktrees: `wt/enh-scale/xboxrecomp` (toolkit, branch `enhance/render-scale` off
   - `present.fullscreen` under Wine/Gamescope: a WS_POPUP at the monitor size, the frame placed by the filter, no exclusive-mode flicker.
   - The 2x `d3d11_dump` is 1280x960 (the RT), and `px_probe` coordinates hit the same guest pixels as at 1x.
   - Burnout 3 at stock and at 2x (10.3).
-- [ ] 10.3 Burnout 3 (`b3/`) at stock and `RECOMP_RENDER_SCALE=2` under Proton: menu script runs, 1× unchanged, 2× renders (eyeball the dump); the upstream gate for the common and D3D11 parts.
+- [x] 10.3 Burnout 3 (`b3/`) at stock and `RECOMP_RENDER_SCALE=2` under Proton: menu script runs, 1× unchanged, 2× renders (eyeball the dump); the upstream gate for the common and D3D11 parts. Done 2026-10-11 by BLX-75 (b3 37204d3): race gate PASS at 1x and 2x under Proton, 1x checked by eye and flips/s (random track, no pixel A/B).
   - Archive note: open, in TASKS.md (the Burnout 3 upstream gate).
 
 ## Results (2026-10-04, macOS Metal unless noted)

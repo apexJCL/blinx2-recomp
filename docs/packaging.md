@@ -241,6 +241,13 @@ Library > Browse > `~/Games/BLiNX2/BLiNX2`. Leave "Force the use of a
 specific Steam Play compatibility tool" **off** for it: the launcher starts
 Proton itself. Then play from Game Mode.
 
+**Game Mode resolution (Steam Deck).** In Game Mode, open the BLiNX2
+entry's Properties > General and set "Game Resolution" to **Native**
+(Steam lists it as 1280x800, the Deck's panel), so Steam does not try to
+scale the game's output. The game stays 4:3 with bars at the sides (widescreen is not
+done yet); for a sharper picture set `scale = 2`, or leave it at 1 and turn
+on FSR in the quick-access menu.
+
 The first launch downloads the Steam Linux Runtime and GE-Proton and creates
 the Wine prefix (`~/Games/BLiNX2/prefix`), which takes a few minutes. A
 zenity or kdialog window says so (in Game Mode, also a notification) and
@@ -259,10 +266,17 @@ another Mac, Gatekeeper may refuse it: right-click > Open once, or
 
 ## 6. Settings
 
-`config/enhance.toml` is copied from `enhance.toml.default` on the first
-launch and then left alone. Every launch refreshes
-`config/enhance.toml.default` from the installed version, so new options
-show up there: compare the two files. `config/launch.env` holds your own
+The game reads two settings files. `config.default.toml` ships in the
+bundle beside the game (in `BLiNX2.app/Contents/Resources` on macOS) and
+holds every option at its default; an update replaces it, so new options
+and defaults reach you without a step. `config/config.toml` in the data
+folder holds only what you changed and wins over the defaults; an update
+never touches it. The first launch writes it as a short comment header
+that says so, and an in-game Save will write there too. A
+`config/enhance.toml` from an earlier version is renamed to `config.toml`
+on the first launch, and the old `config/enhance.toml.default` copy is
+deleted. Environment variables win over both files (docs/env.md).
+`config/launch.env` holds your own
 environment settings, `KEY=value` per line, read after the bundle's
 `launch.env.default`. `logs/` keeps one log per launch, the newest
 `LOG_KEEP` (10).
@@ -276,6 +290,43 @@ which the keyboard needs there.
 Windows launcher. It exists for tests, which must never touch your real
 saves or `launch.env`: set it to a scratch folder whenever you start a
 packaged game from a script (`open --env BLINX2_DATA_DIR=... BLiNX2.app`).
+
+### Your HUD texture pack
+
+The HUD, menus, icons and the Latin font are small textures the game
+samples at 640x480; at `render.scale` 2 or 3 they are the blurriest thing
+on screen. `blinx2 enhance hud` makes a pack of them at 4x from your own
+game files (the set is `[enhance.hud]` in `game.toml`; an integer xBR
+upscale, a few seconds), and it re-renders the Latin atlas from PT Sans
+Narrow Bold (OFL 1.1), a narrow face close to the game's Arial Narrow Bold;
+each glyph is drawn into the stock glyph's box, so the layout holds. macOS
+ships it; on Linux and Windows install PT Sans Narrow (ParaType, a Google
+Fonts family) for your user. `enhance hud` finds it in the system's font folders by name;
+`--font` takes another file (`.ttf`, or a `.ttc` holding that face) or an
+installed font's full name. Without a font the atlas is upscaled like the
+rest:
+
+```sh
+./blinx2 enhance hud                   # or --font /path/to/PT_Sans-Narrow-Web-Bold.ttf
+./blinx2 package macos --hud-pack      # or windows, steamos
+```
+
+`--hud-pack` copies `dist/enhance/hud/hud.pack` into the bundle's
+`enhance/` folder and turns `textures.pack` on in its
+`config.default.toml` (a pack is off unless that key names it). The game
+reads that file on every launch, so the pack is on after a first install
+and after an upgrade alike. For the stock HUD, put this in
+`config/config.toml`:
+
+```toml
+[textures]
+pack = "none"
+```
+
+Metal and D3D11
+draw the pack; the CPU renderer ignores it. The pack is made from your
+game files, like the bundle: keep it private, and never commit it (`*.pack`
+is gitignored). `golden` runs never use one.
 
 ## 7. Troubleshooting
 
@@ -320,6 +371,12 @@ packaged game from a script (`open --env BLINX2_DATA_DIR=... BLiNX2.app`).
   the progress, and the newest `logs/game-*.log` is the game's own log. If
   a first launch failed half-way (no network), launch again; if it keeps
   failing, delete `~/Games/BLiNX2/prefix`.
+- **A setting seems ignored:** the game's log has one `[ENHANCE] config:`
+  line naming the files it read (`config.default.toml`, then
+  `config/config.toml`) with the keys each holds, or `none` when it read
+  none. An `[ENHANCE] config error:` line names a file that failed to
+  parse, which is then ignored, and `[ENHANCE] <key> = <value> from
+  <variable>` lines name settings an environment variable overrode.
 - **A bench run warns about a game outside the bench:** the installed game
   is still open on the same PC. Close it, or pass `--kill-game`.
 
