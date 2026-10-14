@@ -10,10 +10,14 @@
  *      Windows/Proton, SDL2 GameController elsewhere). RECOMP_HOST_PAD=0
  *      always disables it and =1 always enables it; unset, it is off when a
  *      script is set (so scripted and golden runs never see a pad on the
- *      machine), else on by default on Windows and off elsewhere. The
- *      keyboard (RECOMP_KEYBOARD=1, every host; its keys are in the
- *      toolkit's src/input/README.md) is read through the host backend, so
- *      it is on only when the host pad is on too.
+ *      machine), else on by default on Windows and off elsewhere.
+ *   3. The keyboard and mouse (the toolkit's one "KBM" source on port 0;
+ *      docs/input.md). input.keyboard and input.mouse in the config files
+ *      (packaging/config.default.toml turns both on) or RECOMP_KEYBOARD /
+ *      RECOMP_MOUSE switch them, independently of the host pad: with it on
+ *      they come merged in xbox_InputGetState, with it off they are read on
+ *      their own. A script turns both off unless the environment names
+ *      them, so a file value never reaches a scripted run.
  *
  * The connected-port mask is the script's port 0 | the keyboard's port 0 |
  * the ports with a host device: no source, no pad.
@@ -70,15 +74,18 @@
  * t being seconds since the first pad poll. Also logged, each with wall=<s>
  * (CLOCK_REALTIME, to line up with a press sent from outside, scripts/vpad.py):
  *
- *   [INPUT] sources: script=<name|off> host=<on|off> keyboard=<on|off> rumble=<on|off> ports=<mask>
+ *   [INPUT] sources: script=<name|off> host=<on|off> keyboard=<on|off> mouse=<on|off> rumble=<on|off> ports=<mask>
  *                                once, at init
  *   [INPUT] t=<s> ports=<mask>   whenever the connected-port mask changes
  *   [INPUT] t=<s> handles=<h0>,<h1>,<h2>,<h3>
  *                                with RECOMP_INPUT_TRACE=1, whenever the
  *                                title's open pad handles change
  *   [INPUT] t=<s> host port=<n> buttons=<state>
- *                                when a host port's state changes (once per
- *                                poll per port at most)
+ *                                with RECOMP_INPUT_TRACE=1, when a host port's
+ *                                state changes (once per poll per port at most)
+ *   [INPUT] rumble port=<n> left=<l> right=<r> <sent|not sent>
+ *                                with RECOMP_INPUT_TRACE=1, when a port's
+ *                                motor words change
  *
  * RECOMP_INPUT_STRICT=1 makes a script error (a bad step, an unknown
  * button or preset) fatal: "[INPUT] strict: ..." and exit status 2 before the
@@ -104,6 +111,11 @@
 #endif
 
 #include "xinput_xbox.h"
+#include "keyboard.h"
+#include "mouse.h"
+#ifdef RECOMP_ENV_HAVE_ENHANCE_KEYS
+#include "enhance_cfg.h"
+#endif
 
 extern void (*xbox_FileOpenHook)(const char *guest_path, uint32_t status);
 
@@ -278,7 +290,8 @@ extern void (*xbox_FileOpenHook)(const char *guest_path, uint32_t status);
 
 /* @story-hub: the front door, from an empty save to the hub, with no poke.
  * Every step waits on a game event from the menu catalogue
- * (openspec/changes/input-real-devices/design.md, "Menu catalogue"):
+ * (openspec/changes/archive/2026-10-13-input-real-devices/design.md,
+ * "Menu catalogue"):
  *
  *   title state 0 ("press start")  START -> 2, 0x15, 0xC, then 0x14 with
  *                                  next scene [0xAE7424] = 0x1B: R0_opening.sfd
@@ -875,11 +888,31 @@ static const char *script_name(const char *v)
     return "inline";
 }
 
-/* The keyboard is part of the host backend (it is merged into port 0 inside
- * xbox_InputGetState), so it is on only when the host pad is. */
+/* The keyboard and the mouse are the host itself, not a host pad:
+ * RECOMP_HOST_PAD=0 leaves them alone. */
 static int keyboard_on(void)
 {
-    return g_host_on && recomp_env_on(RENV_KEYBOARD);
+    return xbox_InputKeyboardOn() || xbox_InputMouseOn();
+}
+
+/* The toolkit's KBM clock when no host backend gives it one (host pad off). */
+static uint64_t kbm_now_ms(void) { return (uint64_t)(now_s() * 1000.0); }
+
+/* input-real-devices D6, kept for the config files: with a script set, the
+ * keyboard and the mouse are on only when the environment says so, so a
+ * developer's config.toml (or the shipped defaults) cannot type into a
+ * scripted run. Runs after host_enhance_init, which main() calls before the
+ * guest's host_main. */
+static void isolate_script(void)
+{
+#ifdef RECOMP_ENV_HAVE_ENHANCE_KEYS
+    if (enhance_cfg_source_of("input.keyboard") != ENHANCE_SRC_ENV)
+        xbox_InputKeyboardEnable(0);
+    if (enhance_cfg_source_of("input.mouse") != ENHANCE_SRC_ENV)
+        xbox_InputMouseEnable(0);
+#endif
+    /* Without the layer only the environment ever turns them on. */
+    xbox_InputKbmScriptAllow(0);
 }
 
 static double t_now(void) { return g_started ? now_s() - g_t0 : 0.0; }
@@ -975,13 +1008,18 @@ static void init_once(void)
 #endif
     h = recomp_env(RENV_RUMBLE);
     g_rumble_on = !(h && *h == '0');
+    if (v && *v)                        /* set, even if it failed to load */
+        isolate_script();
     if (g_host_on) {
         xbox_InputInit();
         fprintf(stderr, "[INPUT] host pad enabled\n");
+    } else {
+        xbox_InputKbmSetClock(kbm_now_ms);
     }
     g_mask_last = connected_mask_now();
-    fprintf(stderr, "[INPUT] sources: script=%s host=%s keyboard=%s rumble=%s ports=0x%X wall=%.6f\n",
-            script_name(v), g_host_on ? "on" : "off", keyboard_on() ? "on" : "off",
+    fprintf(stderr, "[INPUT] sources: script=%s host=%s keyboard=%s mouse=%s rumble=%s ports=0x%X wall=%.6f\n",
+            script_name(v), g_host_on ? "on" : "off",
+            xbox_InputKeyboardOn() ? "on" : "off", xbox_InputMouseOn() ? "on" : "off",
             g_rumble_on ? "on" : "off", g_mask_last, wall_s());
     fflush(stderr);
 }
@@ -1020,6 +1058,19 @@ static void log_state(double t, const XBOX_GAMEPAD *g)
     char buf[256];
     fmt_state(buf, sizeof buf, g);
     fprintf(stderr, "[INPUT] t=%.3f buttons=%s\n", t, buf);
+}
+
+/* RECOMP_TRACE=input. The host-pad and rumble lines sit behind it with the
+ * handles: a stick that moves at all changes every poll, so a pad in hand
+ * printed a line a frame on the guest thread. */
+static int input_trace_on(void)
+{
+    static int on = -1;
+    if (on < 0) {
+        const char *e = recomp_env(RENV_INPUT_TRACE);
+        on = e && *e && *e != '0';
+    }
+    return on;
 }
 
 /* A host port's state changed: once per poll per port at most, since the
@@ -1145,14 +1196,9 @@ static void run_steps(double t)
 
 static void trace_handles(void)
 {
-    static int on = -1;
     static uint32_t last[4];
     uint32_t h[4];
-    if (on < 0) {
-        const char *e = recomp_env(RENV_INPUT_TRACE);
-        on = e && *e && *e != '0';
-    }
-    if (!on) return;
+    if (!input_trace_on()) return;
     for (int i = 0; i < 4; i++)
         h[i] = guest_read(PAD_STRUCT_VA + i * PAD_STRUCT_STRIDE + PAD_HANDLE_OFF);
     if (memcmp(h, last, sizeof h)) {
@@ -1256,15 +1302,17 @@ int cat_pad_get_state(uint32_t port, uint8_t out[18], uint32_t *packet)
         g = g_script;
         connected = 1;
     }
-    if (g_host_on) {
+    if (g_host_on || (port == 0 && keyboard_on())) {
         XBOX_INPUT_STATE hs;
         g_probe_t[port] = now_s();
-        if (xbox_InputGetState(port, &hs) == 0) {
+        if (g_host_on ? xbox_InputGetState(port, &hs) == 0 : xbox_InputKbmPoll(&hs)) {
             const XBOX_GAMEPAD *h = &hs.Gamepad;
             if (memcmp(h, &g_host_last[port], sizeof *h)) {
                 g_host_last[port] = *h;
-                log_host_state(t, port, h);
-                fflush(stderr);
+                if (input_trace_on()) {
+                    log_host_state(t, port, h);
+                    fflush(stderr);
+                }
             }
             g.wButtons |= h->wButtons;
             for (int i = 0; i < 8; i++)
@@ -1319,9 +1367,11 @@ void cat_pad_rumble(uint32_t port, uint16_t left, uint16_t right)
      * same values every frame while a rumble plays. */
     if (port < 4 && last[port] != ((uint32_t)left << 16 | right)) {
         last[port] = (uint32_t)left << 16 | right;
-        fprintf(stderr, "[INPUT] rumble port=%u left=%u right=%u %s\n",
-                port, left, right, fwd ? "sent" : "not sent");
-        fflush(stderr);
+        if (input_trace_on()) {
+            fprintf(stderr, "[INPUT] rumble port=%u left=%u right=%u %s\n",
+                    port, left, right, fwd ? "sent" : "not sent");
+            fflush(stderr);
+        }
     }
     if (fwd) {
         XBOX_VIBRATION v = { left, right };

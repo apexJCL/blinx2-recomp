@@ -104,17 +104,22 @@ from it. Keep it on your own machines; never share, upload or publish it.
 
 ### Controls
 
-A controller is player 1. The keyboard is merged onto player 1 while the
-game window has the focus (`RECOMP_KEYBOARD=0` in `config/launch.env` turns
-it off):
+A controller is player 1. The keyboard and the mouse are merged onto
+player 1 while the game window has the focus. Focusing the window grabs the
+mouse; `F9` frees the cursor and grabs it again. Change a key under
+`[input.bindings]` in `config/config.toml`; [docs/input.md](docs/input.md)
+has the names, examples and the mouse settings.
 
-| Keys | Xbox control | Keys | Xbox control |
+| Keys and mouse | Xbox control | Keys and mouse | Xbox control |
 |---|---|---|---|
-| Arrows | D-pad | Enter | START |
-| Z X C V | A B X Y | Backspace | BACK |
-| Q E | White, Black | 1 3 | Left, right trigger |
-| W/S/A/D (or numpad 8/2/4/6) | Left stick | I/K/J/L | Right stick |
-| Shift, Ctrl | Left, right stick click | | |
+| W/S/A/D (or numpad 8/2/4/6) | Left stick (move) | Mouse, or I/K/J/L | Right stick (look) |
+| Arrows | D-pad | Space | A (jump) |
+| Left click or R | Right trigger (sweep, shoot) | Right click or F | B (action) |
+| E | X (time control) | Q | Y |
+| C, Z | White, Black | Left Shift | Left trigger |
+| Tab, middle click | Left, right stick click | | |
+| Enter or Escape | START (pause) | Backspace | BACK |
+| Left Alt (hold) | walk | F9 | free the cursor |
 
 ## Options
 
@@ -133,7 +138,7 @@ takes `KEY=value` lines for any `RECOMP_*` variable.
 | Render scale | `render.scale` | `RECOMP_RENDER_SCALE` | `1`, `2`, `3`, `4` | Draws the 3D at a multiple of the stock 640x480. Metal and Direct3D 11; the CPU renderer ignores it. |
 | Fullscreen | `present.fullscreen` | `RECOMP_PRESENT_FULLSCREEN` | `false`, `true` | Opens the window borderless fullscreen (no mode change). |
 | Scaling filter | `present.filter` | `RECOMP_PRESENT_FILTER` | `"nearest"`, `"linear"`, `"integer"` | How the 4:3 frame fills the window: letterboxed nearest, letterboxed bilinear, or the largest whole multiple that fits, centred. |
-| Frame pacing | `present.pacing` | `RECOMP_PRESENT_PACING` | `"spin"`, `"sleep"` | `sleep` lets the game's frame wait sleep until the next vblank instead of spinning on a core as the Xbox did: less heat and battery on a laptop or a Deck, the same frames. |
+| Frame pacing | `present.pacing` | `RECOMP_PRESENT_PACING` | `"sleep"`, `"spin"` | `sleep` lets the game's frame wait sleep until the next vblank: less heat and battery on a laptop or a Deck, the same frames. `spin` is the console-original timing, where the wait holds a CPU core as it did on the Xbox. |
 | HUD texture pack | `textures.pack` | `RECOMP_TEXTURES_PACK` | none, a path | Your own 4x HUD and font pack, see [below](#hud-texture-pack). A relative path is taken from the executable's folder. |
 | Glow | `fx.glow`, `fx.glow_intensity` | `RECOMP_GLOW`, `RECOMP_GLOW_INTENSITY` | `"on"`/`"off"`; `1.0` (0.0 to 2.0) | Turns the game's screen glow pass off, or scales it. |
 | Window size | (none) | `RECOMP_WINDOW_SCALE` | `2` | Initial window size, 640x480 times this (the SDL window on macOS). |
@@ -147,7 +152,7 @@ scale = 2
 
 [present]
 fullscreen = true
-pacing = "sleep"
+pacing = "spin"
 
 [fx]
 glow = "off"
@@ -224,7 +229,8 @@ Quick fixes for the usual symptoms:
 |---|---|
 | "Files are missing", or music, voices or a movie are missing, or the game says the disc is dirty | Your `game_files/` is incomplete: the game's log names each missing file on a `[FILE] missing` line. Import the disc again with `./blinx2 import /path/to/BLiNX2.iso --replace` (`import --check` lists what differs first), then rebuild with `./blinx2`. |
 | No sound | Audio is on by default. Check that `config/launch.env` does not set `RECOMP_AC97_READY=0`, and that `SDL_AUDIODRIVER` is not `dummy`. |
-| The keyboard does nothing | The game window must have the focus, and `RECOMP_KEYBOARD` must not be `0`. |
+| The keyboard does nothing | The game window must have the focus, `input.keyboard` must not be `false` in `config/config.toml`, and `RECOMP_KEYBOARD` must not be `0`. |
+| The mouse does nothing | Click in the game window or focus it to grab the cursor (`input.mouse_capture`), or press `F9` if you freed it; `input.mouse` must not be `false` and `RECOMP_MOUSE` must not be `0`. |
 | Steam Deck: "umu-run is not installed" | In Desktop Mode, run `./install.sh --fetch-umu` from the unpacked bundle. |
 | Steam Deck: the first launch shows only a notice for a few minutes | It is downloading the runtime and Proton; `~/Games/BLiNX2/logs/umu.log` shows the progress. The notice closes when the game starts. |
 | macOS: "the app is damaged" or cannot be opened | Gatekeeper: right-click > Open once, or `xattr -dr com.apple.quarantine /Applications/BLiNX2.app`. |
@@ -344,7 +350,7 @@ Running the development build:
 
 ```sh
 # macOS (Metal); RECOMP_PB_BACKEND unset is the slow CPU rasteriser
-RECOMP_PB_BACKEND=metal RECOMP_HOST_PAD=1 RECOMP_KEYBOARD=1 ./build/cat_recomp
+RECOMP_PB_BACKEND=metal RECOMP_HOST_PAD=1 ./build/cat_recomp
 ```
 
 Run it from this directory: the game files are looked up in `game_files/`
@@ -352,7 +358,8 @@ Run it from this directory: the game files are looked up in `game_files/`
 default save root unless `RECOMP_HDD_DIR` says otherwise. The macOS
 development build leaves host pads off (and any build does while an input
 script is set, so scripted and golden runs never see one); the packaged app
-sets `RECOMP_HOST_PAD=1` (and `RECOMP_KEYBOARD=1`, which needs it). Under
+sets `RECOMP_HOST_PAD=1`. The keyboard and the mouse come from
+`build/config.default.toml` in every build, with or without host pads. Under
 Proton, run `build-win/cat_recomp.exe` with `umu-run` and
 `RECOMP_PB_BACKEND=d3d11`; host pads are on there by default.
 
@@ -372,7 +379,7 @@ reports what is in use and whether it is the pin.
 | Component | Pinned at | Where | Notes |
 |---|---|---|---|
 | xboxrecomp-cli (`xbr`) | tag `v0.3.1`, commit `9b2d9b1` | `game.toml` `[cli]` | The commit locks the tag: a tag moved to another commit is refused. |
-| xboxrecomp toolkit (fork) | tag `blinx2-v0.2.0`, commit `0692070`, branch `blinx2/portability` | `game.toml` `[toolkit]` | Cloned into `external/xboxrecomp` by `setup`. |
+| xboxrecomp toolkit (fork) | tag `blinx2-v0.3.0`, commit `a63c64f`, branch `blinx2/portability` | `game.toml` `[toolkit]` | Cloned into `external/xboxrecomp` by `setup`. |
 | llvm-mingw | `20260922` (clang 23.1.2) | `game.toml` `[toolchain]`, hashes in `config/setup-pins.json` | Cross-compiles the Windows build on every host. |
 | NSIS | `3.13` | `game.toml` `[toolchain]` | Fetched on Windows; Homebrew or the distribution elsewhere. |
 | umu-launcher | `1.4.4` | the CLI | What the SteamOS installer offers to download on a stock Deck. |
@@ -438,7 +445,8 @@ behaviour). The ones you meet first:
 | `RECOMP_GAME_FILES` | `game_files/` in the working directory | where the dump is |
 | `RECOMP_HDD_DIR` | the toolkit's save root | the emulated hard disk: saves, caches |
 | `RECOMP_HOST_PAD` | unset: on on Windows/Proton, off on macOS and in scripted runs; the macOS bundle sets `1` | host gamepads in or out (`0`/`1`) |
-| `RECOMP_KEYBOARD` | off in a development build, `1` in the bundles | the keyboard as pad 1 (needs host pads on) |
+| `RECOMP_KEYBOARD` | `input.keyboard`: on in `config.default.toml`, off with `RECOMP_CONFIG=none` and in scripted runs | the keyboard as pad 1 |
+| `RECOMP_MOUSE` | `input.mouse`: as `RECOMP_KEYBOARD` | the mouse as pad 1 (motion is the right stick) |
 | `RECOMP_AC97_READY` | on (x86-64 Windows/Proton; arm64 macOS and Linux); off on native x86-64 Linux | audio; `=0` turns it off |
 | `RECOMP_INPUT_SCRIPT` | `@attract`, `@stage1`, `@stage1-enemies`, `@story-hub`, `@story-load`, a file | a scripted pad for reproducible runs |
 | `RECOMP_HEADLESS` | `0`, `1` | no window, and silent (it sets `SDL_AUDIODRIVER=dummy` unless set) |
@@ -454,6 +462,7 @@ fork code has no raw `getenv`.
 | Document | What it covers |
 |---|---|
 | [docs/packaging.md](docs/packaging.md) | building and installing the bundles on every target, settings, the HUD pack, troubleshooting, maintainers' pins |
+| [docs/input.md](docs/input.md) | playing on keyboard and mouse: the default keys, rebinding, the mouse settings |
 | [docs/env.md](docs/env.md) | every environment variable, by tier, with defaults and where it is read |
 | [game.toml](game.toml) | the manifest the CLI reads; the CLI's [docs/manifest.md](https://github.com/apexJCL/xboxrecomp-cli/blob/main/docs/manifest.md) documents each key |
 | [analysis/golden/golden.json](analysis/golden/golden.json) | the golden scenarios, their frames and tolerances |

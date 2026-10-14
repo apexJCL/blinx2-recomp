@@ -1,0 +1,26 @@
+# 5-1 idle play: the APU-traffic measurement route (BLX-77, BLX-100, apu-mmio-direct).
+# Debug stage select (analysis/research/blinx2-menu-flow.md): title state 0x5EB620,
+# stage cursor 0x5EB638 = 0x14 (St5, round = idx/5 + 1). 0xAE73FC turns 1 when play
+# starts; the 40 s after it are Stick standing still while the DirectSound voices
+# run, which alone makes 7.5-9k APU register accesses/s.
+wait open logo_mgs.sfd
+tap START until open blinx2_opening.sfd
+tap START until open title_movie
+wait mem 0x5eb5f4 == 0x5eb620
+wait mem 0x5eb620 == 0
+poke 0xb22e3c 1
+poke 0xae7a10 0
+poke 0x5eb630 0
+poke 0x5eb638 0x14
+poke 0x5eb620 1
+wait 4
+tap A until mem 0x5eb620 == 0xb
+wait 3
+poke 0x5eb638 0x14
+wait 1
+tap A until mem 0x5eb620 == 0x13
+wait 25
+wait 20
+tap A every 3 until mem 0xae73fc == 1
+wait 2
+wait 40

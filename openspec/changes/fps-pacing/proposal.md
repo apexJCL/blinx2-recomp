@@ -20,7 +20,8 @@ The user decided on 2026-10-05 (`spike.md`, "User decisions") that v1 is `lock30
 - **Spin waits can sleep (opt-in toolkit extension, title-agnostic).**
   - Lift time: with `--spin-waits FILE`, the generator recognises a self-loop that only reads memory and branches back. The loop at `0x00060475` is one. The generator emits `RECOMP_SPIN_WAIT(va)` on the loop's back edge. `FILE` picks the sites (all detected sites, or only the listed ones) and can exclude sites. The recomp run also writes a report of every candidate. Without the flag the generated code is byte-identical to today's.
   - Runtime: `xbox_SpinWait(va)` returns at once under `present.pacing = "spin"`, which is stock. Under `"sleep"` it blocks until the kernel signals that guest-visible state may have changed (a vblank tick, any ISR or DPC, a timer DPC, a fence write) or until 1 ms passes. A kernel signal is never lost (a generation counter under the wait's lock); a writer the kernel does not know about, such as another guest thread, costs at most 1 ms per pass and can never hang. A caller at DISPATCH level or inside the gate never sleeps.
-- **New key `present.pacing`** (`"spin"` | `"sleep"`, env `RECOMP_PRESENT_PACING`), in the enhancements layer. It defaults to `"spin"`. It becomes `"sleep"` only through a separate, reversible commit, and only after `sleep` proves frame-identical on the Metal goldens, on the D3D11 goldens under Proton and on Burnout 3. Goldens stay pinned to `spin` either way.
+- **New key `present.pacing`** (`"spin"` | `"sleep"`, env `RECOMP_PRESENT_PACING`), in the enhancements layer. It shipped at `"spin"` (2026-10-06). It becomes `"sleep"` through separate, reversible commits (design D9) now that `sleep` has shown identical golden verdicts and the same pace on the Metal goldens, on the D3D11 goldens under Proton and on Burnout 3, and the user decided so on 2026-10-12: the frame wait sleeping saves a core (process CPU 130% -> 60% on the Mac, 173% -> 137% under Proton) and changes no frame. `spin` stays the console-original timing, one key away. Goldens stay pinned to `spin` either way.
+- **The CLI says how to get `spin`** (design D13). `xbr package` prints one note under the bundle path, and the bundle's README.txt carries one paragraph, when the game's `config.default.toml` ships `pacing = "sleep"`: the default is `sleep` (less CPU and battery), `spin` is the console-original timing, and `[present] pacing = "spin"` in `config/config.toml` or `RECOMP_PRESENT_PACING=spin` in `config/launch.env` selects it. No launcher window and no per-run line.
 - **`fps.mode` (cat game key, env `RECOMP_FPS_MODE`).** No fps key exists in code today; `fps.mode` appears only as an example in the toolkit's `enhance-config.md`. `lock30` is the only mode. `lock60` and `free` print one line saying they are not available for this title and why, then run `lock30`.
 - **New trace `RECOMP_TRACE=pacing`.** Every 600 flips it prints one summary line: the flip-interval percentiles, the vblank gap range, process and waiting-thread CPU, and per-site wait, wake and timeout counts. `pacing=all` also prints one line per flip. A stdlib script (`scripts/pacing_stats.py`) and `bench.sh pacing` turn these lines into the A/B report.
 - **BLiNX 2 lowers `0x00060475` only** (`config/spin_waits.json`, explicit list). `gen/` is regenerated (`pipeline.sh analyze`, then `recomp`). The gen key changes in its `toolkit`, `argv` and `inputs` fields.
@@ -34,14 +35,14 @@ Non-goals: `lock60`/`free` gameplay, frame interpolation, turbo, D3D11 present v
 
 ### Modified Capabilities
 - `kernel-threads`: "Vblank runs at 60 Hz" now schedules in nanoseconds, sleeps with high resolution and retries a gate-busy DPC drain within 1 ms.
-- `enhancements`: the stock-default rule covers `present.pacing`, the golden harness rejects a non-`spin` run, and `fps.mode` reports when a mode is unavailable.
-- `deviations`: a new entry, "Spin waits may sleep".
+- `enhancements`: the stock-default rule gets its one named exception, `present.pacing` at `sleep` (the evidence and the console-original alternative recorded); the golden harness rejects a non-`spin` run; a packaged bundle says how to get `spin`; and `fps.mode` reports when a mode is unavailable.
+- `deviations`: a new entry, "Spin waits may sleep", in effect by default since the flip.
 - `bench-methodology`: a pacing A/B report, with the 25% flips/s and 1.5x raster-ms flags.
 
 ## Impact
 
 - **Backends and hosts.** All three render paths (CPU, D3D11, Metal) behave the same. Pacing lives in the kernel and in generated code, and the measurement point is the executor's flip, which every backend shares. No backend file changes. Hosts: macOS (Metal, CPU) and Windows under Proton (D3D11, CPU).
-- **Goldens.** All of them (`@attract`, `@stage1`, `@story`) run on Metal and D3D11 at `spin`. The regenerated `gen/` and the nanosecond clock must leave every verdict unchanged; a changed verdict blocks the merge, because the clock has no key to hide behind. The `sleep` gate re-runs them in evaluation mode.
+- **Goldens.** All of them (`@attract`, `@stage1`, `@story`) run on Metal and D3D11 at `spin`, and keep that pin after the default flip. The regenerated `gen/` and the nanosecond clock must leave every verdict unchanged; a changed verdict blocks the merge, because the clock has no key to hide behind. The `sleep` gate re-ran them in evaluation mode (tasks 9.1, 9.2: the same verdicts).
 - **Burnout 3.** The clock is unconditional, so the fork's toolkit branch also runs a Burnout 3 smoke under Proton (boot → menu → race, same pace) before it merges. The binding Burnout 3 runs for upstream are on each PR's exact head.
 - **Toolkit (`posix-host/portability`).**
   - Kernel: `kernel_bridge.c` (the timer loop, the vblank schedule, wake points), a new `kernel_pacing.c`, and `kernel.h`.
@@ -58,3 +59,5 @@ Non-goals: `lock60`/`free` gameplay, frame interpolation, turbo, D3D11 present v
   - `src/env/recomp_env_game.h` and `src/main.c` (`fps.mode`, the unused-key report).
   - `scripts/golden.py` (the pacing check, `--allow-enhance`), `scripts/pacing_stats.py` with its test, `scripts/bench.sh pacing` and `analysis/golden/golden.json` (pin `RECOMP_PRESENT_PACING=spin`).
   - `docs/env.md` and `config/setup-pins.json`.
+  - The default flip (D9): `packaging/config.default.toml` (`pacing = "sleep"`), `README.md`, `docs/packaging.md`, and the `game.toml` CLI pin (v0.6.5).
+- **CLI (`xboxrecomp-cli`, D13).** `package/__init__.py` and `templates/README.txt.in` (the note and the README paragraph, keyed on the game's defaults file), their tests and `docs/commands.md`, `docs/manifest.md`; version 0.6.5. Game-agnostic: nothing in it names a title or a toolkit default.

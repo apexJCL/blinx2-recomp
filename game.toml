@@ -23,15 +23,15 @@ sha256 = [
 # The CLI and the toolkit, each at a release tag. The commit locks the tag:
 # a tag that names another commit (moved, re-pushed) is refused.
 [cli]
-tag = "v0.6.0"
-commit = "2ad369903e10363a999d1d78f01a8150b236a856"
+tag = "v0.6.6"
+commit = "9e400eb94c184d8ccdf187c844973ff6f5281c18"
 url = "https://github.com/apexJCL/xboxrecomp-cli.git"
 
 [toolkit]
 url = "https://github.com/apexJCL/xboxrecomp.git"
-tag = "blinx2-v0.2.0"
+tag = "blinx2-v0.3.0"
 branch = "blinx2/portability"
-commit = "0692070cb41d53d225711d8a8183efce0a388019"
+commit = "a63c64f47abe3c947faf8a967f54f255f42a0f5d"
 
 [toolchain]
 llvm_mingw = "20260922"
@@ -152,9 +152,20 @@ font_rows = [
     "ùúûüýÿçßñæ¡ö",
 ]
 # The game's HUD face is Arial Narrow Bold. PT Sans Narrow Bold (OFL 1.1)
-# redraws the atlas: the fit draws each glyph into its stock ink box, so the
-# layout holds. The owner installs it (macOS ships it); never vendored.
+# redraws the atlas at one scale (the stock cap height), so the stroke weight
+# is near even; each glyph sits centred on its stock ink box and on the
+# baseline, descenders included. The game's quads sample each glyph's whole
+# slot (probed on Metal, 2026-10-12), so there is no font_margin: a glyph is
+# shrunk only to stay in its slot (g and ¿ by 8%, ten others by less). The
+# owner installs the font (macOS ships it); never vendored.
 font = "PT Sans Narrow Bold"
+# The game advances by each glyph's slot, and PT Sans Narrow's E, S, O are
+# narrower than Arial Narrow's, which opened the gaps around them: each
+# glyph is widened or narrowed up to 10% towards its stock ink width. PT
+# Sans's brackets reach further below the baseline than Arial's, so they
+# sat low against the caps: they span the stock ink box instead.
+font_stretch = 10
+font_full_height = "()[]{}"
 
 [bench]
 remote_name = ""

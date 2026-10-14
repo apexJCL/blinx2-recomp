@@ -167,12 +167,12 @@ The vblank site in BLiNX 2 needs only 1 and 2: the counter moves in the DPC. Sou
 
 | Key | Where | Values | Default | Env | Tier |
 |---|---|---|---|---|---|
-| `present.pacing` | toolkit enhance layer | `"spin"` (stock), `"sleep"` | `"spin"` (D9 may flip it) | `RECOMP_PRESENT_PACING` | config, `RECOMP_ENV_ENHANCE_KEYS` |
+| `present.pacing` | toolkit enhance layer | `"spin"` (stock, the console-original timing), `"sleep"` | `"sleep"` since the flip (D9; `"spin"` before it, and always without the layer) | `RECOMP_PRESENT_PACING` | config, `RECOMP_ENV_ENHANCE_KEYS` |
 | `fps.mode` | cat game key | `"lock30"`; `"lock60"`, `"free"` reported unavailable | `"lock30"` | `RECOMP_FPS_MODE` | config, `RECOMP_ENV_GAME_KEYS` |
 | `pacing` | toolkit | `1`: summary every 600 flips; `all`: also one line per flip | off | `RECOMP_TRACE=pacing` | trace |
 | `vblank_clock` | toolkit | `ms`: the previous timer loop | ns | `RECOMP_DEBUG=vblank_clock=ms` | debug |
 
-- **`present.pacing`.** `xbox_enhance_init` reads it as a choice, logs it on the existing `[ENHANCE]` line (`... present.fullscreen=0 present.pacing=spin (display.aspect=4:3)`), and hands it to the kernel through `xbox_PacingSetMode()` before the guest starts. The kernel never links the layer. Without the layer, the mode stays `spin`.
+- **`present.pacing`.** `xbox_enhance_init` reads it as a choice, logs it on the existing `[ENHANCE]` line (`... present.fullscreen=0 present.pacing=spin (display.aspect=4:3)` on a golden run, which pins `spin`), and hands it to the kernel through `xbox_PacingSetMode()` before the guest starts. The kernel never links the layer. Without the layer, the mode stays `spin`. A bundle's `config.default.toml` sits between the code default and the player's file, so the value a player gets is the one the game ships there: cat's says `"sleep"` after the flip (D9), b3's keeps `"spin"` until that project decides.
 - **`fps.mode`.**
   - Name: no code reads it today. The toolkit doc names its variable `RECOMP_FPS`, but the doc's own naming rule gives `RECOMP_FPS_MODE`, so the doc row is corrected, as was done for `RECOMP_DISPLAY_ASPECT`.
   - Reading: cat binds it with `enhance_cfg_bind_env("fps.mode", RENV_FPS_MODE)` and reads it with `enhance_cfg_choice` in `host_enhance_init` (`main.c`). For `lock30` it logs `[ENHANCE] fps.mode=lock30`. Otherwise it logs:
@@ -243,30 +243,33 @@ The vblank site in BLiNX 2 needs only 1 and 2: the counter moves in the DPC. Sou
 
   Measured numbers go in `RESUME`, `TASKS` and the tasks file. A gate that fails on host noise rather than on the schedule (a window the host was visibly busy for) is reported with the evidence; the orchestrator, not the implementing agent, decides whether to re-run or to stop.
 
-### D9. Default flip to `sleep`: gated, separate and reversible
+### D9. Default flip to `sleep`: the acceptance rule, gated, separate and reversible
 
-The default changes only if `sleep` is frame-identical on every check below.
+**The rule** (the user's decision of 2026-10-12, replacing the first draft's "frame-identical"). `sleep` becomes the default when, against `spin` on the same build:
 
-1. **Metal goldens (Mac)** and **D3D11 goldens (`bench.sh golden`, Proton)**: all scenarios, three runs at `sleep` and three at `spin`.
-   - Every frame gets the same verdict under `sleep` as under `spin`.
-   - A frame that matches its exact hash in all three `spin` runs matches it in all three `sleep` runs. A frame that is exact in only some `spin` runs is wall-time dependent and is judged by verdict alone.
+1. **Identical golden verdicts**, on the Metal goldens (Mac) and the D3D11 goldens (Proton), all scenarios, three runs per arm: every frame gets the same verdict under `sleep` as under `spin`, and a frame that matches its exact hash in all three `spin` runs matches it in all three `sleep` runs (a frame exact in only some `spin` runs is wall-time dependent and is judged by verdict alone). These are evaluation runs: `golden --allow-enhance present.pacing=sleep` turns the non-stock check into a note and is never used to record references.
+2. **Pace within `spin`'s own spread**: flips/s and the interval p50/p95 of the 3D flips (D8's spread), and the anchors' flip indices (`golden anchors`) in flip-indexed runs of `@stage1` and `@story-hub` (`fb_dump_at` at the same flips, three runs per arm), inside the range of the `spin` runs.
+3. **No new `[AUDIO-HOST]` starves** on a Proton BLiNX 2 `@attract` run at `sleep` (`audio-check`).
+4. **Burnout 3 under Proton** (the fork's toolkit, b3's own gen and site list; the first draft's "exact PR-E2 head" went with the rewritten upstream plan): the same screens at the same flips, race pace within `spin`'s spread, no new starves, and no site whose loops leave on the timeout more than 5% of the time (such a site goes on that project's `exclude` list with its reason).
 
-   Goldens are not bit-exact from run to run (the cloud movie and timer phase follow wall time; see `golden.json`), so the comparison is with spin's own run-to-run behaviour, not with zero. These are evaluation runs: `golden.py --allow-enhance present.pacing=sleep` turns the non-stock check into a note. It is never used to record references.
-2. **A flip-indexed A/B** on `@stage1` and `@story-hub`. `fb_dump_at` takes the same flip indices under both modes, three runs each. For each dumped flip, the pixel difference between a `sleep` dump and each `spin` dump (`golden.py`'s compare: mae, bad share, worst tile) must be no larger than the largest difference between two `spin` dumps of that flip. A flip that is identical across the `spin` runs must be identical under `sleep`.
-3. **Burnout 3 under Proton** on the exact upstream PR head (PR-E2). The b3 project is regenerated with `--spin-waits` in `auto` mode, then runs boot → "Press START" → menu → race start plus the three `b3/_local/bench host.sh` scenes. Run under `spin` and under `sleep`:
-   - the same screens at the same flips;
-   - race pace (flips/s) within spin's spread;
-   - no new `[AUDIO-HOST]` starve lines;
-   - no site in the `pacing` trace whose loops leave on the timeout more than 5% of the time; such a site goes on that project's `exclude` list with its reason.
-4. **`audio_check.py`** on a Proton BLiNX 2 `@attract` run at `sleep`: no new starves.
+*Why not "identical frames".* The first draft's flip-indexed rule (every `sleep`-against-`spin` pixel difference no larger than the largest `spin`-against-`spin` one, and a flip identical across the `spin` runs identical at `sleep`) fails at `spin` against `spin`: at a given flip each run shows one of a few discrete game states that wall time selects (an animation or camera phase), both arms produce every one of them, and `sleep` reproduces `spin` images bit for bit when the two land on the same state (tasks 9.3). With three runs per arm a state one arm happens to miss counts as a difference, so the strict form can never pass on this title and tests nothing the verdicts and the pace do not. The user, 2026-10-12: "So for pacing, there is really no difference between spin and sleep, besides the pro's of better battery efficiency. If that's the case, let's make it the default - but in the cli tooling, let's add a warning. So the users are aware they can switch it to `spin` which would be the "console original behavior"".
 
-When all four pass, the flip is its own branch, `feat/fps-pacing-default`, with:
-- one toolkit commit: the `present.pacing` default to `"sleep"` in `enhance.c`, plus `enhance-config.md`;
-- one cat commit: the `setup-pins.json` bump, `docs/env.md`, and an openspec change of its own that amends the `enhancements` requirement "Enhancements default to stock" with a named exception for `present.pacing` (citing the four checks) and updates the exit of the `deviations` entry.
+*Evidence* (tasks 9.1-9.5, 2026-10-12): the same verdicts and pace on Metal and D3D11; the same screens within 1-2 flips; process CPU 130% -> 60% on the Mac, 173% -> 137% for BLiNX under Proton, 192% -> 105% for Burnout 3.
 
-`golden.json` keeps `RECOMP_PRESENT_PACING=spin`, and so does `golden.py`'s check. Reverting the two commits restores `spin`. If any check fails, the default stays `spin`, and the failing evidence is recorded in TASKS.
+**Burnout 3 stalls: a check, not a blocker.** The 9.4 runs showed mid-race game-thread stalls of 150 ms or more on both arms (`spin`: 3 in 1 of 5 runs, up to 342 ms; `sleep`: 4 in 3 of 4 runs, up to 930 ms). Nine runs cannot separate that from chance, the pacing summaries look the same on both arms, and the stalls may be the lost-VOICE_OFF APU race that toolkit fix/apu-voice-mask (e7e0abd) closes, which merges first. So after that fix merges the pairs are rerun on the merged toolkit (tasks 9.4b: `runs/pacing/b3/r94.sh`, `gaps.py`, `b3cmp.py`), the stall counts are recorded, and only if `sleep` is still clearly worse (stalls in more runs *and* a longer longest stall, or a `sleep`-only stall of 500 ms or more) is it flagged to the user before the merges; the user decides then.
+
+**The flip** is three commits on branches named `feat/pacing-default`, each reverted on its own to go back to `spin`:
+- toolkit: the `present.pacing` default to `"sleep"` in `enhance.c`, the `enhance_cfg` ctest's default case, and `docs/runtime/config.md`;
+- cat: `packaging/config.default.toml` to `pacing = "sleep"` (this is the player-facing flip: a bundle's defaults file wins over the code default), `docs/env.md`, `README.md`, `docs/packaging.md`, the amended deltas of this change (the `enhancements` requirement "Enhancements default to stock" gets a named exception for `present.pacing` with the evidence; the `deviations` entry's exit), and the `game.toml` CLI pin;
+- CLI: the note that tells users how to get `spin` (D13), released as v0.6.5.
+
+Merge order: fix/apu-voice-mask, then 9.4b, then the CLI (tag v0.6.5), the toolkit, and cat with the pin. `golden.json` keeps `RECOMP_PRESENT_PACING=spin`, and so do the CLI golden check's stock pins and b3's race gate: goldens measure the console's timing. If a gate fails, or the user says no after 9.4b, the default stays `spin` and the failing evidence is recorded in TASKS.
 
 Under `sleep` as the default, `present.pacing` stays an enhancement key (Decided, 4): frame-identical is not hardware-identical, since the console's CPU spins, so the behaviour belongs in the register (`deviations`, "Spin waits may sleep") and in the layer, where a player can switch it back.
+
+*Exception to the workspace rule.* The standing rule "opt-in features default OFF and never change stock behaviour" has this one sanctioned exception: `present.pacing` defaults to `sleep` by the user's decision of 2026-10-12 (above), with the evidence of tasks 9.1-9.5 and 9.4b. Goldens stay stock (they pin `spin`), so later reviews should not flag the default itself.
+
+*`RECOMP_CONFIG=none` is no longer all-stock.* With no settings file the layer now answers `sleep` for `present.pacing`. Every gate harness pins it (`golden.json`, the CLI golden check's stock pins, b3's `race_gate`), so no gate moves; but an ad hoc run, a perf `bench run` or a dev run (whose `build/config.default.toml` is cat's, at `sleep`) now runs at `sleep`, which changes process CPU and can move flips/s. Compare such baselines across this change only with `RECOMP_PRESENT_PACING=spin` set.
 
 ### D10. Generated code and the gen key
 
@@ -305,6 +308,46 @@ Pacing lives in the kernel (clock, wake) and in generated code (the wait). None 
 - **Reviews.** Fable reviews against upstream's own README and CONTRIBUTING from `origin/main`, with a verdict per deviation (conform, argue or fork-only). Expected verdicts: conform for the naming (`xbox_Module_Function`) and the test layout; argue for the generator flag.
 - **Tracking.** Every gate result is written to the PR tracker by the agent that ran it.
 
+### D13. The CLI tells users how to get the console-original pacing
+
+The user asked for a warning in the CLI tooling so that players know `spin` exists and what it is. Where users meet the setting:
+- the game's `config.default.toml`, beside the executable, which already explains the key in a comment (cat's, updated in the cat commit);
+- the bundle's `README.txt`, which the CLI renders from `README.txt.in` and the player reads once;
+- the end of `xbr package`, where the builder reads the bundle path and the PRIVATE notice once per bundle.
+
+Not the launchers: the SteamOS first-launch notice is a progress window for the Proton setup, the Windows and macOS launchers show nothing, and a window or a log line about pacing on every start would nag. The game's own `[ENHANCE]` line already reports the mode in every log.
+
+**Condition.** The note shows when the staged `config.default.toml` sets `[present] pacing = "sleep"`: the defaults file is the bundle's statement of what the player gets, so the CLI needs no toolkit knowledge and no game constant. A game that ships `"spin"` (b3 today) gets no note, and a game that omits the key gets no note either (it then runs the toolkit's code default, which is that game's choice; cat lists every key). The CLI parses the file with `tomllib` (Python 3.12 is the CLI's floor); a file it cannot parse gets one `WARNING:` line naming the error and no note, since the runtime reports its own defaults file.
+
+**Wording.** The README paragraph, after the options paragraph (a new `@OPTION_NOTES@` placeholder in `README.txt.in`, empty when the note does not apply):
+
+```
+Frame pacing defaults to "sleep": the game's frame wait sleeps until the
+next vblank, which saves CPU and battery. "spin" is the console-original
+timing, where that wait holds a CPU core as it did on the Xbox. To switch,
+put
+
+  [present]
+  pacing = "spin"
+
+in config/config.toml, or RECOMP_PRESENT_PACING=spin in config/launch.env.
+```
+
+The terminal note, printed once after the `bundle:` line and before the PRIVATE notice, only when the paragraph was added:
+
+```
+note: frame pacing defaults to "sleep" (the game's frame wait sleeps until the
+next vblank: less CPU and battery). "spin" is the console-original timing, the
+wait holding a CPU core as on the Xbox: pacing = "spin" under [present] in
+config/config.toml, or RECOMP_PRESENT_PACING=spin in config/launch.env.
+```
+
+Neither names the game: the bundle README's title line already does, and the terminal note sits under `bundle:`. If a future wording needs the name, it comes from `game.toml` (`game.name`) as the README's `@NAME@` does.
+
+**Implementation.** `package/__init__.py`: a small helper reads the staged defaults file and returns the paragraph or nothing; `readme()` fills `@OPTION_NOTES@`; `package()` prints the note. Tests render README.txt for `sleep`, `spin` and no key, and cover the terminal note and the unparsable-file warning (`uv run pytest tests`, ruff). Docs: `docs/commands.md` (`package`) and `docs/manifest.md` (the `content` row). Version `0.6.5` (amended 2026-10-13 from 0.6.4, which an APU test release took first), an annotated `v0.6.5` tag on `main` after the squash merge; cat's `game.toml` `[cli]` pins it. CLI commits use the noreply identity and carry no tracker references.
+
+**cat's own docs** say the same: `README.md`'s Options row (default first: `"sleep"`, then `"spin"`, named as the console-original timing), `docs/env.md`'s `RECOMP_PRESENT_PACING` row, `docs/packaging.md` §6, and the comment in `packaging/config.default.toml`.
+
 ## Risks / Trade-offs
 
 - **A lowered site polls something the kernel never signals.** It still advances at up to 1 ms per pass, which is a slowdown, not a hang. Detection: the per-site timeout counts in the `pacing` trace. Mitigation: `exclude`, or a wake at the writer. BLiNX 2 v1 lowers only the vblank site, whose writer is a DPC.
@@ -315,13 +358,14 @@ Pacing lives in the kernel (clock, wake) and in generated code (the wait). None 
 - **Wine's thread-time granularity.** The in-wait CPU figure under Proton is coarse. The Proton sleep gate therefore also reads the process-CPU drop.
 - **Generator false positives.** The matcher is strict, and every candidate appears in the report. The BLiNX 2 list is explicit. Burnout 3 `auto` runs on the PR head are the test of the auto mode.
 - **261 copies of one VA.** The lowering is per VA, so all copies change together. The diff check in D10 shows it.
-- **Frame identity is statistical**, because goldens vary with wall time. D9 compares with spin's own spread and uses flip-indexed dumps of deterministic routes, so a timing-only change cannot hide a logic change.
+- **Frame identity is statistical**, because goldens vary with wall time. D9 compares verdicts and pace with spin's own spread and uses flip-indexed dumps of deterministic routes for the anchors, so a timing-only change cannot hide a logic change; the per-flip pixel rule was dropped because spin fails it against itself (D9).
+- **A game's defaults file, not the toolkit, decides what players get.** The flip reaches a bundle only through its `config.default.toml`, so a game that keeps `"spin"` there (b3) is unchanged, and one that omits the key follows the toolkit silently and without the CLI note. Detection: the `[ENHANCE]` line of any run. Mitigation: cat lists every key; D13 says why the note is keyed on the file.
 
 ## Migration Plan
 
 1. The toolkit branch lands (clock, kernel pacing, generator flag, key at `spin`). Then the cat branch lands (gen regenerated, list, `fps.mode`, scripts, pin). Both land as squash merges by the orchestrator (one commit per feature, the branches kept), after Fable's review.
-2. Goldens stay at `spin`. Nothing changes for players unless they set `present.pacing = "sleep"`.
-3. `feat/fps-pacing-default` lands only after D9 passes. Rollback is a revert of its two commits.
+2. Goldens stay at `spin`. Until step 3, nothing changes for players unless they set `present.pacing = "sleep"`.
+3. `feat/pacing-default` lands once D9's rule is met (it is, 2026-10-12) and the Burnout 3 stall check has run: the CLI note (v0.6.5) first, then the toolkit default, then cat's `config.default.toml` and pin. From then on bundles ship `sleep`, the README and `xbr package` say how to get `spin`, and the goldens still pin `spin`. Rollback is a revert of the toolkit and cat commits; the CLI note then has no `"sleep"` defaults file to key on and shows nothing.
 
 ## Decided
 
@@ -335,6 +379,10 @@ The six open questions of the first draft (1-6), decided by Fable on 2026-10-06 
 6. **Thresholds** are set in D8: p95 − p5 halved and p50 within 33.3 ± 0.5 ms; gap windows with a median spread of at most 3 ms and 80% within 16.67 ± 1.5 ms; in-wait CPU at most 10%, a process-CPU drop of at least 25 points, timeout exits at most 5% of loop exits, and `sleep` inside `spin`'s widened spread. (Revised after the first measurements: "wakes over timeouts" counted mid-loop timeouts, which the 1 ms bound makes normal; see D8.) The first draft's "gap range within ±1 ms" on a window's minimum and maximum was not measurable without false failures, and its "waiter CPU" mixed the game's own work on the main thread with the spin.
 
 7. **The macOS timer thread asks for on-time wakes** (added at implementation, fork e9a701f). Measured: plain `nanosleep` on the timer thread overshot by 3.7 ms on average and 8 ms at worst, at every QoS class, which gave 13-20 ms vblank gaps on the Mac. `xbox_HostTimerThreadInit()` sets `THREAD_TIME_CONSTRAINT_POLICY` with a 1/60 s period, 2 ms computation, an 8 ms constraint, preemptible. If the host refuses it, one `[KERNEL]` line says so and the thread stays a normal one: the grid keeps its rate and only the wake jitter is the old one. Mac audio with this thread at real-time priority is not yet checked by ear; that is a TASKS item before section 9.
+
+8. **The acceptance rule is identical verdicts plus pace within `spin`'s spread** (the user, 2026-10-12, quoted in D9). "Identical frames" was unmeasurable on this title because `spin` is not repeatable at a flip; the verdicts and the pace are, and they are what a player sees. The flip-indexed dumps stay in the rule for the anchors.
+9. **The Burnout 3 stalls are a check, not a blocker** (2026-10-12). They occur at `spin` too, nothing in the telemetry ties them to the wait site, and a candidate cause (the lost VOICE_OFF, fix/apu-voice-mask e7e0abd) merges first. Tasks 9.4b reruns the pairs on the merged toolkit, records the counts, and flags `sleep` to the user only if it is still clearly worse (D9).
+10. **The note lives in `xbr package` and the bundle README, keyed on the game's defaults file** (D13). Those are the two places a user reads once; the launchers would nag, and the toolkit's code default is not what a bundle ships.
 
 The first draft's own calls, reviewed:
 - **The `deviations` entry ships in v1**, written as a mode ("With `present.pacing = "sleep"` ..."). The register is where the 1 ms-late risk and its detection live and where the player doc points. The default-flip change updates its exit.

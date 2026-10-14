@@ -14,10 +14,12 @@
     "RECOMP_TRACE": "flip",
     "RECOMP_HOST_PAD": "0",
     "RECOMP_KEYBOARD": "0",
+    "RECOMP_MOUSE": "0",
     "RECOMP_INPUT_STRICT": "1",
     "RECOMP_CONFIG": "none",
     "RECOMP_RENDER_SCALE": "1",
     "RECOMP_PRESENT_PACING": "spin",
+    "RECOMP_PRESENT_SURFACE": "window",
     "RECOMP_GLOW": "on",
     "RECOMP_GLOW_INTENSITY": "1"
   },
@@ -56,18 +58,18 @@
           "note": "demo stg0101, Blinx at the cliff (review's f1140); runs differ by mae 0.06-0.10, 0.09-0.18% pixels",
           "max_channel_mae": 0.5,
           "max_bad_fraction": 0.005,
-          "sha256": "e7c8fecad33e568eec632bb7a7cc95c9ed1011f694dd8598d0c8c89bebd579a3",
+          "sha256": "33ea2fd1f62131cfa7104dfef155d1a51b1ea54ba9ca16d9c382f6149b32d1d1",
           "size": [
             640,
             480
           ],
           "max_tile_bad_fraction": 0.25,
-          "why": "max_bad_fraction 0.50% (back from 0.75%, now that the reference was re-recorded after the shadow fix). The 0.75% was for the old reference (before the character-shadow fix, toolkit e4a7db1), which sat a little off current runs (0.30-0.53%, worst tile 8.7% at 224,32 in every run). Re-recorded 2026-10-02 from golden run 20261002-162148 (vs xemu attract f148: mae 4.31 -> 0.59). Against it, 7 runs gave 0.00% (190936), 0.29% (191307), 0.18% (191700), 0.18% (192514), 0.05% (193019) on toolkit e4a7db1, and 0.25% (192145), 0.05% (192654) on the integration tree (toolkit 1405dfa); worst tile <= 5.7%. Runs from before the fix give 9.4% (tile 100%). The dark rock-wall side-panel flake must FAIL here: keep its bench-logs dir and do not loosen for it",
+          "why": "max_bad_fraction 0.50% (back from 0.75%, now that the reference was re-recorded after the shadow fix). The 0.75% was for the old reference (before the character-shadow fix, toolkit e4a7db1), which sat a little off current runs (0.30-0.53%, worst tile 8.7% at 224,32 in every run). Re-recorded 2026-10-02 from golden run 20261002-162148 (vs xemu attract f148: mae 4.31 -> 0.59). Against it, 7 runs gave 0.00% (190936), 0.29% (191307), 0.18% (191700), 0.18% (192514), 0.05% (193019) on toolkit e4a7db1, and 0.25% (192145), 0.05% (192654) on the integration tree (toolkit 1405dfa); worst tile <= 5.7%. Runs from before the fix give 9.4% (tile 100%). The dark rock-wall side-panel flake must FAIL here: keep its bench-logs dir and do not loosen for it. Re-recorded 2026-10-12 (BLX-84) from D3D11 bench-logs 20261012-100649 (toolkit 9ffdb52) after the NV2A 1/16-pixel screen snap (toolkit 1f65b89) moved ~360 polygon-edge pixels: against the old reference D3D11 gave CLOSE mae 0.47/0.48/0.43, bad 0.15%, and Metal FAILed at mae 0.53/0.55/0.51, which is that shift stacked on the steady Metal-vs-D3D11 gap (mae ~0.2, max <= 34, bad < 0.01%, with or without the snap; Metal snap vs no-snap differs by the same 0.47). Against the new reference: D3D11 EXACT in 2 runs (20261012-101741, 102242); Metal mae 0.200/0.219/0.238, bad 0.002%; Mac CPU mae 0.25, bad 0.12%. Limits unchanged",
           "anchor": {
             "event": "first-3d",
-            "ref_flip": 897,
-            "why": "reference run 20261002-162148",
-            "ref_pace": 29.56
+            "ref_flip": 903,
+            "why": "the recording run's anchor (golden.py record, 20261012-100649)",
+            "ref_pace": 29.82
           },
           "max_pace_diff": null,
           "max_pace_diff_why": "no pace check: the demo scene follows flips, not wall time. The Linux/Proton host CPU run 20261004-112314 reached it at 2.5 fps from first-3d (reference 29.6) and still gave CLOSE (mae 0.14, bad 0.08%)"
@@ -98,10 +100,10 @@
         {
           "name": "stage1-stick",
           "dump": 14,
-          "note": "stg0101 intro cut, Stick close up (fills the frame: catches an invisible Stick; with Stick hidden, RECOMP_D3D11_OCC=fixed RECOMP_ZPASS_FIXED=0, run 20261002-102403 FAILs here: mae 14.9, worst tile 100%). Margin: the preset taps A every 3 s from the jingle (~present 767); the close-up takes A from ~jingle+60, the second press lands ~+90, and this dump is ~+74, so 16 presents before it (with 2 s taps the second press hit the +60 edge: 2 of 26 runs off). Re-recorded 2026-10-02 after the character-shadow fix (toolkit e4a7db1) from golden run 20261002-162307 (vs xemu stage1 f042: mae 6.38 -> 0.62); runs 191055/191426/191820: mae <= 0.39, exact/1.3-1.4% pixels, worst tile <= 31.2%; the Stick-hidden run 102403 still FAILs against it (mae 9.6, tile 99.9%). Before the re-record: mae <= 0.91, 1.7-3.0% pixels, worst tile 41-42.4% (both grids). Dump 13 was rejected: the fly-over camera follows the stage-start jitter. Dump 19 was rejected: the dialogue camera follows the wall-time A taps (one run off by 38%)",
+          "note": "stg0101 intro cut, Stick close up (fills the frame: catches an invisible Stick; with Stick hidden, RECOMP_D3D11_OCC=fixed RECOMP_ZPASS_FIXED=0, run 20261002-102403 FAILs here: mae 14.9, worst tile 100%). Margin: the preset taps A every 3 s from the jingle (~present 767); the close-up takes A from ~jingle+60, the second press lands ~+90, and this dump is ~+74, so 16 presents before it (with 2 s taps the second press hit the +60 edge: 2 of 26 runs off). Re-recorded 2026-10-02 after the character-shadow fix (toolkit e4a7db1) from golden run 20261002-162307 (vs xemu stage1 f042: mae 6.38 -> 0.62); runs 191055/191426/191820: mae <= 0.39, exact/1.3-1.4% pixels, worst tile <= 31.2%; the Stick-hidden run 102403 still FAILs against it (mae 9.6, tile 99.9%). Before the re-record: mae <= 0.91, 1.7-3.0% pixels, worst tile 41-42.4% (both grids). Dump 13 was rejected: the fly-over camera follows the stage-start jitter. Dump 19 was rejected: the dialogue camera follows the wall-time A taps (one run off by 38%). Re-recorded 2026-10-12 (BLX-84) from D3D11 bench-logs 20261012-100808 (toolkit 9ffdb52) after the 1/16-pixel screen snap (toolkit 1f65b89): before it D3D11 runs gave mae 0.46-0.77 and Metal 0.82, bad 1.38%; against it D3D11 gives mae 0.05, bad 0.08% (101900) and mae 0.34, bad 1.29% (102402), the same two game states as before, and Metal mae 0.52/0.51/0.48, bad 1.26%, worst tile 29.4%, and the Stick-hidden run 102403 still FAILs (mae 9.8, tile 99.9%)",
           "max_channel_mae": 2.0,
           "max_bad_fraction": 0.06,
-          "sha256": "f903f965cb364e6f69c4b06cfe8cbc176244c4cf82addbf88cd3f98f14f1786e",
+          "sha256": "a5f90895db79455df512b4923acf3a374aec37e3c08730a6eda5bcaeb6a32fff",
           "size": [
             640,
             480
@@ -109,9 +111,9 @@
           "max_tile_bad_fraction": 0.75,
           "anchor": {
             "event": "first-3d",
-            "ref_flip": 769,
-            "why": "reference run 20261002-162307",
-            "ref_pace": 28.44
+            "ref_flip": 773,
+            "why": "the recording run's anchor (golden.py record, 20261012-100808)",
+            "ref_pace": 29.15
           }
         },
         {
@@ -251,7 +253,11 @@
         {
           "name": "story-menu",
           "dump": 58,
-          "note": "Story Mode / SAVE GAME, the slot list (slot 1 of 3 highlighted, before the 1P/2P choice); on screen from dump 55 to 61. The star and the character art behind the list animate steadily, and the menu opens (state 0xD) 231-255 flips before present 3481 depending on the run, so dump 58 catches them at different phases. That gives six exact repeat frames in 16 Proton runs (2026-10-03), in one ordered series: the further apart two phases are, the more they differ (up to bad 11.9%, worst tile 68% at 96,160 or 256,256). The differences are in the art (left half and top rows), and where it shows through the translucent list. Two references cover the series: menu-a (20261003-005602, opened ~237 flips before the dump) and menu-b (20261003-025414, ~255 flips, the latest seen; it FAILED against menu-a at bad 10.4%). Every run is within bad 3.6%, worst tile 36% of one of them; a wrong screen gives bad ~99.8%. A run that opens the menu much earlier or later than this range may FAIL; then check the phase, and anchor the dump to the menu event once golden supports that, rather than loosening the limits Re-recorded 2026-10-04: the vblank pacer fix moved the art's phase, and D3D11 runs now dump by flip so the slot-list anchor applies; menu-a re-recorded from D3D11 run 20261004-050144, menu-b (a pre-pacer phase) dropped.",
+          "note": "Story Mode / SAVE GAME, the slot list (slot 1 of 3 highlighted, before the 1P/2P choice); on screen from dump 55 to 61. The star and the character art behind the list animate steadily, and the menu opens (state 0xD) 231-255 flips before present 3481 depending on the run, so dump 58 catches them at different phases. That gives six exact repeat frames in 16 Proton runs (2026-10-03), in one ordered series: the further apart two phases are, the more they differ (up to bad 11.9%, worst tile 68% at 96,160 or 256,256). The differences are in the art (left half and top rows), and where it shows through the translucent list. Two references cover the series: menu-a (20261003-005602, opened ~237 flips before the dump) and menu-b (20261003-025414, ~255 flips, the latest seen; it FAILED against menu-a at bad 10.4%). Every run is within bad 3.6%, worst tile 36% of one of them; a wrong screen gives bad ~99.8%. A run that opens the menu much earlier or later than this range may FAIL; then check the phase, and anchor the dump to the menu event once golden supports that, rather than loosening the limits Re-recorded 2026-10-04: the vblank pacer fix moved the art's phase, and D3D11 runs now dump by flip so the slot-list anchor applies; menu-a re-recorded from D3D11 run 20261004-050144, menu-b (a pre-pacer phase) dropped. 2026-10-12: the slot-list anchor is chained to tsedit (see anchors): with after_flip 3200, Mac runs whose menu opened below 3200 anchored on NOW SAVING ~350-600 flips on. A run at well under the reference's pace (24 fps under load: 20261011-145532) now lands on the menu, but at 24 fps its art is far from the reference's phase (bad 41.6%, no flip within 16 passes), so it stays INCOMPLETE on a pace mismatch; a run whose menu opens more than dump_slack early is not dumped (INCOMPLETE). Neither is a FAIL. verdict_window (below) covers the art's phase drift at normal pace",
+          "verdict_window": {
+            "flips": 16,
+            "why": "the star and character art behind the list run on their own clock: against the slot-list anchor their phase sits -14..+12 flips from run to run (about 50 kept Mac Metal runs, 2026-10-12), and nearly every run matches menu-a exactly within that span while failing (bad up to 13.3%) or pacing out at the target. The list holds for ~350 flips, so +-16 stays on this screen; packaging-variant runs (bad ~29%) still fail at every offset, and a target off by pace_fail_bad (50%) or more is never rescued"
+          },
           "max_channel_mae": 3.0,
           "max_bad_fraction": 0.08,
           "max_tile_bad_fraction": 0.6,
@@ -388,19 +394,24 @@
       "followups": "story-hub uses several references (hub-a dish, hub-b staircase, hub-c drill wall, hub-d crates) because the hub camera opens on a random view. Seeding the game's clock or RNG to fix the view was rejected for now as too invasive. The frame is a split frame: the opaque panel text is held in every view, the panel and background per known view; a new view reports NEWVIEW (INCOMPLETE) and, once looked at, is added with golden.py reference",
       "anchors": {
         "tsedit": {
-          "after_flip": 1400,
+          "after": "opening",
           "max_batches": 100,
-          "why": "the first flip after the R0_opening skip with at most 100 batches (539 -> 88): the locker room; flip 1494-1496"
+          "why": "the first flip after the R0_opening movie with at most 100 batches (534 -> 88): the locker room; flip 1474-1496 in D3D11 runs, 1312-1518 in Mac runs (the earlier ones slow or CPU). Chained to the opening, not after_flip 1400: slow runs skip the movie before flip 1400 (1312, 1318, 1399), and then a 4-flip dip later on (1675) or the slot list was taken for it"
         },
         "slot-list": {
-          "after_flip": 3200,
+          "after": "tsedit",
           "max_batches": 60,
-          "why": "573 -> 43 batches, the Story Mode slot list opening; flip 3242-3245"
+          "why": "573 -> 43 batches, the Story Mode slot list opening; nothing between the locker room and it drops to 60 (at least 90). Flip 3226-3249 in D3D11 runs; Mac Metal runs give two modes, 3207-3304 and, under host load, 2902-3197 (CPU 2833-2867), because @story-hub's presses wait on wall time and a slower run reaches them at a lower flip. Chained to tsedit, not after_flip 3200: a menu below 3200 made the next crossing, NOW SAVING (130 -> 1, ~350 flips on), the anchor, ~350-600 flips late (8 of 113 Mac story logs, 2026-10-10..12; no D3D11 log)"
         },
         "hub": {
-          "after_flip": 3800,
+          "after": "slot-list",
           "min_batches": 1000,
-          "why": "the Sweepers hub's first 3D frame after NOW SAVING (1 batch); flip 3945-3953"
+          "why": "the Sweepers hub's first 3D frame after NOW SAVING (1 batch); ~700 flips after the slot list at full pace (D3D11 703-713, quiet Mac 681-712), 450-680 on slow or CPU runs: flip 3932-3961 in D3D11 runs, 3429-3900 in Mac runs. Chained to slot-list, not after_flip 3800: slow Mac runs reached the hub before 3800 (3647, 3681, 3740) and so had no anchor"
+        },
+        "opening": {
+          "after_flip": 300,
+          "min_batches": 500,
+          "why": "the R0_opening movie (6 -> 534 batches; title, logos and menus stay under 50), flip 687-956: only the start of tsedit's chain. Listed last so pacing stats' default story checkpoint (the scenario's first min_batches anchor) stays the hub"
         }
       },
       "dump_slack": 100,

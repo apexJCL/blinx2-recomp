@@ -45,6 +45,7 @@ for the orchestrator's "go" and hold `flock -w 3600 ~/.recomp-run.lock`.
 - [ ] 3.9 Mac Metal: `@stage1` with `RECOMP_MENU=on`: open with F10 and with BACK+START (a real pad), toggle the pack (text sharp/soft within one frame), scale 1->2->3->1 (frame rebuilt, no crash, no stuck target), filter, glow absent (toolkit only), Save then restart: `config/config.toml` holds only the changed keys and the new values are in force; `RECOMP_WINDOW_SHOT` of the open menu and `fb_dump` of the same flip: the dump has no panel. Flips/s with the menu open vs closed within 25% (`runs/enhmenu/metal-menu.txt`).
 - [ ] 3.10 Mac: stock Metal goldens unchanged; log `menu.enabled=off`.
 - [ ] 3.11 The Pack page reads the miss ring (`nv2a_tex_pack_misses`) only on the walker thread at the flip, copying a snapshot the menu thread then draws from, or the ring gains a lock first: it is written by the upload path without one (design, "Phase 1 as built" 9). `tests/enhance_menu` covers the snapshot.
+- [ ] 3.12 The mouse while the menu is open (from `kbm-input` 7.3): call `xbox_InputMouseSuspend(1)` when the menu opens and `xbox_InputMouseSuspend(0)` when it closes, so motion and clicks do not drive the game under the menu and the cursor is not fought over; the hook's neutral pad already covers the keys. Verify: `tests/enhance_menu` case, and with the menu open `RECOMP_TRACE=mouse` logs no `[MOUSE]` lines.
 
 ## 4. CLI: golden harness and pins
 

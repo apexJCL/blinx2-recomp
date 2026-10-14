@@ -278,15 +278,23 @@ that says so, and an in-game Save will write there too. A
 `config/enhance.toml` from an earlier version is renamed to `config.toml`
 on the first launch, and the old `config/enhance.toml.default` copy is
 deleted. Environment variables win over both files (docs/env.md).
+The bundle's frame pacing defaults to `sleep` (the game's frame wait
+sleeps until the next vblank, which saves CPU and battery); `spin` is the
+console-original timing, where the wait holds a CPU core as on the Xbox. To
+get it, put `[present]` and `pacing = "spin"` in `config/config.toml`, or
+`RECOMP_PRESENT_PACING=spin` in `config/launch.env`; the bundle's README.txt
+says the same, and `blinx2 package` prints it as a note.
 `config/launch.env` holds your own
 environment settings, `KEY=value` per line, read after the bundle's
 `launch.env.default`. `logs/` keeps one log per launch, the newest
 `LOG_KEEP` (10).
 
-Controllers work as player 1 on every target, and so does the keyboard
-(`RECOMP_KEYBOARD=1` in `launch.env.default`; the keys are in the bundle's
-README.txt). On macOS the app also turns host pads on (`RECOMP_HOST_PAD=1`),
-which the keyboard needs there.
+Controllers work as player 1 on every target, and so do the keyboard and
+the mouse (`input.keyboard` and `input.mouse` in `config.default.toml`; the
+keys are in the bundle's README.txt and `docs/input.md`, and
+`[input.bindings]` in `config/config.toml` changes them). On macOS the app
+also turns host pads on (`RECOMP_HOST_PAD=1`); the keyboard and the mouse do
+not need it.
 
 `BLINX2_DATA_DIR` moves the user-data folder for the macOS app and the
 Windows launcher. It exists for tests, which must never touch your real
@@ -301,7 +309,9 @@ on screen. `blinx2 enhance hud` makes a pack of them at 4x from your own
 game files (the set is `[enhance.hud]` in `game.toml`; an integer xBR
 upscale, a few seconds), and it re-renders the Latin atlas from PT Sans
 Narrow Bold (OFL 1.1), a narrow face close to the game's Arial Narrow Bold;
-each glyph is drawn into the stock glyph's box, so the layout holds. macOS
+each glyph is drawn at one scale for the whole font, centred on the
+stock glyph's box and on its baseline, so the layout holds (widths are
+nudged towards the stock ones, and brackets span the stock box). macOS
 ships it; on Linux and Windows install PT Sans Narrow (ParaType, a Google
 Fonts family) for your user. `enhance hud` finds it in the system's font folders by name;
 `--font` takes another file (`.ttf`, or a `.ttc` holding that face) or an

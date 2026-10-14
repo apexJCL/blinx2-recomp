@@ -54,6 +54,7 @@ players keep Steam Input). See input-real-devices design.md, Spike result.
 
 Every action is printed with CLOCK_REALTIME ("wall=<s>"), the clock the
 game's [INPUT] host lines carry, so press-to-poll latency is a subtraction.
+The game prints those lines only under RECOMP_TRACE=input.
 Refuses (exit 2) when /dev/uinput is not writable; it never escalates.
 Exit 1 when a device cannot be created or a command fails.
 Never touches xemu: it only creates its own devices and reads /proc.

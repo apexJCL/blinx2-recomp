@@ -66,13 +66,6 @@ Sticks SHALL be passed to the guest as signed 16-bit values at the host's full r
 - **WHEN** `RECOMP_PAD_DEADZONE=4000` and the left stick rests at (300, -200)
 - **THEN** the guest reads (0, 0), and a stick at (32767, 0) still reads (32767, 0)
 
-### Requirement: Hot-plugging follows the host
-A host controller connected or disconnected while the title runs SHALL appear or disappear on its port within one second, and the title SHALL be told through the insert/remove masks so it reopens or closes the port itself. Disconnected ports SHALL be probed at most once per second (the XInput guidance), connected ports at every poll. On hosts whose backend delivers device events (SDL2), those events SHALL be handled and slots SHALL be stable for the life of a device.
-
-#### Scenario: Unplug and replug in play
-- **WHEN** the only controller is unplugged during stage 1-1 and plugged back in five seconds later
-- **THEN** the `[INPUT]` log shows `ports=0x0` then `ports=0x1`, the title's port-0 handle goes to 0 and back to non-zero, and play continues with the pad
-
 ### Requirement: Rumble reaches the host controller
 `XInputSetState` motor speeds (0..65535 per motor) SHALL be forwarded to the host controller on the same port when the host pad is enabled and that port has a host device. `RECOMP_RUMBLE=0` SHALL disable forwarding. All motors SHALL be set to zero when the process exits or the host pad is shut down.
 
@@ -136,14 +129,3 @@ Golden and integration runs (`blinx2 bench golden`, `blinx2 bench integrate`) SH
 #### Scenario: Poll-counted tap
 - **WHEN** a script runs `tap A every 6p until mem 0xae73fc == 1`
 - **THEN** successive A presses start exactly 6 port-0 polls apart in the `[INPUT]` log, independent of frame rate
-
-### Requirement: Pad sampling is fresh
-Host controllers SHALL be sampled synchronously inside the title's own poll (once per game frame, at frame start), with no host-side buffering or extra polling thread, so the state the title reads is never older than one host backend update. `RECOMP_INPUT_TRACE=1` SHALL log, per poll, the vblank count, the time since the last vblank tick, the host backend call time and the port mask, and SHALL print p50/p95 of the host call time at exit. The measured press-to-poll latency on Proton SHALL be at most one game frame plus one host backend update, and the host call SHALL take under 1 ms at p95 with four ports probed.
-
-#### Scenario: Trace summary
-- **WHEN** a run with `RECOMP_INPUT_TRACE=1` ends
-- **THEN** stderr holds one trace line per poll and a summary with p50/p95 host call time and poll-to-vblank phase
-
-#### Scenario: Latency measured with the virtual pad
-- **WHEN** 50 START taps are sent from the virtual pad on the Linux/Proton host at recorded wall-clock times during a title screen
-- **THEN** the `[INPUT] host` lines show a press-to-poll latency whose p95 is at most one game frame (33.4 ms at 30 Hz, 16.7 ms at 60 Hz) plus the host update interval, and every tap is seen

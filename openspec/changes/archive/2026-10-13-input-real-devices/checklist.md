@@ -54,7 +54,7 @@ build, the `[INPUT] sources` line.
 
 ## F. Stage 1-1
 - [ ] F1 stg0101 loads; Operator dialogue (A advances); MISSION OBJECTIVES; checkpoint; HUD timer runs.
-- [ ] F2 L and R triggers: what they do in play (sweep / shoot / nothing); analog feel if any.
+- [x] F2 L and R triggers: what they do in play (sweep / shoot / nothing); analog feel if any. The user, 2026-10-12, on keyboard and mouse (kbm-input D5): the right trigger sweeps and shoots. The left trigger's use and any analog feel are still unchecked.
   Note: under Proton a device's very first trigger event is dropped when it lands at mid-travel straight from rest (seen with a virtual pad, tasks 3.8; likely SDL2's first-axis-value filter). Later values, and any press that starts low, arrive exact (0..255).
 - [ ] F3 White (LB) and Black (RB): what they do; confirm they are not swapped against the in-game button prompts.
 - [ ] F4 Rumble on a hit or a sweep; it stops when the game quits.

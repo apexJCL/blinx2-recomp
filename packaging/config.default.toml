@@ -1,4 +1,7 @@
-# BLiNX 2 options: every key at its stock value. The game reads this file
+# BLiNX 2 options: every key at its default. Each enhancement default is the
+# stock behaviour except present.pacing, which sleeps: the frames and pace
+# are the same as the console's spin and it frees a CPU core. The [input]
+# table turns the keyboard and mouse on for player 1. The game reads this file
 # on each launch, beside its executable; it is never copied, and an update
 # replaces it, so new keys and defaults reach you. Do not edit it: put the
 # keys you change in config/config.toml (copy a line from here), which the
@@ -15,9 +18,14 @@ aspect = "4:3"            # only 4:3 so far
 [present]
 filter = "nearest"        # "nearest" (stock), "linear", "integer"
 fullscreen = false        # true: borderless fullscreen at start
-pacing = "spin"           # "spin" (stock: the frame wait holds a CPU core, as on
-                          # the Xbox) or "sleep" (it sleeps until the next
-                          # vblank instead; the frames are the same)
+pacing = "sleep"          # "sleep": the frame wait sleeps until the next vblank,
+                          # which saves CPU and battery; the frames are the
+                          # same. "spin" is the console-original timing: the
+                          # wait holds a CPU core, as on the Xbox
+surface = "auto"          # "auto": the frame-sized surface goes to gamescope for
+                          # it to scale when the SteamOS launcher says it runs
+                          # there (Steam's FSR needs scale = 1 on a Deck);
+                          # "window" (the old behaviour) or "internal"
 
 [fps]
 mode = "lock30"           # lock60 and free are not available for this title:
@@ -35,3 +43,55 @@ glow_intensity = 1.0      # 0.0 .. 2.0: a scale of that layer (1.0 is stock)
 #                           # off, put pack = "none" under [textures] in
 #                           # config/config.toml. On macOS the path is
 #                           # ../Resources/enhance/hud.pack
+
+[input]
+# The keyboard and mouse are player 1 (port 0), merged onto a controller
+# there. RECOMP_KEYBOARD and RECOMP_MOUSE override the two switches.
+# Reference: docs/input.md.
+keyboard = true             # keys drive player 1
+mouse = true                # the mouse too: motion is a stick, buttons as bound below
+mouse_look = "right_stick"  # what mouse motion drives: "right_stick" (the camera),
+                            # "left_stick", "none"
+mouse_sensitivity = 1.0     # 0.1 .. 10.0; 1.0: 40 counts in one frame is full deflection
+mouse_invert_y = false      # true: mouse forward looks down
+mouse_invert_x = false
+mouse_min_deflection = 0.45 # 0.0 .. 0.9; any motion deflects at least this much, because
+                            # the game ignores a stick under 0.4 of full
+mouse_capture = "focus"     # "focus": the cursor is grabbed whenever the window has focus;
+                            # "click": the first click in the window grabs it; "never"
+mouse_release_key = "F9"    # frees the cursor (press again to grab it back; refocusing
+                            # the window grabs it too)
+wheel_pulse_ms = 100        # how long a wheel notch holds its control
+stick_ramp_ms = 60          # a stick key reaches full deflection in this time; 0: at once
+walk_key = "LAlt"           # held: the stick keys give walk_scale of full deflection
+walk_scale = 0.5            # 0.41 .. 1.0
+
+[input.bindings]
+# Each control = a key or mouse input, or a list of them; [] unbinds. To
+# change one, put the control under [input.bindings] in config/config.toml:
+# it replaces this line whole, and an input you bind there leaves the
+# controls below. Names: docs/input.md (RECOMP_TRACE=key prints them).
+lstick_up = ["W", "KP8"]    # move
+lstick_down = ["S", "KP2"]
+lstick_left = ["A", "KP4"]
+lstick_right = ["D", "KP6"]
+rstick_up = "I"             # camera (the mouse too, through mouse_look)
+rstick_down = "K"
+rstick_left = "J"
+rstick_right = "L"
+dpad_up = "Up"              # menus and selection
+dpad_down = "Down"
+dpad_left = "Left"
+dpad_right = "Right"
+a = "Space"                 # jump; confirm
+b = ["MouseRight", "F"]     # action; back in menus
+x = "E"                     # time control
+y = "Q"
+white = "C"
+black = "Z"
+ltrigger = "LShift"
+rtrigger = ["MouseLeft", "R"] # sweep and shoot
+lthumb = "Tab"
+rthumb = "MouseMiddle"      # camera
+start = ["Return", "Escape"] # pause; "press start"
+back = "Backspace"

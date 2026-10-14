@@ -1,6 +1,6 @@
 ## Purpose
 
-The normal route from boot to play (logos, title, START, story opening, team editor, save, hub, stage 1-1), driven on game events as a regression check and walked by hand with a real controller, so the menus and the save path are covered and not just the debug stage select.
+The normal route from boot to play (logos, title, START, story opening, team editor, save, hub), driven on game events as a regression check and walked by hand with a real controller, so the menus and the save path are covered and not just the debug stage select.
 
 ## ADDED Requirements
 
@@ -29,13 +29,6 @@ The host SHALL honour `RECOMP_SAVE_DIR` as the root for the title's UDATA and TD
 - **WHEN** `blinx2 bench golden` runs on the integration heads
 - **THEN** the `story` frames pass their limits alongside `attract` and `stage1`
 
-### Requirement: The route to stage 1-1 without the debug menu
-Once the path from the hub to stage 1-1 is mapped, a preset `@story-stage1` SHALL continue from `@story-hub` to stage 1-1 and end, like `@stage1`, when `0xAE73FC` becomes 1, with no `poke` step. If the training drill cannot be passed deterministically from a script, the preset SHALL instead start from a seeded save (`RECOMP_SAVE_SEED=<dir>`, a locally kept, never committed, tutorial-complete save) and the design SHALL record why. The seeded leg from the title to the hub SHALL be its own preset, `@story-load` (LOAD GAME, slot 1, on title-state and file events), which `@story-stage1` then extends; a seed that cannot be read or copied SHALL stop the run before boot.
-
-#### Scenario: Stage 1-1 by the front door
-- **WHEN** the title runs with `@story-stage1`
-- **THEN** the log shows stg0101 opening and `mem 0x00AE73FC = 0x1`, the HUD timer runs, and no `poke` line appears
-
 ### Requirement: The normal route is checked by hand with a real controller
 A checklist SHALL cover the route with a real controller on Proton: which movies START or A skips, the title, the story opening, the team editor, Story Mode, the save prompt and slots, the hub drill, and stage 1-1; the prompts the menus show with no save, with a save and with no controller; what happens when the controller is unplugged in a menu and in play; the stick feel (drift, deadzone), the trigger and shoulder mapping and rumble. A completed checklist SHALL be kept locally with the bench-logs stamp of the run, and its findings SHALL be summarised in the change.
 
@@ -49,10 +42,3 @@ The change SHALL record, per menu state the route passes through, the title-stat
 #### Scenario: Catalogue complete
 - **WHEN** the `@story-hub` preset is written
 - **THEN** every tap and wait in it cites an entry of the catalogue
-
-### Requirement: Reference frames from xemu under the safety rules
-The xemu capture scripts SHALL gain a `story` scenario that follows the same route with the virtual pad, so the story golden frames can be compared with hardware-accurate references. The existing rules stand: the user's xemu instance, config, HDD and EEPROM are never touched; the run refuses to start while any xemu instance is running; frames stay local.
-
-#### Scenario: Story frames compared
-- **WHEN** `xemu_capture.sh story` and `xemu_compare.py` run on the Linux/Proton host
-- **THEN** each story golden frame has a best-match xemu frame and a mean-absolute-error figure in `analysis/reference/xemu/`, and no file under it is tracked

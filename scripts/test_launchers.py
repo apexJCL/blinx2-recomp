@@ -50,32 +50,28 @@ def test_launch_env_defaults():
     win = env_keys(os.path.join(PKG, "launch.env.default.windows"))
     # macOS: the runtime keeps host pads off off-Windows, the app turns them on.
     assert mac.get("RECOMP_HOST_PAD") == "1"
-    # The packaged game turns the keyboard on everywhere (the runtime and
-    # the bench keep it off).
-    assert mac.get("RECOMP_KEYBOARD") == "1"
-    assert win.get("RECOMP_KEYBOARD") == "1"
+    # The keyboard and the mouse are switched in config.default.toml
+    # (input.keyboard, input.mouse), not by the launchers.
+    assert "RECOMP_KEYBOARD" not in mac
+    assert "RECOMP_KEYBOARD" not in win
     # Windows and steamos get the pad from the runtime's _WIN32 default.
     assert "RECOMP_HOST_PAD" not in win
-    # One key block, the same in every bundle's README. The steamos README
-    # section is xboxrecomp-cli's (checked when the CLI is found).
-    parts = [os.path.join(PKG, t, "README.part") for t in ("windows", "macos")]
-    cli = xbr_cli.cli_dir()
-    if cli:
-        parts.append(
-            os.path.join(
-                cli, "src", "xboxrecomp_cli", "package", "templates", "steamos", "README.part"
-            )
-        )
+    # One Controls section, the same in both of this repo's README parts. The
+    # steamos part is xboxrecomp-cli's and still has the old keyboard block
+    # until its follow-up (kbm-input 7.1), so it is not compared here.
     blocks = []
-    for t in parts:
-        with open(t) as f:
+    for t in ("windows", "macos"):
+        with open(os.path.join(PKG, t, "README.part")) as f:
             text = f.read()
-        assert "Enter       START" in text and "RECOMP_KEYBOARD=0" in text, t
-        assert "W/S/A/D" in text and "Z X C V" in text, t
-        start = text.index("  arrows ")
-        end = text.find("\n\n", start)
-        blocks.append(text[start : end if end >= 0 else None].rstrip("\n"))
-    assert all(b == blocks[0] for b in blocks), blocks
+        start = text.index("Controls\n--------\n")
+        end = text.find("\n\n\n", start)
+        block = text[start : end if end >= 0 else None].rstrip("\n")
+        assert "config/config.toml" in block and "[input.bindings]" in block, t
+        assert "mouse" in block and "F9" in block, t
+        assert "Escape" in block and "START (pause)" in block, t
+        assert "RECOMP_KEYBOARD" not in block, t
+        blocks.append(block)
+    assert blocks[0] == blocks[1], blocks
 
 
 def fake_app(d):
