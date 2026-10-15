@@ -1129,13 +1129,15 @@ static int host_main(void)
     /* D3D's GPU completion fence. The device pointer is at 0x2F1FB8. The
      * device holds the last fence it submitted at +0x2C and, at +0x30, a
      * pointer to the word the GPU writes as it completes work (contiguous
-     * memory, 0x80000000 in practice). The fence wait in sub_002E8110
-     * spins until that word catches up.
+     * memory, physical 0x1000 in current builds; the executor reads it from
+     * the DMA object). The fence wait in sub_002E8110 spins until that word
+     * catches up.
      *
      * With RECOMP_PB_EXEC the toolkit's pushbuffer executor writes that word
-     * itself when it reaches NV097_BACK_END_WRITE_SEMAPHORE_RELEASE (D3D
-     * points the semaphore at offset 0 of the contiguous window, i.e. at
-     * 0x80000000), and this mirror steps aside after the first release.
+     * itself when it reaches NV097_BACK_END_WRITE_SEMAPHORE_RELEASE: D3D's
+     * semaphore DMA object (handle 8) has base physical 0x1000, and the
+     * release lands at base plus offset, 0x80001000. This mirror then steps
+     * aside after the first release.
      * It stays registered as the fallback: with the executor off nothing
      * consumes the pushbuffer, so mirroring submitted -> completed, as the
      * toolkit does for Wreckless, is the only way the wait can end. Without

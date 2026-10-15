@@ -48,6 +48,19 @@ mkdir -p "$DATA/config" "$DATA/logs"
 # An earlier version kept a reference copy of the defaults here; the game
 # reads them from Resources now, so the copy would only mislead.
 rm -f "$DATA/config/enhance.toml.default"
+# The options chosen in the build wizard (package --seed-config ships them
+# as Resources/config.seed.toml) become config/config.toml only when there
+# is none yet: the player's own file is never replaced, and an update that
+# carries other options leaves it. An earlier version's config/enhance.toml
+# is the player's file too: the game renames it to config.toml only while
+# config.toml is missing, so a seed there would hide it.
+if [ -f "$RES/config.seed.toml" ] && [ ! -e "$DATA/config/config.toml" ]; then
+    if [ -e "$DATA/config/enhance.toml" ]; then
+        echo "config: kept your existing settings ($DATA/config/enhance.toml)" >&2
+    else
+        cp "$RES/config.seed.toml" "$DATA/config/config.toml"
+    fi
+fi
 
 keep=${LOG_KEEP:-10}
 ls -1t "$DATA"/logs/game-*.log 2>/dev/null | tail -n +"$keep" | while IFS= read -r old; do rm -f -- "$old"; done || true

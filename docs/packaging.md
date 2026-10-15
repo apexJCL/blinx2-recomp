@@ -17,6 +17,51 @@ commit that tracks a bundle.
 Saves (`hdd/`), settings (`config/`) and logs (`logs/`) live outside the
 program files. No install, update, rollback or uninstall writes them.
 
+## The wizard
+
+The short route. From the first release that carries it, each release has
+a small program, the **build wizard**, for Windows, macOS and Linux (a
+Steam Deck in Desktop Mode included), on the
+[releases page](https://github.com/apexJCL/blinx2-recomp/releases):
+
+| Your computer | Download | Open it |
+|---|---|---|
+| Windows x86-64 | `blinx2-wizard-<tag>-windows-x64.zip` | Unzip, run `blinx2-wizard.exe`. SmartScreen warns (it is not signed): More info > Run anyway. |
+| Mac | `blinx2-wizard-<tag>-macos.zip` | Unzip (double-click), open `blinx2-wizard.app`. macOS refuses an app that is not notarized: System Settings > Privacy & Security > Open Anyway, or `xattr -dr com.apple.quarantine blinx2-wizard.app`. |
+| Linux, Steam Deck | `blinx2-wizard-<tag>-linux-x64.tar.gz` | `tar -xzf` it and run `./blinx2-wizard`. |
+
+`SHA256SUMS` on the same page has each download's sha256.
+
+The wizard asks for your disc image or dump folder, the target and a few
+options (render scale, fullscreen, frame pacing, keyboard and mouse, the
+HUD texture pack), then does what the command route below does: it fetches
+uv (and git on Windows) by sha256, clones this project at the release's
+tag, and runs `./blinx2 package <target> --dump <your dump>`, showing its
+progress. Everything it fetches and builds goes in one folder (about
+15 GB), which you can change on its first page:
+
+| Computer | The wizard's folder |
+|---|---|
+| Windows | `%LOCALAPPDATA%\blinx2-recomp` |
+| macOS | `~/Library/Application Support/blinx2-recomp` |
+| Linux | `~/.local/share/blinx2-recomp` |
+
+At the end it shows the bundle; **Install now** runs the target's installer
+on this computer (section 3, 4 or 5 below). The options you picked become
+the data folder's `config/config.toml` on the first install, only when you
+have none yet (nor an older version's `config/enhance.toml`): a later
+install never replaces your settings (section 6).
+Saves, settings and logs live in the data folder, as with every bundle.
+
+At start the wizard asks GitHub whether a newer release exists and says so
+(one request, three seconds at most; a box on its first page turns it off).
+Running the wizard again later reuses its folder and rebuilds only what
+changed. Delete the folder to remove everything it fetched (uv's cache
+and its Python included); the installed game and your data folder are
+separate, and the wizard refuses a folder that overlaps the data folder.
+
+The command route below is the same build, by hand.
+
 ## 1. On the build machine
 
 The build machine can be macOS, Linux or Windows. Each can package these
@@ -407,6 +452,17 @@ when a remote tag no longer names the pinned commit. It never edits
 in `pyproject.toml`: capstone and pefile stay on exact versions there, since
 the lifter decodes with capstone and another version could change `gen/`.
 Review the diff before committing: setup trusts these hashes.
+
+The wizard's downloads: `./blinx2 wizard build --tag <tag>` (the CLI's
+`docs/wizard.md`) makes the three archives and `SHA256SUMS` in
+`dist/wizard/` from `game.toml`'s `[wizard]` table at that tag, all three
+on a Mac (the Linux one through Docker). `.github/workflows/release-wizard.yml`
+does the same on a `v*` tag push and attaches them to the release (a
+draft release is made for the tag when it has none; publish it after a
+look); it is the CLI's template with `blinx2` filled, so keep it
+identical. A manual run (Actions > release-wizard > Run workflow) builds
+read-only, without attaching, unless `release` is ticked. The `[wizard]` options must match
+`packaging/config.default.toml` (`./blinx2 wizard config --json` checks).
 
 Developer checks, from the dev group (`blinx2 setup --dev`, or any
 `uv run`, which syncs it):

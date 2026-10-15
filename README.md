@@ -53,7 +53,15 @@ against reference frames on every build, on Metal and on Direct3D 11.
 
 ## Build the game
 
-Get this project, then go into its folder (one line at a time, in Terminal
+**The short route: the build wizard.** From the release that carries it on,
+each [release](https://github.com/apexJCL/blinx2-recomp/releases) has a
+small program for Windows, macOS and Linux (Steam Deck included): download
+yours, point it at your disc image, pick the options, and it builds and
+installs the game for you. It runs the same commands as below.
+[docs/packaging.md](docs/packaging.md#the-wizard) has the steps, the
+SmartScreen and Gatekeeper prompts, and where it puts things.
+
+**By hand.** Get this project, then go into its folder (one line at a time, in Terminal
 on macOS and Linux or in PowerShell on Windows):
 
 ```sh

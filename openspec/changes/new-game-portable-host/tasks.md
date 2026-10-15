@@ -102,7 +102,16 @@ overlap.
   (squash of 4bc2676, noreply), this spec on cat main.
 - [x] 4.2 Merge: toolkit `git merge --squash` onto `posix-host/portability` (`templates: new-game main.c boots on Windows and macOS (BLX-125)`, the body naming the branch and tip sha); CLI `--squash` onto `main` with `--author` and `GIT_COMMITTER_*` set to the noreply identity; this spec `--ff-only` or squash onto cat `main`.
 - [ ] 4.3 After the merge: `notes/porthost/` from the agent's notes; the referenced dumps with `cp -c` into `runs/porthost/`; worktrees removed, branches kept; `cat/TASKS.md` updated (the Linux-target and `RECOMP_GAME_FILES`-in-template follow-ups; the D6 KEVENT observation for Spartan; the upstream PR 5 note; the BLX-127 `xinput1_4` coordination). The Deck's post-merge `blinx2 bench integrate --golden` is not required by this change (no runtime library changed) and is left to the next merge that needs it.
-- [ ] 4.4 `spartan/tca` re-made with a fresh `xbr new` (the user, 2026-10-14: "fresh scaffold"), from the released CLI with the dump read in place, after the toolkit and CLI push rounds (6.1); not hand-patched, and not from an agent worktree (D11).
+- [x] 4.4 `spartan/tca` re-made with a fresh `xbr new` (the user, 2026-10-14: "fresh scaffold"), from the released CLI with the dump read in place, after the toolkit and CLI push rounds (6.1); not hand-patched, and not from an agent worktree (D11).
+  Done 2026-10-14: `xbr new spartan/tca --xbe spartan/spartan.xiso.iso
+  --cli-tag v0.6.7 --toolkit-commit ac27175` from the CLI main checkout at
+  v0.6.7; the old tree kept as `spartan/tca-old` (its two main.c edits, the
+  stdio-log stopgap and the dispatch declaration, are both in the new
+  template), its extracted `game_files/` and llvm-mingw moved over. analyze
+  (17,356 functions), recomp, `build macos` and `build windows` pass with
+  the scaffold unedited. Mac headless Metal boot
+  (`runs/spartan/20261014-210324-mac-metal-pinned/`): exit 139, the known
+  read of 0xFFFFFFFF in sub_0025A92C+0x70, no frames.
 
 ## 5. Tracker and hand-back
 - [x] 5.1 BLX-125 updated with the commit shas, the acceptance outcome (3.4, 3.5) and the open questions below.
@@ -110,7 +119,11 @@ overlap.
   VEH native-stack gap added to the open questions.
 
 ## 6. Public push (a later round, noted here for the order)
-- [ ] 6.1 The toolkit fork's round (`blinx2/portability`, a new `blinx2-v0.3.x` tag) goes out before the CLI release that writes both targets, so a public `xbr new` resolves a branch head whose template is two-host (D9's note covers the window in between). The CLI's `scripts/audit-public.sh` and the noreply-only check as usual.
+- [x] 6.1 The toolkit fork's round (`blinx2/portability`, a new `blinx2-v0.3.x` tag) goes out before the CLI release that writes both targets, so a public `xbr new` resolves a branch head whose template is two-host (D9's note covers the window in between). The CLI's `scripts/audit-public.sh` and the noreply-only check as usual.
+  Done 2026-10-14 (push round 7): toolkit `blinx2/portability` ac27175, tag
+  `blinx2-v0.3.1`; CLI v0.6.7 (a7cdc15). The CLI went out about three
+  minutes before the toolkit, against this order; no `xbr new` ran in that
+  window.
 
 ## Decided by the user (2026-10-14)
 - Metal is the template's Apple backend default when `RECOMP_PB_BACKEND` is unset ("yes Metal default on the Mac"; D4).

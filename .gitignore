@@ -17,6 +17,8 @@ analysis/golden/audio/
 src/recomp/gen/
 .venv-ghidra
 build-*/
+# build-*/ is the build trees; this openspec change is not one.
+!openspec/changes/build-wizard/
 third_party
 # blinx2 setup: the pinned venv, and the toolkit clone (it must not enter the
 # -dirty hash of a packaged version).
@@ -59,6 +61,8 @@ __pycache__/
 *.icns
 # README images (placeholders and screenshots), not game output
 !docs/images/*.png
+# The build wizard's app icon (game.toml [wizard] icon), not game output
+!packaging/wizard-icon.png
 *.ppm
 *.raw
 *.sav

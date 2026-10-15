@@ -160,6 +160,38 @@ def test_macos_default_data_dir(d):
     assert got["RECOMP_HDD_DIR"] == os.path.join(want, "hdd")
 
 
+def test_macos_seed_config_once(d):
+    """A bundle the build wizard made carries config.seed.toml: the first
+    launch copies it to config/config.toml, a later one never replaces the
+    player's file."""
+    launcher, res = fake_app(d)
+    with open(os.path.join(res, "config.seed.toml"), "w") as f:
+        f.write("[render]\nscale = 2\n")
+    data = os.path.join(d, "data")
+    env = {"PATH": "/usr/bin:/bin", "HOME": os.path.join(d, "home"), "BLINX2_DATA_DIR": data}
+    cfg = os.path.join(data, "config", "config.toml")
+    r = run(["/bin/bash", launcher], env)
+    assert r.returncode == 0, r.stderr
+    with open(cfg) as f:
+        assert f.read() == "[render]\nscale = 2\n"
+    with open(cfg, "w") as f:
+        f.write("[render]\nscale = 3\n")
+    r = run(["/bin/bash", launcher], env)
+    assert r.returncode == 0, r.stderr
+    with open(cfg) as f:
+        assert f.read() == "[render]\nscale = 3\n"
+    # An earlier version's enhance.toml is the player's file too: a seeded
+    # config.toml would stop the runtime's one-time rename of it.
+    data2 = os.path.join(d, "data2")
+    os.makedirs(os.path.join(data2, "config"))
+    with open(os.path.join(data2, "config", "enhance.toml"), "w") as f:
+        f.write("[render]\nscale = 3\n")
+    r = run(["/bin/bash", launcher], dict(env, BLINX2_DATA_DIR=data2))
+    assert r.returncode == 0, r.stderr
+    assert "kept your existing settings" in r.stderr
+    assert not os.path.exists(os.path.join(data2, "config", "config.toml"))
+
+
 def test_macos_alert_message_is_data(d):
     launcher, _ = fake_app(d)
     stub_dir = os.path.join(d, "stub")

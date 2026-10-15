@@ -23,8 +23,8 @@ sha256 = [
 # The CLI and the toolkit, each at a release tag. The commit locks the tag:
 # a tag that names another commit (moved, re-pushed) is refused.
 [cli]
-tag = "v0.6.7"
-commit = "a7cdc15c80fa96e1f304739eb281f5245266e65e"
+tag = "v0.7.0"
+commit = "a3208e48bc6c2e95d3b198905afd5e6101d410b8"
 url = "https://github.com/apexJCL/xboxrecomp-cli.git"
 
 [toolkit]
@@ -93,6 +93,63 @@ dylib_companions = ["libSDL3.dylib=brew:sdl3"]
 content = "packaging"
 templates = "packaging"
 icon = "xbe"
+
+# The player build wizard (the CLI's docs/wizard.md): a windowed program
+# that clones this repo at the release tag, checks the host, asks for the
+# dump, a target and these options, and runs package. `./blinx2 wizard
+# build` makes its three downloads from this table at a tag.
+[wizard]
+repo = "https://github.com/apexJCL/blinx2-recomp.git"
+# A placeholder until a drawn one lands; never anything from the dump.
+icon = "packaging/wizard-icon.png"
+targets = ["windows", "steamos", "macos"]
+# No [[wizard.fetch]] entries: the clone carries everything else the build
+# needs, and the CLI fetches the toolkit, llvm-mingw and NSIS itself by
+# the pins in [cli], [toolkit] and its setup-pins.json.
+
+[[wizard.option]]
+key = "hud_pack"
+label = "HUD texture pack (needs the PT Sans Narrow Bold font on Linux and Windows, else the atlas is upscaled)"
+kind = "bool"
+default = false
+flag = "--hud-pack"
+
+[[wizard.option]]
+key = "scale"
+label = "Render scale (1 is the stock 640x480)"
+kind = "choice"
+values = ["1", "2", "3"]
+default = "1"
+config = "render.scale"
+
+[[wizard.option]]
+key = "fullscreen"
+label = "Start fullscreen"
+kind = "bool"
+default = false
+config = "present.fullscreen"
+
+[[wizard.option]]
+key = "pacing"
+label = "Frame pacing (spin is steadier and uses a whole CPU core)"
+kind = "choice"
+values = ["sleep", "spin"]
+default = "sleep"
+config = "present.pacing"
+
+[[wizard.option]]
+key = "keyboard"
+label = "Keyboard controls player 1"
+kind = "bool"
+default = true
+config = "input.keyboard"
+
+[[wizard.option]]
+key = "mouse"
+label = "Mouse controls the camera"
+kind = "bool"
+default = true
+config = "input.mouse"
 
 # The owner's HUD texture pack (blinx2 enhance hud; openspec change
 # enhancements-hud-pack). The UI set is the HUD, menu, icon and font
