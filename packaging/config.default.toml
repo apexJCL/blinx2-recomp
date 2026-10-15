@@ -10,7 +10,7 @@
 # both. Reference: the toolkit's docs/runtime/config.md.
 
 [render]
-scale = 1                 # internal resolution factor: 1 (stock 640x480), 2, 3, ...
+scale = 1                 # internal resolution factor: 1 (stock 640x480) to 4
 
 [display]
 aspect = "4:3"            # only 4:3 so far

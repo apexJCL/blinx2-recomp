@@ -23,8 +23,8 @@ sha256 = [
 # The CLI and the toolkit, each at a release tag. The commit locks the tag:
 # a tag that names another commit (moved, re-pushed) is refused.
 [cli]
-tag = "v0.7.0"
-commit = "a3208e48bc6c2e95d3b198905afd5e6101d410b8"
+tag = "v0.7.2"
+commit = "2c9d72d8ef507227ef0754dc9b4615158d7501c8"
 url = "https://github.com/apexJCL/xboxrecomp-cli.git"
 
 [toolkit]
@@ -107,20 +107,19 @@ targets = ["windows", "steamos", "macos"]
 # needs, and the CLI fetches the toolkit, llvm-mingw and NSIS itself by
 # the pins in [cli], [toolkit] and its setup-pins.json.
 
-[[wizard.option]]
-key = "hud_pack"
-label = "HUD texture pack (needs the PT Sans Narrow Bold font on Linux and Windows, else the atlas is upscaled)"
-kind = "bool"
-default = false
-flag = "--hud-pack"
-
+# Only the basic tweaks: everything else (pacing, keyboard, mouse, filter,
+# glow) is in config.default.toml, which the Options page points to.
 [[wizard.option]]
 key = "scale"
-label = "Render scale (1 is the stock 640x480)"
-kind = "choice"
-values = ["1", "2", "3"]
-default = "1"
+label = "Render scale"
+hint = "Draws the game sharper on a big screen; needs a faster graphics card."
+kind = "range"
+# The toolkit's render.scale stops at 4 (SCALE_MAX in src/enhance/enhance.c).
+min = 1
+max = 4
+default = 1
 config = "render.scale"
+labels = { "1" = "640×480, as on the Xbox", "2" = "1280×960", "3" = "1920×1440", "4" = "2560×1920, the sharpest" }
 
 [[wizard.option]]
 key = "fullscreen"
@@ -130,26 +129,14 @@ default = false
 config = "present.fullscreen"
 
 [[wizard.option]]
-key = "pacing"
-label = "Frame pacing (spin is steadier and uses a whole CPU core)"
-kind = "choice"
-values = ["sleep", "spin"]
-default = "sleep"
-config = "present.pacing"
-
-[[wizard.option]]
-key = "keyboard"
-label = "Keyboard controls player 1"
+key = "hud_pack"
+label = "Sharper HUD and menus"
+hint = "Redrawn from your own game files. On Windows and Linux it needs the free PT Sans Narrow Bold font: install it, then build."
+# The family page offers Regular and Bold (700); the build reads Bold.
+hint_link = { text = "Get PT Sans Narrow (free, Google Fonts)", url = "https://fonts.google.com/specimen/PT+Sans+Narrow" }
 kind = "bool"
-default = true
-config = "input.keyboard"
-
-[[wizard.option]]
-key = "mouse"
-label = "Mouse controls the camera"
-kind = "bool"
-default = true
-config = "input.mouse"
+default = false
+flag = "--hud-pack"
 
 # The owner's HUD texture pack (blinx2 enhance hud; openspec change
 # enhancements-hud-pack). The UI set is the HUD, menu, icon and font

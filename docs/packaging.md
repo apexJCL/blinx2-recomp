@@ -53,8 +53,9 @@ have none yet (nor an older version's `config/enhance.toml`): a later
 install never replaces your settings (section 6).
 Saves, settings and logs live in the data folder, as with every bundle.
 
-At start the wizard asks GitHub whether a newer release exists and says so
-(one request, three seconds at most; a box on its first page turns it off).
+When you leave its first page, the wizard asks GitHub whether a newer
+release exists and says so (one request, three seconds at most; a box on
+that page turns it off, and nothing is sent before you have seen it).
 Running the wizard again later reuses its folder and rebuilds only what
 changed. Delete the folder to remove everything it fetched (uv's cache
 and its Python included); the installed game and your data folder are
