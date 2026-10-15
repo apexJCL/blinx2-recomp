@@ -23,8 +23,8 @@ sha256 = [
 # The CLI and the toolkit, each at a release tag. The commit locks the tag:
 # a tag that names another commit (moved, re-pushed) is refused.
 [cli]
-tag = "v0.7.2"
-commit = "2c9d72d8ef507227ef0754dc9b4615158d7501c8"
+tag = "v0.7.4"
+commit = "2e7c207db27264f4043540f72ffb567e450c627f"
 url = "https://github.com/apexJCL/xboxrecomp-cli.git"
 
 [toolkit]
@@ -100,12 +100,28 @@ icon = "xbe"
 # build` makes its three downloads from this table at a tag.
 [wizard]
 repo = "https://github.com/apexJCL/blinx2-recomp.git"
-# A placeholder until a drawn one lands; never anything from the dump.
-icon = "packaging/wizard-icon.png"
 targets = ["windows", "steamos", "macos"]
 # No [[wizard.fetch]] entries: the clone carries everything else the build
 # needs, and the CLI fetches the toolkit, llvm-mingw and NSIS itself by
 # the pins in [cli], [toolkit] and its setup-pins.json.
+
+# The wizard's open-source credits (xboxrecomp-cli docs/wizard.md,
+# Credits): this repo is ours, listed first, before the CLI's repos.
+[[wizard.credit]]
+name = "blinx2-recomp"
+role = "this recompilation of BLiNX 2 for PC and Mac"
+license = "MIT"
+url = "https://github.com/apexJCL/blinx2-recomp"
+own = true
+
+# Third party, ahead of the CLI's third-party list: the HUD pack's font,
+# installed by the player (never vendored); the GitHub page of its Google
+# Fonts sources.
+[[wizard.credit]]
+name = "PT Sans Narrow"
+role = "the sharper HUD's font"
+license = "OFL-1.1"
+url = "https://github.com/google/fonts/tree/main/ofl/ptsansnarrow"
 
 # Only the basic tweaks: everything else (pacing, keyboard, mouse, filter,
 # glow) is in config.default.toml, which the Options page points to.
@@ -131,7 +147,10 @@ config = "present.fullscreen"
 [[wizard.option]]
 key = "hud_pack"
 label = "Sharper HUD and menus"
-hint = "Redrawn from your own game files. On Windows and Linux it needs the free PT Sans Narrow Bold font: install it, then build."
+hint = "Redrawn from your own game files."
+# Shown with the link only while [enhance.hud] font is not installed, or
+# the wizard cannot tell (`blinx2 wizard font`); macOS ships the font.
+font_hint = "On Windows and Linux it needs the free PT Sans Narrow Bold font: install it, then build."
 # The family page offers Regular and Bold (700); the build reads Bold.
 hint_link = { text = "Get PT Sans Narrow (free, Google Fonts)", url = "https://fonts.google.com/specimen/PT+Sans+Narrow" }
 kind = "bool"

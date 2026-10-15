@@ -28,7 +28,7 @@ Steam Deck in Desktop Mode included), on the
 |---|---|---|
 | Windows x86-64 | `blinx2-wizard-<tag>-windows-x64.zip` | Unzip, run `blinx2-wizard.exe`. SmartScreen warns (it is not signed): More info > Run anyway. |
 | Mac | `blinx2-wizard-<tag>-macos.zip` | Unzip (double-click), open `blinx2-wizard.app`. macOS refuses an app that is not notarized: System Settings > Privacy & Security > Open Anyway, or `xattr -dr com.apple.quarantine blinx2-wizard.app`. |
-| Linux, Steam Deck | `blinx2-wizard-<tag>-linux-x64.tar.gz` | `tar -xzf` it and run `./blinx2-wizard`. |
+| Linux, Steam Deck | `blinx2-wizard-<tag>-linux-x64.tar.gz` | `tar -xzf` it and run `./blinx2-wizard`. For a menu entry with its icon: `install -Dm755 blinx2-wizard ~/.local/bin/blinx2-wizard`, `install -Dm644 blinx2-wizard.png ~/.local/share/icons/hicolor/256x256/apps/blinx2-wizard.png`, `install -Dm644 blinx2-wizard.desktop ~/.local/share/applications/blinx2-wizard.desktop`. |
 
 `SHA256SUMS` on the same page has each download's sha256.
 
@@ -37,16 +37,20 @@ options (render scale, fullscreen, frame pacing, keyboard and mouse, the
 HUD texture pack), then does what the command route below does: it fetches
 uv (and git on Windows) by sha256, clones this project at the release's
 tag, and runs `./blinx2 package <target> --dump <your dump>`, showing its
-progress. Everything it fetches and builds goes in one folder (about
-15 GB), which you can change on its first page:
+progress. Everything it fetches and builds goes in one folder, the
+wizard's build folder (about 15 GB), which you can change on its first
+page:
 
-| Computer | The wizard's folder |
+| Computer | The wizard's build folder |
 |---|---|
 | Windows | `%LOCALAPPDATA%\blinx2-recomp` |
 | macOS | `~/Library/Application Support/blinx2-recomp` |
 | Linux | `~/.local/share/blinx2-recomp` |
 
-At the end it shows the bundle; **Install now** runs the target's installer
+The bundle goes to a `dist` folder beside the wizard (beside the `.app` on
+a Mac) unless you choose another output folder on the same page; when the
+wizard's own place is temporary, a system folder or not writable, it uses
+the build folder's `dist` instead. At the end it shows the bundle; **Install now** runs the target's installer
 on this computer (section 3, 4 or 5 below). The options you picked become
 the data folder's `config/config.toml` on the first install, only when you
 have none yet (nor an older version's `config/enhance.toml`): a later
@@ -56,8 +60,8 @@ Saves, settings and logs live in the data folder, as with every bundle.
 When you leave its first page, the wizard asks GitHub whether a newer
 release exists and says so (one request, three seconds at most; a box on
 that page turns it off, and nothing is sent before you have seen it).
-Running the wizard again later reuses its folder and rebuilds only what
-changed. Delete the folder to remove everything it fetched (uv's cache
+Running the wizard again later reuses its build folder and rebuilds only
+what changed. Delete that folder to remove everything it fetched (uv's cache
 and its Python included); the installed game and your data folder are
 separate, and the wizard refuses a folder that overlaps the data folder.
 
@@ -359,7 +363,9 @@ each glyph is drawn at one scale for the whole font, centred on the
 stock glyph's box and on its baseline, so the layout holds (widths are
 nudged towards the stock ones, and brackets span the stock box). macOS
 ships it; on Linux and Windows install PT Sans Narrow (ParaType, a Google
-Fonts family) for your user. `enhance hud` finds it in the system's font folders by name;
+Fonts family) for your user. The wizard checks for it each time its Options
+page opens and shows the font's link only while it is missing
+(`./blinx2 wizard font` tells the same). `enhance hud` finds it in the system's font folders by name;
 `--font` takes another file (`.ttf`, or a `.ttc` holding that face) or an
 installed font's full name. Without a font the atlas is upscaled like the
 rest:

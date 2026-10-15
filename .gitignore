@@ -61,8 +61,6 @@ __pycache__/
 *.icns
 # README images (placeholders and screenshots), not game output
 !docs/images/*.png
-# The build wizard's app icon (game.toml [wizard] icon), not game output
-!packaging/wizard-icon.png
 *.ppm
 *.raw
 *.sav
