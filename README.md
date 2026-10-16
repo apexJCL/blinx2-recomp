@@ -51,6 +51,13 @@ Every stage and boss has been reached in scripted runs; the title, attract
 mode, stage 1 and the story route to the hub are checked frame by frame
 against reference frames on every build, on Metal and on Direct3D 11.
 
+**Sister project.** [Burnout 3: Takedown](https://github.com/apexJCL/burnout3-recomp)
+is recompiled with the same toolkit and build wizard, as a fork of
+[sp00nz's project](https://github.com/sp00nznet/burnout3); its README has its
+own platforms table and [releases](https://github.com/apexJCL/burnout3-recomp/releases),
+so you can compare how far each game has come. Neither repository publishes
+game files, frames, audio or saves.
+
 ## Build the game
 
 **The short route: the build wizard.** From the release that carries it on,
