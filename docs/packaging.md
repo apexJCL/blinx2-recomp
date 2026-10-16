@@ -464,12 +464,35 @@ The wizard's downloads: `./blinx2 wizard build --tag <tag>` (the CLI's
 `docs/wizard.md`) makes the three archives and `SHA256SUMS` in
 `dist/wizard/` from `game.toml`'s `[wizard]` table at that tag, all three
 on a Mac (the Linux one through Docker). `.github/workflows/release-wizard.yml`
-does the same on a `v*` tag push and attaches them to the release (a
-draft release is made for the tag when it has none; publish it after a
-look); it is the CLI's template with `blinx2` filled, so keep it
-identical. A manual run (Actions > release-wizard > Run workflow) builds
-read-only, without attaching, unless `release` is ticked. The `[wizard]` options must match
+does the same on a `v*` tag push and publishes the release; it is the
+CLI's template with `blinx2` filled, so keep it identical. A manual run
+(Actions > release-wizard > Run workflow) builds read-only, without
+attaching, unless `release` is ticked. The `[wizard]` options must match
 `packaging/config.default.toml` (`./blinx2 wizard config --json` checks).
+
+Releasing (tags `vYEAR.MONTH.N`, `-rc.N` for a release candidate):
+
+1. In the commit you will tag, move the player-facing entries under
+   [CHANGELOG.md](../CHANGELOG.md)'s `[Unreleased]` into a new
+   `## [YEAR.MONTH.N[-rc.N]] - YYYY-MM-DD` section (the tag without its `v`),
+   with its compare link at the bottom: what changed for players (the
+   wizard, the build, renderer and game fixes) and the CLI and toolkit
+   releases pinned. Export and push that commit as usual.
+2. Tag the public export commit and push the tag
+   (`git tag -a v2026.10.0-rc.2 -m v2026.10.0-rc.2`, then
+   `git push origin v2026.10.0-rc.2` in the public repository's clone).
+3. The workflow's first job takes that section as the release notes and
+   stops the run, before any build, when the tag has none. The release job
+   creates the release as a draft, attaches the three archives and
+   `SHA256SUMS`, then publishes it, so it is never public with files
+   missing; a `-rc.` tag is published as a pre-release. A release that
+   already exists for the tag (a draft from an earlier run) gets this
+   run's notes and is published the same way.
+
+A tag that predates CHANGELOG.md gets its release by hand, oldest first,
+with its section as the notes: `gh release create <tag> --verify-tag
+--title <tag> --notes-file notes.md` (`gh release edit` for an existing
+draft), where notes.md holds that section without its heading.
 
 Developer checks, from the dev group (`blinx2 setup --dev`, or any
 `uv run`, which syncs it):
