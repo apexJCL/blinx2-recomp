@@ -39,7 +39,7 @@ toolchain, testing, environment variables, docs, contributing, legal).
 |---|---|---|---|---|---|
 | Steam Deck (stock SteamOS), or a Linux gaming PC | `steamos` (the Windows build, run under Proton through `umu-run`) | Direct3D 11 (DXVK) | XAudio2 (FAudio) | Controller (XInput) and keyboard | Plays with sound and saves. The Deck is the regular manual test machine. The game is 4:3 only (widescreen is not done yet): on the Deck set the Steam entry's Game Resolution to Native (1280x800) so Steam does not rescale it, then set `scale = 2`, or leave it at 1 and rely on FSR. |
 | Linux desktop with Proton | `steamos`, or the bare build under `umu-run` | Direct3D 11 (DXVK) | XAudio2 (FAudio) | Controller and keyboard | Plays; this is the tested Linux route (GE-Proton 11). Window resize does not reach the game there; fullscreen does. |
-| macOS (Apple silicon) | `macos` (`.dmg`) | Metal | SDL2 (CoreAudio) | Controller (SDL GameController) and keyboard | Plays with sound and saves. Connect the controller before starting the game. |
+| macOS (Apple silicon) | `macos` (`.dmg`) | Metal | SDL2 (CoreAudio) | Controller (SDL GameController) and keyboard | Plays with sound and saves. |
 | Windows x86-64 | `windows` (a setup program) | Direct3D 11 | XAudio2 | Controller (XInput) and keyboard | Builds and installs, but **untested on native Windows**: the setup program and the game have only been run under Proton. |
 
 The game runs at 30 frames per second and 4:3, as on the Xbox. A 60 fps mode
@@ -226,7 +226,6 @@ checks never use one. `./blinx2 enhance hud --help` lists the options
 | Issue | Where | State |
 |---|---|---|
 | The game can crash in stage 5-1 after about 90 s (seen once, in a scripted run) | macOS | Being investigated. |
-| A controller connected after launch is ignored | macOS | Connect it before starting the game. A fix is planned with the SDL3 move. |
 | Resizing the window by hand does not reach the game | Linux/Proton (GE-Proton 11, KWin) | Fullscreen and render scale work; use them instead. |
 | Bump-environment mapping (the stage 1 ocean, the Boss 3 ripple) draws as a plain texture | All | Not implemented yet. |
 | User clip planes are only honoured by the CPU renderer | Metal, Direct3D 11 | Not implemented yet on the GPU backends. |
@@ -269,6 +268,32 @@ run (the version is in the bundle's name and in `logs/`), what you did, and
 attach the newest `logs/game-*.log` from the data folder in the
 [install table](#build-the-game). Never attach your game files, a save or
 the bundle itself.
+
+If the game crashes or does not start:
+
+1. Note what you saw: an error box (its text or a screenshot), the window
+   closing, or nothing at all. Add your GPU, its driver version and your
+   OS version.
+2. Attach the newest `logs/game-*.log` and `logs/xbox_kernel.log` from the
+   data folder. The kernel log is rewritten on every launch, so copy it
+   before starting the game again. An empty `logs/` is worth saying too.
+3. Attach the system's crash record:
+   - Windows: in PowerShell, run
+     `Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='Application Error'} -MaxEvents 3 | Format-List TimeCreated,Message`
+     and paste what it prints.
+   - macOS: the newest `cat_recomp-*.ips` in `~/Library/Logs/DiagnosticReports/`.
+   - Steam Deck or Linux: also `logs/umu.log`.
+4. If asked, run once more with extra logging: put these two lines in
+   `config/launch.env` in the data folder (on Windows, check the file does
+   not end in `.txt`), start the game the usual way and attach the new
+   `game-*.log` and `xbox_kernel.log`.
+   ```ini
+   RECOMP_LOG_LEVEL=3
+   RECOMP_TRACE=missing=all,flip,stub
+   ```
+   They only add log lines; delete the file afterwards.
+
+[docs/packaging.md](docs/packaging.md#reporting-a-crash) has the details.
 
 ---
 
@@ -463,7 +488,7 @@ behaviour). The ones you meet first:
 | `RECOMP_KEYBOARD` | `input.keyboard`: on in `config.default.toml`, off with `RECOMP_CONFIG=none` and in scripted runs | the keyboard as pad 1 |
 | `RECOMP_MOUSE` | `input.mouse`: as `RECOMP_KEYBOARD` | the mouse as pad 1 (motion is the right stick) |
 | `RECOMP_AC97_READY` | on (x86-64 Windows/Proton; arm64 macOS and Linux); off on native x86-64 Linux | audio; `=0` turns it off |
-| `RECOMP_INPUT_SCRIPT` | `@attract`, `@stage1`, `@stage1-enemies`, `@story-hub`, `@story-load`, a file | a scripted pad for reproducible runs |
+| `RECOMP_INPUT_SCRIPT` | `@attract`, `@stage1`, `@stage1-enemies`, `@story-hub`, `@story-load`, `@story-idle`, a file | a scripted pad for reproducible runs |
 | `RECOMP_HEADLESS` | `0`, `1` | no window, and silent (it sets `SDL_AUDIODRIVER=dummy` unless set) |
 | `RECOMP_CONFIG` | `config/config.toml` (over `config.default.toml` beside the executable), a path, `none` | the player's config file; `none` reads no file, not even the defaults (the old name `RECOMP_ENHANCE_CONFIG` still works) |
 

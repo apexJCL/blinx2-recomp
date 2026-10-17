@@ -11,6 +11,8 @@
 
 [render]
 scale = 1                 # internal resolution factor: 1 (stock 640x480) to 4
+aniso = 0                 # anisotropic filtering on mipmapped textures: 0 (stock,
+                          # off) or 2..16; sharper ground and walls at a distance
 
 [display]
 aspect = "4:3"            # only 4:3 so far

@@ -155,7 +155,7 @@ with `bench.main_branch = "fork/main"`. That is cleaner for upstream
 diffs, but it means a second "main" to remember, and `git log origin/main..`
 gives the same diff either way.
 
-**User decision U1 (open).**
+**User decision U1:** decided (user, 2026-10-06), b3 `main`; see the table.
 
 ### D2. cli-extraction phase B is carried out here (U2: yes)
 

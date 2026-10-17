@@ -446,6 +446,51 @@ is gitignored). `golden` runs never use one.
 - **A bench run warns about a game outside the bench:** the installed game
   is still open on the same PC. Close it, or pass `--kill-game`.
 
+### Reporting a crash
+
+Start the game the usual way (the Start Menu entry or `BLiNX2.exe`, the
+app, the Steam entry), not `cat_recomp.exe` itself: the launcher sets the
+renderer, the settings and the log file, and without it the game runs the
+slow CPU renderer (with no window on Windows), ignores your
+`config/config.toml` and the saves in `hdd/`, and `logs/` gets no game
+log.
+
+Each launch writes `logs/game-<stamp>.log` (the game's output; the newest
+10 are kept, `LOG_KEEP=<n>` in `config/launch.env` keeps more) and
+`logs/xbox_kernel.log` in the data folder. The kernel log is rewritten on
+every launch, so copy it before starting the game again. A report needs
+both, what you did just before the crash, and:
+
+- **Windows:** the crash record that Windows keeps. It names the faulting
+  module (a GPU driver DLL, `d3d11.dll`, `cat_recomp.exe`) and the
+  exception code:
+  ```powershell
+  Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='Application Error'} -MaxEvents 3 | Format-List TimeCreated,Message
+  ```
+  For a full crash dump, run once in an administrator terminal
+  `reg add "HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\cat_recomp.exe" /v DumpType /t REG_DWORD /d 2 /f`;
+  the next crash writes it to `%LOCALAPPDATA%\CrashDumps`. A dump is read
+  with the `cat_recomp.pdb` of the same build, which the installed folder
+  holds.
+- **macOS:** the newest `cat_recomp-*.ips` in
+  `~/Library/Logs/DiagnosticReports/`.
+- **steamos:** `logs/umu.log` too, which covers the runtime and Proton.
+
+Extra logging, when a maintainer asks for it: `config/launch.env` takes
+`KEY=value` lines, the [env.md](env.md) keys among them. These only add
+log lines:
+
+| Line | What it adds |
+|---|---|
+| `RECOMP_LOG_LEVEL=3` | the kernel calls in more detail, in `xbox_kernel.log` (`4`: every call) |
+| `RECOMP_TRACE=missing=all,flip,stub` | every game file that fails to open, one line per frame (no `flip` lines: the game never drew a frame) and any unrecompiled function reached |
+| `RECOMP_DEBUG=watchdog=60` | for a hang: 60 s after the start, hang or not, prints the guest's registers, stack and last calls, then exits (reach the hang within 60 s) |
+
+`RECOMP_PB_BACKEND=cpu` with `RECOMP_FB_WINDOW=1` (Windows) runs the slow
+CPU renderer: if the game then starts, the crash is in the GPU renderer or
+the driver. Delete `config/launch.env` afterwards; its lines win over the
+defaults on every launch.
+
 ## 8. Maintainers
 
 `blinx2 pins refresh` rewrites `config/setup-pins.json` from the GitHub

@@ -23,15 +23,15 @@ sha256 = [
 # The CLI and the toolkit, each at a release tag. The commit locks the tag:
 # a tag that names another commit (moved, re-pushed) is refused.
 [cli]
-tag = "v0.7.5"
-commit = "948657e9faabe069554694db1e230e95d6b9516d"
+tag = "v0.7.7"
+commit = "f34648a8363b94752c05afd4b6a5012afdf9dd26"
 url = "https://github.com/apexJCL/xboxrecomp-cli.git"
 
 [toolkit]
 url = "https://github.com/apexJCL/xboxrecomp.git"
-tag = "blinx2-v0.3.1"
+tag = "blinx2-v0.5.0"
 branch = "blinx2/portability"
-commit = "ac27175a3f54ff94bc272d1de533ccfa8557f409"
+commit = "1eee31451be8e347cd89760e9064fae294929242"
 
 [toolchain]
 llvm_mingw = "20260922"
@@ -74,7 +74,7 @@ macos = "~/Library/Application Support/BLiNX2"
 
 [input]
 script_env = "RECOMP_INPUT_SCRIPT"
-presets = ["@attract", "@stage1", "@stage1-enemies", "@story-hub", "@story-load"]
+presets = ["@attract", "@stage1", "@stage1-enemies", "@story-hub", "@story-load", "@story-idle"]
 
 [golden]
 json = "analysis/golden/golden.json"
@@ -236,6 +236,9 @@ main_branch = "main"
 toolkit_branch = "posix-host/portability"
 toolkit_tests = true
 pacing_scenario = "stage1"
+# Tester logs and saves (cat/user-logs/<user>/, gitignored) are private and
+# gigabytes; rsync does not read .gitignore, so keep them off the bench host.
+sync_excludes = ["/user-logs/"]
 
 [bench.gc]
 # Where this workspace's notes name runs, beside the docs every game keeps.

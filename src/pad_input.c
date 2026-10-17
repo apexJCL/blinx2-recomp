@@ -14,13 +14,26 @@
  *   3. The keyboard and mouse (the toolkit's one "KBM" source on port 0;
  *      docs/input.md). input.keyboard and input.mouse in the config files
  *      (packaging/config.default.toml turns both on) or RECOMP_KEYBOARD /
- *      RECOMP_MOUSE switch them, independently of the host pad: with it on
- *      they come merged in xbox_InputGetState, with it off they are read on
- *      their own. A script turns both off unless the environment names
- *      them, so a file value never reaches a scripted run.
+ *      RECOMP_MOUSE switch them, independently of the host pad, and are
+ *      read here on port 0 (xbox_InputKbmPoll) and merged on top of the
+ *      pad there as the toolkit merges them (xbox_InputMergeKbm). A script
+ *      turns both off unless the environment names them, so a file value
+ *      never reaches a scripted run.
+ *
+ * Host pads reach the ports through pad_slots.h: the first host pad to
+ * come up drives port 0 whatever its slot, merged there with the script and
+ * the keyboard; later pads take the next free ports, a replugged pad its
+ * old one (with SDL hot-plug, BLX-15, the backend's slot follows the pad),
+ * and a pad's first press takes the port of a pad that has never sent
+ * anything (Steam's inert virtual pad ahead of the real one under Proton).
+ * pad_slots is the only port map; the backend's slot is the pad's
+ * identity, so the toolkit's "host pad added port=<n>" is a slot here and
+ * the pads= line that follows names the title's port. Every slot is
+ * read alone (xbox_InputGetPadState); the keyboard and mouse are read here,
+ * once per port-0 poll, whichever slot drives port 0.
  *
  * The connected-port mask is the script's port 0 | the keyboard's port 0 |
- * the ports with a host device: no source, no pad.
+ * the ports a host pad drives: no source, no pad.
  *
  * A script is a list of steps, separated by ';' or newlines, run in order:
  *
@@ -74,15 +87,22 @@
  * t being seconds since the first pad poll. Also logged, each with wall=<s>
  * (CLOCK_REALTIME, to line up with a press sent from outside, scripts/vpad.py):
  *
- *   [INPUT] sources: script=<name|off> host=<on|off> keyboard=<on|off> mouse=<on|off> rumble=<on|off> ports=<mask>
- *                                once, at init
+ *   [INPUT] sources: script=<name|off> host=<on|off> keyboard=<on|off> mouse=<on|off> rumble=<on|off> ports=<mask> pads=<map>
+ *                                once, at init; <map> is slot:port,... or none
+ *   [INPUT] t=<s> pads=<map>     whenever a host pad takes or gives up a port
+ *   [INPUT] t=<s> pads=<map> active=<slot mask>
+ *                                when a pad's first press took the port of
+ *                                one that has never been active; the mask
+ *                                is every slot that has been active
  *   [INPUT] t=<s> ports=<mask>   whenever the connected-port mask changes
  *   [INPUT] t=<s> handles=<h0>,<h1>,<h2>,<h3>
  *                                with RECOMP_INPUT_TRACE=1, whenever the
  *                                title's open pad handles change
  *   [INPUT] t=<s> host port=<n> buttons=<state>
- *                                with RECOMP_INPUT_TRACE=1, when a host port's
- *                                state changes (once per poll per port at most)
+ *                                with RECOMP_INPUT_TRACE=1, when a host
+ *                                source's state on port n (the pad pads=
+ *                                maps there, and on port 0 the keyboard)
+ *                                changes, once per poll at most
  *   [INPUT] rumble port=<n> left=<l> right=<r> <sent|not sent>
  *                                with RECOMP_INPUT_TRACE=1, when a port's
  *                                motor words change
@@ -113,6 +133,7 @@
 #include "xinput_xbox.h"
 #include "keyboard.h"
 #include "mouse.h"
+#include "pad_slots.h"
 #ifdef RECOMP_ENV_HAVE_ENHANCE_KEYS
 #include "enhance_cfg.h"
 #endif
@@ -362,6 +383,19 @@ extern void (*xbox_FileOpenHook)(const char *guest_path, uint32_t status);
                    "tap A every 1 until mem 0xae7424 == 0xa;"     /* skip the intermission */ \
                    "wait open song_HUBsw"
 
+/* @story-idle: the Story Mode menu with a seeded save (RECOMP_SAVE_SEED, as
+ * @story-load), then idle. Title state 0xD shows the 3D cat in the yellow
+ * suit and the camo character on the left, each drawn only when the title's
+ * own visibility test (GET_REPORT, read the next frame) says it is visible:
+ * the screen of BLX-145, where a test still incomplete at that read dropped
+ * them (157 batches a flip instead of 1509). The harness case for
+ * occ-reports runs it with RECOMP_DEBUG=occ_delay_us=16000 and checks the
+ * flip log with scripts/occ_flips.py. */
+#define STORY_IDLE SKIP_INTRO ";" \
+                   "wait mem 0x5eb5f4 == 0x5eb620;"        /* the title state block is up */ \
+                   "wait mem 0x5eb620 == 0;"               /* "press start" */ \
+                   "tap START every 1 until mem 0x5eb620 == 0xd" /* Story Mode, then idle */
+
 /* @hub-stage1: @story-hub, then from the hub into stage 1-1 by poking the
  * scene switch the hub's own exits use (sub_00062550 / sub_00062640:
  * [0xAE7424] next scene, [0xAE46EC] = 2 to leave), with stage index
@@ -392,6 +426,7 @@ static const struct { const char *name, *script; } PRESETS[] = {
     { "stage1",     STAGE1 },
     { "story-hub",  STORY_HUB },                /* empty save -> team editor -> SAVE GAME -> hub */
     { "story-load", STORY_LOAD },               /* seeded save -> LOAD GAME -> hub */
+    { "story-idle", STORY_IDLE },               /* seeded save -> Story Mode menu, idle */
     { "hub-stage1", HUB_STAGE1 },               /* story-hub, then poked into stage 1-1 */
     { "stage1-enemies", STAGE1 ";" WALK_TO_ENEMIES },
 };
@@ -498,7 +533,9 @@ static uint32_t g_packet[4];
 static XBOX_GAMEPAD g_last[4];
 static XBOX_GAMEPAD g_host_last[4];    /* the host's last state, per port */
 static uint32_t g_mask_last;           /* the last connected mask logged */
-static double   g_probe_t[4];          /* last host query per port (now_s) */
+static double   g_probe_t[4];          /* last host query per slot (now_s) */
+static PadSlots g_slots = PAD_SLOTS_INIT;   /* host slot -> port */
+static int      g_sources_logged;      /* map changes after the sources line */
 #ifndef _WIN32
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 #  define LOCK()   pthread_mutex_lock(&g_lock)
@@ -917,11 +954,12 @@ static void isolate_script(void)
 
 static double t_now(void) { return g_started ? now_s() - g_t0 : 0.0; }
 
-/* The host ports that report a device. The game queries the ports it has
- * open every frame, which keeps the backend's cache current for them; a port
- * nobody has asked about for a second is probed here, so a pad plugged in
- * later is seen without the "port 0 is always there" shortcut. */
-static uint32_t host_mask(void)
+/* The host slots that report a device. The game queries the ports it has
+ * open every frame, which keeps the backend's cache current for the slots
+ * behind them; a slot nobody has asked about for a second is probed here,
+ * so a pad plugged in later is seen without the "port 0 is always there"
+ * shortcut. */
+static uint32_t host_slots(void)
 {
     uint32_t m = 0;
     double t = now_s();
@@ -930,7 +968,7 @@ static uint32_t host_mask(void)
         if (t - g_probe_t[p] >= 1.0) {
             XBOX_INPUT_STATE hs;
             g_probe_t[p] = t;
-            (void)xbox_InputGetState(p, &hs);
+            (void)xbox_InputGetPadState(p, &hs);
         }
         if (xbox_InputIsConnected(p)) m |= 1u << p;
     }
@@ -938,12 +976,20 @@ static uint32_t host_mask(void)
 }
 
 /* A port is there exactly while it has a source: the script and the
- * keyboard on port 0, a host device on its own port. Nothing else, so a run
- * with no source reports no pad (and a pad plugged in later shows up through
- * host_mask's probe, not through a port held open in advance). */
+ * keyboard on port 0, a host pad on the port pad_slots gave it. Nothing
+ * else, so a run with no source reports no pad (and a pad plugged in later
+ * shows up through host_slots' probe, not through a port held open in
+ * advance). Under the lock once the guest runs. */
 static uint32_t connected_mask_now(void)
 {
-    uint32_t m = host_mask();
+    uint32_t m;
+    if (pad_slots_update(&g_slots, host_slots()) && g_sources_logged) {
+        char map[64];
+        pad_slots_format(&g_slots, map, sizeof map);
+        fprintf(stderr, "[INPUT] t=%.3f pads=%s wall=%.6f\n", t_now(), map, wall_s());
+        fflush(stderr);
+    }
+    m = pad_slots_ports(&g_slots);
     if (g_script_on || keyboard_on()) m |= 1;
     return m;
 }
@@ -1016,11 +1062,17 @@ static void init_once(void)
     } else {
         xbox_InputKbmSetClock(kbm_now_ms);
     }
+    pad_slots_init(&g_slots);           /* as PAD_SLOTS_INIT; nothing ran yet */
     g_mask_last = connected_mask_now();
-    fprintf(stderr, "[INPUT] sources: script=%s host=%s keyboard=%s mouse=%s rumble=%s ports=0x%X wall=%.6f\n",
-            script_name(v), g_host_on ? "on" : "off",
-            xbox_InputKeyboardOn() ? "on" : "off", xbox_InputMouseOn() ? "on" : "off",
-            g_rumble_on ? "on" : "off", g_mask_last, wall_s());
+    {
+        char map[64];
+        pad_slots_format(&g_slots, map, sizeof map);
+        fprintf(stderr, "[INPUT] sources: script=%s host=%s keyboard=%s mouse=%s rumble=%s ports=0x%X pads=%s wall=%.6f\n",
+                script_name(v), g_host_on ? "on" : "off",
+                xbox_InputKeyboardOn() ? "on" : "off", xbox_InputMouseOn() ? "on" : "off",
+                g_rumble_on ? "on" : "off", g_mask_last, map, wall_s());
+        g_sources_logged = 1;
+    }
     fflush(stderr);
 }
 
@@ -1271,11 +1323,73 @@ static void peek_poll(double t)
     fprintf(stderr, "%s\n", line);
 }
 
+/* Input a player meant: a digital button, or an analog button past the
+ * title's own 30 threshold. Not the sticks: they drift on real pads, and a
+ * virtual pad can rest off centre (the bench's vpad reads LS(0,-1)). */
+static int pad_active(const XBOX_GAMEPAD *g)
+{
+    if (g->wButtons) return 1;
+    for (int i = 0; i < 8; i++)
+        if (g->bAnalogButtons[i] > 30) return 1;
+    return 0;
+}
+
+/* Last motor words the title sent per port, for the rumble log; a swap in
+ * watch_activity clears the swapped ports so their next words log afresh. */
+static uint32_t g_rumble_last[4];
+
+/* Once per port-0 poll, under the lock: while any pad holding a port has
+ * never been active, read each such pad (every slot, not only the ports the
+ * title has open, since it may not have opened the real pad's) and let
+ * pad_slots mark the ones pressed, swapping a first press onto the lowest
+ * port an inert pad holds. A pad played alone must be marked too, or a pad
+ * plugged in later would take player 1's port on its first press. The ports
+ * stay present, so the title sees no remove or insert; player 1 simply
+ * starts responding. Once every pad has been active this reads nothing.
+ * While port 0 has no source the title does not poll it, so the watch runs
+ * on the other ports' polls instead: a pad left alone on port 1 (player 1
+ * unplugged) is still marked when pressed, and player 1's pad, replugged
+ * onto port 0, keeps it from that pad's next press. */
+static void watch_activity(double t)
+{
+    uint32_t idle = g_host_on ? pad_slots_idle(&g_slots) : 0, act = 0, seen;
+    int8_t before[PAD_SLOTS];
+    char map[64];
+
+    if (!idle) return;                          /* every pad was pressed */
+    for (DWORD s = 0; s < 4; s++) {
+        XBOX_INPUT_STATE st;
+        if (!(idle & (1u << s))) continue;
+        g_probe_t[s] = now_s();
+        if (xbox_InputGetPadState(s, &st) == 0 && pad_active(&st.Gamepad))
+            act |= 1u << s;
+    }
+    memcpy(before, g_slots.port, sizeof before);
+    if (!act || !pad_slots_activity(&g_slots, act)) return;
+    /* The ports now read other pads: log their next state afresh. */
+    memset(g_host_last, 0, sizeof g_host_last);
+    /* A swapped pad may still hold its old port's motor words until the
+     * title writes its new port: stop both, and let the title's next
+     * per-frame resend start them again on the right pad. */
+    for (int s = 0; s < PAD_SLOTS; s++) {
+        if (before[s] == g_slots.port[s]) continue;
+        if (before[s] >= 0) g_rumble_last[before[s]] = 0;
+        if (g_rumble_on) {
+            XBOX_VIBRATION v = { 0, 0 };
+            xbox_InputSetState((DWORD)s, &v);
+        }
+    }
+    seen = pad_slots_mapped(&g_slots) & ~pad_slots_idle(&g_slots);
+    pad_slots_format(&g_slots, map, sizeof map);
+    fprintf(stderr, "[INPUT] t=%.3f pads=%s active=0x%X wall=%.6f\n", t, map, seen, wall_s());
+    fflush(stderr);
+}
+
 int cat_pad_get_state(uint32_t port, uint8_t out[18], uint32_t *packet)
 {
     XBOX_GAMEPAD g;
     double t;
-    int connected = 0;
+    int connected = 0, slot, kbm;
 
     init_once();
     if (port > 3) return 0;
@@ -1302,10 +1416,25 @@ int cat_pad_get_state(uint32_t port, uint8_t out[18], uint32_t *packet)
         g = g_script;
         connected = 1;
     }
-    if (g_host_on || (port == 0 && keyboard_on())) {
-        XBOX_INPUT_STATE hs;
-        g_probe_t[port] = now_s();
-        if (g_host_on ? xbox_InputGetState(port, &hs) == 0 : xbox_InputKbmPoll(&hs)) {
+    /* The host pad pad_slots put on this port, alone, and on port 0 the
+     * keyboard, read here exactly once a poll whatever the slot: KbmPoll
+     * consumes the mouse motion and steps kbm_script. */
+    if (port == 0 || !(g_mask_last & 1)) watch_activity(t);
+    slot = g_host_on ? pad_slots_slot_of(&g_slots, port) : -1;
+    kbm = port == 0 && keyboard_on();
+    if (slot >= 0 || kbm) {
+        XBOX_INPUT_STATE hs, kb;
+        int have = 0;
+        if (slot >= 0) {
+            g_probe_t[slot] = now_s();
+            have = xbox_InputGetPadState((DWORD)slot, &hs) == 0;
+        }
+        if (kbm && xbox_InputKbmPoll(&kb)) {
+            if (have) xbox_InputMergeKbm(&hs, &kb);
+            else hs = kb;
+            have = 1;
+        }
+        if (have) {
             const XBOX_GAMEPAD *h = &hs.Gamepad;
             if (memcmp(h, &g_host_last[port], sizeof *h)) {
                 g_host_last[port] = *h;
@@ -1348,25 +1477,26 @@ int cat_pad_get_state(uint32_t port, uint8_t out[18], uint32_t *packet)
 }
 
 /* The title's XInputSetState motor words (XINPUT_FEEDBACK +0x42/+0x44, see
- * recomp_manual.c), forwarded only to a port with a host controller on it:
+ * recomp_manual.c), forwarded only to a port with a host controller on it
+ * (the slot pad_slots put there):
  * a scripted port, the keyboard or an empty port has nothing to shake, and
  * the title's feedback still completes. RECOMP_RUMBLE=0 forwards nothing. */
 void cat_pad_rumble(uint32_t port, uint16_t left, uint16_t right)
 {
-    static uint32_t last[4] = { 0, 0, 0, 0 };
-    int fwd;
+    int fwd, slot;
 
-    /* Under the lock like cat_pad_get_state: last[] and the backend call are
+    /* Under the lock like cat_pad_get_state: g_rumble_last[] and the backend call are
      * then never raced by another guest thread. Same lock order as there
      * (this lock, then the toolkit's), and nothing here re-enters it. */
     init_once();
     LOCK();
-    fwd = g_rumble_on && g_host_on && port < 4 && xbox_InputIsConnected(port);
+    slot = g_host_on && port < 4 ? pad_slots_slot_of(&g_slots, port) : -1;
+    fwd = g_rumble_on && slot >= 0 && xbox_InputIsConnected((DWORD)slot);
 
     /* One line per change of a port's motor words: the title re-sends the
      * same values every frame while a rumble plays. */
-    if (port < 4 && last[port] != ((uint32_t)left << 16 | right)) {
-        last[port] = (uint32_t)left << 16 | right;
+    if (port < 4 && g_rumble_last[port] != ((uint32_t)left << 16 | right)) {
+        g_rumble_last[port] = (uint32_t)left << 16 | right;
         if (input_trace_on()) {
             fprintf(stderr, "[INPUT] rumble port=%u left=%u right=%u %s\n",
                     port, left, right, fwd ? "sent" : "not sent");
@@ -1375,7 +1505,7 @@ void cat_pad_rumble(uint32_t port, uint16_t left, uint16_t right)
     }
     if (fwd) {
         XBOX_VIBRATION v = { left, right };
-        xbox_InputSetState(port, &v);
+        xbox_InputSetState((DWORD)slot, &v);
     }
     UNLOCK();
 }

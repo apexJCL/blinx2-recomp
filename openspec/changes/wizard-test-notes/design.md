@@ -89,7 +89,8 @@ each new size and the dialog, while it shows, is resized with it.
 - build: ninja keeps every object it finished, so the compile goes on
   from the files already compiled;
 - package: the staging folder is removed and redone (seconds);
-- `enhance hud` (the HUD pack): redone every time, a few minutes.
+- `enhance hud` (the HUD pack): redone every time, 4 to 8 s (measured in
+  `enhancements-hud-pack`).
 
 So "resume from where you left" is only partly true. Nothing resumes
 inside a step, and two steps always run again. The wording used is "Next

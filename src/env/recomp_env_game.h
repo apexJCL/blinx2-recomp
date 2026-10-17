@@ -8,9 +8,21 @@
 #ifndef RECOMP_ENV_GAME_H
 #define RECOMP_ENV_GAME_H
 
-#define RECOMP_ENV_GAME_KEYS(X) \
+/* RECOMP_GAME_FILES and RECOMP_HDD_DIR: toolkit rows in a toolkit that
+ * defines RECOMP_ENV_HAVE_FOLDER_ROWS (b3-public-release), game rows before
+ * it, since a key defined twice does not compile and the public build pins
+ * an older toolkit tag than a local build's checkout. Drop these two rows
+ * (and this #ifndef) once [toolkit] in game.toml is past the toolkit merge. */
+#ifndef RECOMP_ENV_HAVE_FOLDER_ROWS
+#define CAT_ENV_FOLDER_KEYS(X) \
     X(GAME_FILES,        CONFIG, "RECOMP_GAME_FILES",        NULL, "game files directory (default: game_files/ in the working directory)") \
-    X(HDD_DIR,           CONFIG, "RECOMP_HDD_DIR",           NULL, "emulated hard disk: partition images, saves, caches (default: the toolkit's save root)") \
+    X(HDD_DIR,           CONFIG, "RECOMP_HDD_DIR",           NULL, "emulated hard disk: partition images, saves, caches (default: the toolkit's save root)")
+#else
+#define CAT_ENV_FOLDER_KEYS(X)
+#endif
+
+#define RECOMP_ENV_GAME_KEYS(X) \
+    CAT_ENV_FOLDER_KEYS(X) \
     X(SAVE_SEED,         CONFIG, "RECOMP_SAVE_SEED",         NULL, "seed the save dir from this save before boot") \
     X(INPUT_SCRIPT,      CONFIG, "RECOMP_INPUT_SCRIPT",      NULL, "scripted pad: @preset, file or inline script") \
     X(INPUT_STRICT,      CONFIG, "RECOMP_INPUT_STRICT",      NULL, "1: a bad input script ends the run") \

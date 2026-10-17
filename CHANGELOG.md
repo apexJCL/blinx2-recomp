@@ -10,6 +10,48 @@ No release contains game data: you build the game from your own disc.
 
 ## [Unreleased]
 
+## [2026.10.0] - 2026-10-17
+
+The first stable release. It builds and installs the game from your own
+disc image with the build wizard for Windows, macOS and Linux (Steam Deck
+included), and fixes what the release candidates left open. Built with
+xboxrecomp-cli v0.7.7 and the toolkit at blinx2-v0.5.0.
+
+### Added
+- Anisotropic filtering: `aniso` under `[render]` in
+  `config/config.toml` (2 to 16; 0, the stock look, by default) sharpens
+  ground and walls at a distance, on Direct3D 11 and Metal.
+
+### Fixed
+- The game no longer freezes after the Tom Tom Gang rank exam.
+- macOS: the game no longer crashes when started from the Finder,
+  including the first boot with no saves.
+- Steam Deck: controllers work again. The Proton release the bundle used
+  started no controller driver, so the game saw no pads; the Deck build
+  now uses GE-Proton11-7, which updating downloads once.
+- Steam Deck: a second launch while the game is starting says so instead
+  of starting it twice, and the "Checking the Steam Linux Runtime" notice
+  shows only once.
+- Controllers: a pad connected after launch on macOS and Linux is picked
+  up, and a replugged pad takes its old port back. A controller on a
+  second slot (Steam Deck Desktop Mode) now reaches player 1.
+- The stage 1 ocean and the Boss 3 ripple draw their bump-mapped
+  surfaces instead of a plain texture. The Direct3D 11 side is by
+  [@hgeorgilas](https://github.com/hgeorgilas).
+- The characters on the Story Mode menu no longer go missing.
+- Sound: a voice the game is still updating no longer plays as a short
+  burst, and a wide ADPCM block no longer overruns the decoder. Both
+  fixes build on Matt Graham's ([@MattSG](https://github.com/MattSG))
+  voice processor work in upstream xboxrecomp
+  ([#217](https://github.com/sp00nznet/xboxrecomp/pull/217)); he
+  co-authors them.
+- The game's cache files no longer share a folder with the hard disk's
+  cache partitions, where they could collide.
+
+### Known issues
+- The game crashed once in stage 5-1 on macOS, after about 90 seconds;
+  it has not happened again in later runs and is still being watched.
+
 ## [2026.10.0-rc.2] - 2026-10-15
 
 ### Added
@@ -80,6 +122,7 @@ blinx2-v0.3.1.
 - The game crashed once in stage 5-1 on macOS, after about 90 seconds;
   this is being investigated.
 
-[Unreleased]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.0-rc.2...HEAD
+[Unreleased]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.0...HEAD
+[2026.10.0]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.0-rc.2...v2026.10.0
 [2026.10.0-rc.2]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.0-rc.1...v2026.10.0-rc.2
 [2026.10.0-rc.1]: https://github.com/apexJCL/blinx2-recomp/releases/tag/v2026.10.0-rc.1

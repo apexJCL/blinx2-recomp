@@ -166,6 +166,8 @@ on, and `RECOMP_CONFIG=none` reads no settings file, so both stay off there.
 - No menu to rebind keys yet: the file is the way.
 - No pointer: the mouse is a stick and buttons, nothing more.
 - One player: the keyboard and the mouse are always player 1.
+- With several controllers connected, the first one pressed becomes player 1,
+  whatever its slot or ring LED.
 - On the Steam Deck use the Gamepad controller template; a template that
   emulates a mouse also works, the trackpad then looks around.
 - Under Wine and Proton the mouse uses raw input, with a fallback that

@@ -187,7 +187,8 @@ void sub_002E0DB0(void)
  * ever arrives. Rather than bring the USB stack up, the seven entry points
  * the game calls are replaced: a gamepad is reported on each port that has a
  * source, and its state comes from src/pad_input.c (a script,
- * RECOMP_INPUT_SCRIPT, on port 0, merged with host controller N on port N).
+ * RECOMP_INPUT_SCRIPT, on port 0, merged with the host controller pad_slots
+ * puts on each port, src/pad_slots.h).
  * Identified from the bodies and their callers (game input module
  * sub_0021C190 init / sub_0021C290 per-frame poll, rumble sub_0021C710):
  *
@@ -212,8 +213,9 @@ void sub_002E0DB0(void)
  *
  * Ports follow cat_pad_connected_mask() (src/pad_input.c): a port is
  * inserted exactly while it has a source (the script or the keyboard on
- * port 0, host controller N on port N), so the title opens and closes ports
- * itself from the insert/remove masks, as it would on hardware.
+ * port 0, the host controller pad_slots puts on that port, src/pad_slots.h),
+ * so the title opens and closes ports itself from the insert/remove masks,
+ * as it would on hardware.
  *
  * Defining these is what makes recomp declare rather than emit them (see
  * sub_002E0DB0): adding or removing one needs `pipeline.sh recomp`. */

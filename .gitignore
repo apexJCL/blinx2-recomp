@@ -77,3 +77,6 @@ saves/
 # The developer's own options (the game reads config/config.toml from the
 # working directory over the build's config.default.toml); never committed.
 config/config.toml
+
+# Tester logs
+user-logs
