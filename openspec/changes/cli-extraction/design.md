@@ -435,7 +435,7 @@ in the payload.
 
 Each phase is one branch in the agent's worktree pair
 (`wt/cli/{cat,xboxrecomp-cli}`), squash-merged by the orchestrator after a
-Fable review. Phase A's CLI commit is the repository's first commit; its
+Review. Phase A's CLI commit is the repository's first commit; its
 cat commit is `toolchain: the CLI moves to xboxrecomp-cli; game.toml and
 the bootstrap wrapper` and names the CLI sha it pins.
 
@@ -535,7 +535,7 @@ the same scripts with the runtime tag swapped), `tools.recomp --all
 The CLI never touches the toolkit, so the fork's upstream diff is
 unchanged by this change. An offer of the CLI to upstream, as a sibling
 repository or a `tools/cli` directory, waits for the give-back milestone
-(both games stable) and is a user decision; its Fable review would check
+(both games stable) and is a user decision; its review would check
 the README again from `origin/main` at that time. The manifest keeps the
 upstream shape reachable (`text_only = true`, no fork flags by default) so
 such an offer would not need a rewrite.

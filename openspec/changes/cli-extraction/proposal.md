@@ -1,6 +1,6 @@
 # cli-extraction: the game-agnostic toolchain CLI moves to its own repo
 
-Status: spec drafted by Fable (2026-10-06), read on cat `main` at 70bf5c8
+Status: spec drafted by the reviewer (2026-10-06), read on cat `main` at 70bf5c8
 (the branch is off a8ade89; only `TASKS.md` moved in between). No
 implementation here. The user answered the draft's three questions the
 same day; they are recorded in design.md "Decided" and are binding.
@@ -38,7 +38,7 @@ The user decided (2026-10-06) that it is public from its first push round,
 as `apexJCL/xboxrecomp-cli`, under the lean-public-repos rules. Nothing in
 this change pushes anything; the rounds are asked of the user as always.
 
-### Feasibility (Fable's assessment)
+### Feasibility (the assessment)
 
 Feasible, and mostly mechanical, because toolchain-cli already did the hard
 part: the controller is Python, the host scripts are files, and the parity

@@ -1,4 +1,4 @@
-# 5-1 idle play: the APU-traffic measurement route (BLX-77, BLX-100, apu-mmio-direct).
+# 5-1 idle play: the APU-traffic measurement route (apu-mmio-direct).
 # Debug stage select (analysis/research/blinx2-menu-flow.md): title state 0x5EB620,
 # stage cursor 0x5EB638 = 0x14 (St5, round = idx/5 + 1). 0xAE73FC turns 1 when play
 # starts; the 40 s after it are Stick standing still while the DirectSound voices

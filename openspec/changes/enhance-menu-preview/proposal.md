@@ -7,7 +7,7 @@ glow, the owner-made HUD pack with a PT Sans Narrow atlas; see
 `assessment.md`), but every key is read once at startup and lives in a
 TOML file the player edits blind. There is no way to see what a key does
 without a restart, no way to see which textures a pack *missed* (the
-Mission Objectives text, BLX-71, was found by eye), and no way to try an
+Mission Objectives text, was found by eye), and no way to try an
 upscale filter or a font before spending a pack build and a game launch
 on it. The user asked (2026-10-11) for two things:
 
@@ -31,7 +31,7 @@ on it. The user asked (2026-10-11) for two things:
     generation counter and a miss trace (`RECOMP_TRACE=tex_pack`);
   - pack format **v2**: the same layout with `flags` naming the entry's
     kind (`FONT`, `TEXT`; unflagged is art) and a **BC3 payload** flag,
-    so the ~2,000 baked text images BLX-71 uncovered fit (4:1 on disk and
+    so the ~2,000 baked text images the tracker item uncovered fit (4:1 on disk and
     in VRAM; both backends upload BC3 natively); the reader accepts v1
     and v2, and each entry keeps its own size, so text can sit at 2x
     beside HUD art at 4x in one pack;
@@ -71,7 +71,7 @@ on it. The user asked (2026-10-11) for two things:
   when present) consumes it, writes v2 packs with the kind flags, a
   per-kind scale (text 2x by default) and BC3 for text, selects the
   owner's language set, and records the config's sha in `hud-pack.toml`.
-  It builds on the BLX-71 prototype (`fix/hud-pack-text`: CLI 4ef7cd4
+  It builds on the prototype (`fix/hud-pack-text`: CLI 4ef7cd4
   `enhance/xpr.py` MIX/XPR0 reader, cat 1e5128f `lng_us` patterns),
   which merges first and is not redone here. The golden check learns
   `textures.font`, `textures.text` (stock `on`) and `menu.enabled`
@@ -135,5 +135,5 @@ game follow the README rule (fresh, few, approved).
 - World textures and mip chains in packs (as before). BC3 is in scope
   only as the pack payload for text; the guest's own textures still
   decode to BGRA8.
-- Redoing BLX-71's MIX reader and `lng_us` patterns: they merge from
+- Redoing the tracker item's MIX reader and `lng_us` patterns: they merge from
   `fix/hud-pack-text` first.

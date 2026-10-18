@@ -4,8 +4,8 @@ Order: 0, then 1 to 4 in order (each builds on the last), then the gates 5 and 6
 
 ## 0. Spec review (before any code)
 
-- [x] 0.1 Fable reads this change (proposal, design, the spec delta) and improves it in place. Done 2026-10-06 on `feat/glow-toggle`: the combiner program verified from the spike's CPU trace (D3), the fade's dependence on the restore (D5), the wrap scanner's exact form (D1), `RECOMP_ABI_CALL` instead of a new esp check, the `blinx2` commands, the CMake and env.md counts, the thread evidence (D6).
-- [x] 0.2 The implementing agent resumes only from Fable's revised commit.
+- [x] 0.1 The reviewer reads this change (proposal, design, the spec delta) and improves it in place. Done 2026-10-06 on `feat/glow-toggle`: the combiner program verified from the spike's CPU trace (D3), the fade's dependence on the restore (D5), the wrap scanner's exact form (D1), `RECOMP_ABI_CALL` instead of a new esp check, the `blinx2` commands, the CMake and env.md counts, the thread evidence (D6).
+- [x] 0.2 The implementing agent resumes only from the revised commit.
 
 ## 1. Keys and environment
 
@@ -87,8 +87,8 @@ Order: 0, then 1 to 4 in order (each builds on the last), then the gates 5 and 6
 - [x] 7.2 `TASKS.md`: add F1 (guest-size glow target at render scale, effort M, not chosen by the user on 2026-10-06) and F2 (mode 4). Done 2026-10-07.
 - [ ] 7.4 Follow-up (the 4.2/4.3 deviation, accepted by the coordinator 2026-10-06): xboxrecomp-cli reads the game's enhancement keys and stock values from a game.toml table (e.g. `[golden] enhance_stock = { "fps.mode" = "lock30", "fx.glow" = "on", "fx.glow_intensity" = "1" }`, with the log pattern per key) instead of hardcoding `fps.mode` in `ENHANCE_STOCK`; then `--allow-enhance fx.glow=off` works and cat's `fx.*` rows move there.
   - Archive note (2026-10-07): open, moved to TASKS.md (a CLI change).
-- [ ] 7.3 A Fable review of the merge; fixes go back to this branch's agent.
-  - Archive note (2026-10-07): not done yet; the Fable merge reviews are batched (Fable quota). Listed in TASKS.md.
+- [ ] 7.3 A review of the merge; fixes go back to this branch's agent.
+  - Archive note (2026-10-07): not done yet; the merge reviews are batched (review quota). Listed in TASKS.md.
 
 ## Results (2026-10-06, Mac)
 

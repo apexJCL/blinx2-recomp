@@ -11,7 +11,7 @@
 - **Time control.** The 20 time-control rate stores (`0x65C65`…`0x66DA8`) drive the world clock `[0xEC4C14]` and the HUD timer `[0xAE7428]`. Halving them fixes the timer, and nothing else.
 - **mod60.** A real 60 fps BLiNX 2 needs an estimated 300 to 800 patched sites (XL, months).
 
-### What the vertex constants hold (BLX-197, merged as cat 0fa905a, `openspec/changes/free-camera/spike.md` §5)
+### What the vertex constants hold (merged as cat 0fa905a, `openspec/changes/free-camera/spike.md` §5)
 - `c[100..103]`: **world×view** (W·V) of the model being drawn, a 4x4 whose last row is (0,0,0,1). `c[104..107]` is a copy.
 - `c[0..47]`: per-batch bone and matrix palettes. Whether they also carry the view is open (free-camera M0a).
 - `c[112]`: a view-space light or up vector.
@@ -38,13 +38,13 @@
   - Metal `@stage1`: 2.1-4.1 ms GPU and about 7 ms walk per flip at 3x (the Metal zero-copy present work). `lock60` sustained 58.5 fps on this Mac.
   - D3D11: the walker-perf review estimated 20-30 ms CPU per flip, of which VB/IB rings, state and DrawIndexed are about 10-14 ms. A replay re-runs neither the CPU vertex expansion (`s_vb_expanded`, `vb_begin`/`vb_end`) nor texture hashing, so it costs state, constants and DrawIndexed only. Task 4.1 measures that.
   - Native Windows paces at 38-42 ms once a frame exceeds about 6,000 draws (`win-kick-nap`). A replay doubles the submissions to about 9,600 per 33 ms.
-- **Debug tool.** `RECOMP_DEBUG=vsh_const_dump` (BLX-180) writes VCD1 records: flip, draw number, program hash and `c[192][4]` for every program draw. The record has no vertex-buffer, texture or render-target fields, and it skips inline and fixed-function draws.
+- **Debug tool.** `RECOMP_DEBUG=vsh_const_dump` writes VCD1 records: flip, draw number, program hash and `c[192][4]` for every program draw. The record has no vertex-buffer, texture or render-target fields, and it skips inline and fixed-function draws.
 
 ### Offline numbers from an existing dump (no new run)
-An existing local BLX-197 constants dump of `@stage1`, sampled every 120 flips (17 flips, 65,491 records, not published), was read with a scratch script. **Most of the sample is a held camera:** the dominant `c[100..103]` is identical from flip 1680 to 2520, and 7 of the 9 in-stage pairs are static. The numbers say little about pans and turns.
+An existing local constants dump of `@stage1`, sampled every 120 flips (17 flips, 65,491 records, not published), was read with a scratch script. **Most of the sample is a held camera:** the dominant `c[100..103]` is identical from flip 1680 to 2520, and 7 of the 9 in-stage pairs are static. The numbers say little about pans and turns.
 
 - **Draw count.** About **4,800 program draws per flip** in the stage (4,734-4,819 from flip 1440 on). There are 37 programs, and one (`F9BE5B67`) covers about 1,500 draws per flip.
-- **What varies per draw.** Rows 100-106 vary the most, with about 420 distinct values per flip (`F9BE5B67`: 112). That matches BLX-197's W·V in `c[100..103]`. Rows 0-11 have 1-7 distinct values per program per flip (about 48 sets per flip), so they are per-batch palette data, not per-object transforms. Rows 138-151 have 1-20 distinct values, with no evidence of bones.
+- **What varies per draw.** Rows 100-106 vary the most, with about 420 distinct values per flip (`F9BE5B67`: 112). That matches the tracker item's W·V in `c[100..103]`. Rows 0-11 have 1-7 distinct values per program per flip (about 48 sets per flip), so they are per-batch palette data, not per-object transforms. Rows 138-151 have 1-20 distinct values, with no evidence of bones.
 - **Order stability.** Matching the program-hash sequence between samples 120 flips apart (4 s) gives **91-99%** of draws. Hash-only matching is ambiguous (1,500 draws share one hash), and the camera is mostly held, so this is only a hint of order stability, not a match quality. Task 2 measures the real thing on consecutive flips and per scene class.
 
 ## Goals / Non-Goals
@@ -56,7 +56,7 @@ An existing local BLX-197 constants dump of `@stage1`, sampled every 120 flips (
 **Non-Goals**
 - Building anything in this change. The probes in `tasks.md` are run later, each in its own worktree.
 - Retiming the game logic (mod60). It is reassessed in route D and stays parked.
-- The free-camera mod and the mod layer, which are BLX-197's subject. Route A only reuses `V_game` from free-camera M0a.
+- The free-camera mod and the mod layer, which are the tracker item's subject. Route A only reuses `V_game` from free-camera M0a.
 - Turbo or fast-forward. The user said no on 2026-10-05.
 - FSR 3 and a DX12 or Vulkan backend (the user, 2026-10-17).
 
@@ -85,7 +85,7 @@ The user's decisions (2026-10-17): route A is in scope, opt-in and default OFF, 
 **Camera factoring (improves rotation quality)**
 - The constants hold W·V, not W·VP. Write each draw as `W = (W·V)·V⁻¹` and interpolate W and the camera V separately. The camera becomes a quaternion plus a position.
 - **V sources:**
-  1. `V_game`, once free-camera M0a finds it (BLiNX 2 only, shared with BLX-197);
+  1. `V_game`, once free-camera M0a finds it (BLiNX 2 only, shared with the tracker item);
   2. the generic fallback: the most common W·V among a frame's draws, on the assumption that static-world draws have W = I. This is weak: in the sample it covers only 387-433 of about 4,800 draws.
 - Task 2.5 compares the two.
 
@@ -214,7 +214,7 @@ The user's decisions (2026-10-17): route A is in scope, opt-in and default OFF, 
 - **Tooling that exists now:**
   - `--spin-waits` showed that a per-site generator emission (`RECOMP_SPIN_WAIT(va)`) works cleanly; the "patchable immediates" idea (`MOD_IMM(site, stock)`) is the same shape;
   - `vsh_const_dump`, `mem_dump`, `pad_peek` and `poke`;
-  - BLX-197's matrix-ring findings, and `V_game` once M0a lands.
+  - The tracker item's matrix-ring findings, and `V_game` once M0a lands.
 - **`--hook-functions`** is still only proposed (enhancements-layer D6); it is not in `tools/recomp` today.
 
 **Effect on the estimate.** None of this changes the 300 to 800 sites or the data-driven timing (event scripts, camera paths and motion data in frames), and none of it touches the validation matrix across about 30 stages, the bosses and the time-control puzzles. It cuts the discovery cost per site, perhaps by a fifth to a third. It does not cut the semantics work or the validation.
@@ -285,7 +285,7 @@ Burnout 3: once A passes on BLiNX 2, the same probe (task 2) runs on a B3 race. 
 2. **60 Hz first.** 90, 120 and display-rate output are a later follow-up. The key is the toolkit key `render.interp = "off" | "on"` (env `RECOMP_RENDER_INTERP`). Cat's `fps.mode` stays `lock30`; an optional cat alias `fps.mode = "interp60"` may map to `render.interp = on`.
 3. **Platforms, not "both or not at all".** Route A ships on Metal and D3D11. If D3D11 on the Deck cannot afford the replay, it ships on Metal and native Windows D3D11 without the Deck, and the Deck gap goes in TASKS. That makes the native Windows check (task 4.5) a real gate; each run there still needs the user's OK.
 4. **MetalFX is allowed** as an optional path after route A, and it **requires macOS 26**: no weak-linking. It is selected by a toolkit build option, `XBOXRECOMP_METALFX`, off by default. With it on, the build links MetalFX and raises the Mac deployment target to macOS 26; the stock Mac build keeps its current minimum. The D3D11 gap goes in TASKS.
-5. **Store tracing is funded** (task 6). It also serves BLX-197's free camera (M0a) and the mods. mod60 itself stays parked unless the tracing shows a path.
+5. **Store tracing is funded** (task 6). It also serves the tracker item's free camera (M0a) and the mods. mod60 itself stays parked unless the tracing shows a path.
 6. FSR 3 and a DX12 or Vulkan backend are out of scope.
 7. **External frame-generation docs: yes.** Task 1 writes a short player-docs section on Lossless Scaling, lsfg-vk, AFMF and Smooth Motion, marked unsupported but known to work: what each needs, and that a 30 fps base is below vendor guidance. No code.
 

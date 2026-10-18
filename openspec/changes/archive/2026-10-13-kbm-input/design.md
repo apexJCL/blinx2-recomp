@@ -256,7 +256,7 @@ own keys: binds `input.keyboard` to `RENV_KEYBOARD` and `input.mouse` to
 `enhance_cfg_file(2)`, `(1)`, `(0)` for the `input.bindings.` prefix
 (every key passed to `enhance_cfg_lookup` so `report_unused` is right),
 resolves, and applies through the `xbox_input` API (D4). Burnout 3 gets
-it the day BLX-75 calls `xbox_enhance_init`. Alternative: read the keys in
+it the day the tracker item calls `xbox_enhance_init`. Alternative: read the keys in
 cat's `main.c`. Rejected: the second game would copy it, and the
 vocabulary is the toolkit's.
 
@@ -558,7 +558,7 @@ One worktree pair, `wt/kbm/{cat,xboxrecomp}`, branch `feat/kbm-input` in
 each, one agent, after the operator has tuned D5. Order: toolkit
 (`src/input`, feeders, `enhance_input.c`, env rows, ctests, README,
 `config.md`), cat (`config.default.toml`, launchers, `pad_input.c`,
-goldens pin, docs, `test_launchers.py`), Mac gates, Proton on "go", Opus
+goldens pin, docs, `test_launchers.py`), Mac gates, Proton on "go",
 review, squash merges, the post-merge steps of CLAUDE.md.
 
 Rollback: `RECOMP_KEYBOARD=0 RECOMP_MOUSE=0` or `RECOMP_CONFIG=none`

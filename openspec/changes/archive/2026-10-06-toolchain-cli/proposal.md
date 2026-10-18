@@ -1,6 +1,6 @@
 # toolchain-cli: the rest of the toolchain under `blinx2`, with uv and ruff
 
-Status: spec drafted by Fable (2026-10-06); the user's answers to the open
+Status: spec drafted by the reviewer (2026-10-06); the user's answers to the open
 questions are in design.md "Decided" (2026-10-06).
 
 ## Why
@@ -37,7 +37,7 @@ hashed `requirements-*.txt`, and nothing lints the 29 Python files. The
 system Python on the Mac has no pytest, so the `scripts/test_*.py` suite
 runs one file at a time by hand.
 
-### Feasibility (Fable's assessment)
+### Feasibility (the assessment)
 
 **Feasible now, for the controller.** The split that makes it safe:
 

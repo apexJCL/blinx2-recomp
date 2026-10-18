@@ -84,7 +84,7 @@ pack line in its log; the Deck build 20261011.0607 carries the pack.
   count and a hit count every 600 flips; nothing lists the uploads that a
   loaded pack *missed*, nor their hashes and sizes. The CLI's `--list`
   prints the pack side (hashes of the selected archive entries) but
-  nothing joins the two. **BLX-71** showed the cost: the Mission
+  nothing joins the two. **The tracker item** showed the cost: the Mission
   Objectives title, its lines and the "OR" are not font-atlas glyphs at
   all but pre-rendered DXT3 images (512x32, 512x64) inside `lng_us`
   `MIXF` (`.mix`) containers that each hold an `XPR0` resource; the pack
@@ -174,7 +174,7 @@ pack line in its log; the Deck build 20261011.0607 carries the pack.
 
 ## Known open bug (not duplicated here)
 
-BLX-71 (owned by `hud-pack-text`): root cause above, prototype fix on
+The tracker item (owned by `hud-pack-text`): root cause above, prototype fix on
 `fix/hud-pack-text` (CLI 4ef7cd4, cat 1e5128f). This change builds on it:
 a third entry kind (`TEXT`) with its own toggle and default scale, a
 BC-compressed payload so 2,000 text images fit, per-language selection,

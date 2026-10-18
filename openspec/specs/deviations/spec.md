@@ -74,15 +74,19 @@ The kernel bridge SHALL give a guest KEVENT first seen by KeSetEvent, KeSetEvent
 - **THEN** this deviation is reviewed first
 
 ### Requirement: Inferred register semantics
-The ack tick SHALL set PGRAPH `0x400B10` bits 2..6 to `(completed fence << 2) & 0x7C`, and the executor SHALL treat the semaphore and surface DMA objects as covering physical memory from base 0.
-- Reason: the Swap path's wait loop reads `0x400B10` against the fence, and the DMA objects resolve to the right words under base 0. Both are inferences from one title. The register's name and other bits are not confirmed.
-- Risk: a title that reads `0x400B10` differently, or a DMA object with a non-zero base, writes to the wrong memory. `surface_hits_image` exists because the base-0 assumption once overwrote code.
-- Detect: each assumption is logged on first use. A log line that contradicts it is a blocker, not noise.
+The ack tick SHALL set PGRAPH `0x400B10` bits 2..6 to `(completed fence << 2) & 0x7C`, where the completed fence is the first registered fence mirror's completed word, or, when no mirror is registered and the executor has released at least once, the executor's last released semaphore value.
+- Reason: XDK D3D's wait-for-idle (reached from Swap after a PFB flush) spins until those bits equal the low five bits of its fence word, which reads as "the GPU's own copy of the last semaphore value has reached memory". The fence word and the executor's last release are the same value from two sides once the executor writes the fence (change `spartan-semaphore-ctxdma`); a title that registers no mirror has only the executor's side. The register's name and its other bits are not confirmed; the behaviour is what the wait needs. (The second half of the former entry, the DMA objects covering physical memory from base 0, was retired by `spartan-semaphore-ctxdma`: the semaphore and report objects' bases are read from instance memory at bind.)
+- Risk: a title that reads `0x400B10` differently, or whose fence word and semaphore object differ (the mirror's "NOT the semaphore target" case), waits on a value that is not its fence.
+- Detect: the register's source is logged once (`NV2A fence mirror: ...` for a mirror, `NV2A PGRAPH fence: no fence mirror registered` for the executor). A wait-for-idle that spins with either line present is a blocker, not noise.
 - Exit: confirmed against a hardware reference (xemu's pgraph code or nv2a documentation), and the requirement rewritten as fact.
 
 #### Scenario: Contradicting log line
-- **WHEN** a run logs a DMA object with a non-zero base, or `surface_hits_image`
+- **WHEN** a run logs a semaphore object whose base differs from the mirrored fence word (`NOT the semaphore target; mirror stays on`), or `surface_hits_image`
 - **THEN** the run is treated as blocked until the assumption is fixed
+
+#### Scenario: Register source
+- **WHEN** a title boots with the executor on
+- **THEN** exactly one of the two source lines appears before D3D's first wait-for-idle, and which one says whether the title registered a mirror
 
 ### Requirement: POSIX span capped below the contiguous window
 On POSIX the reservation for the base RAM view and its mirrors SHALL stop below `XBOX_CONTIG_BASE` (`0x80000000`), and a mirror that would overlap the contiguous window or the device apertures SHALL be skipped (toolkit `05718f8`, `819c96e`).
@@ -105,3 +109,14 @@ The host keyboard and mouse SHALL be presented to the title as a Duke on port 0 
 #### Scenario: Suspected analog shortfall
 - **WHEN** a move works on a controller and not on the keyboard
 - **THEN** the trigger and stick values of the two runs are compared in the `[INPUT] host port=0` lines before anything else is suspected
+
+### Requirement: Spin waits may sleep
+With `present.pacing = "sleep"`, the guest busy-wait loops lowered at generation time (`config/spin_waits.json`; v1: `0x00060475` only) SHALL block in the host instead of spinning, waking on kernel signals or after at most 1 ms (`frame-pacing`). On hardware the CPU spins.
+- Reason: the spin holds one host core at about 97% while it waits for the vblank count, which costs heat and battery and takes a core from the raster threads (`analysis/research/hot-threads-macos.md` §1a).
+- Risk: a lowered loop whose condition is changed by something the kernel does not signal advances up to 1 ms late on each pass, so a wait in a tight hand-off could slow the title. On the console's one CPU, a spinning thread also delays other guest threads; on the host it does not, and that difference shrinks when the loop sleeps.
+- Detect: in the `pacing` trace, more than 5% of a site's loop exits are on the timeout, or a pacing A/B flags flips/s or raster ms.
+- Exit: none planned while sleeping saves a core. The deviation is retired for a site that is removed from the list, and for all sites if `present.pacing` returns to `spin` everywhere. Since the default flip (2026-10-12, `fps-pacing` D9) it is in effect for every player who does not select `spin`; `spin` remains the console-original timing, one key away (`[present] pacing = "spin"` in `config/config.toml`, or `RECOMP_PRESENT_PACING=spin`), the bundle's README.txt and `package` say so, and the goldens still run at `spin`.
+
+#### Scenario: Site leaves on timeouts
+- **WHEN** the `pacing` trace shows a lowered site with more than 5% of its loop exits on the timeout
+- **THEN** the site is either excluded from `config/spin_waits.json` or given a wake at its writer, and this entry records which

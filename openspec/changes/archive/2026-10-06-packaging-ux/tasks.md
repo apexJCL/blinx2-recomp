@@ -1,7 +1,7 @@
 ## 0. Before implementation
 
 - [x] 0.1 Branch `feat/packaging-ux` off cat main (1a6cf48), in its own worktree. No toolkit worktree: the toolkit is used read-only, and its follow-ups are listed in 8.
-- [x] 0.2 Fable read and improved this spec (commit `openspec: packaging-ux review (Fable)`). Decided by the user: the icns uses the rounded-rect layout; `RECOMP_KEYBOARD=1` is on by default in the windows and steamos defaults; the macOS pad and audio are already confirmed with `RECOMP_HOST_PAD=1`, so 6.3 is a re-check.
+- [x] 0.2 The reviewer read and improved this spec (commit `openspec: packaging-ux review`). Decided by the user: the icns uses the rounded-rect layout; `RECOMP_KEYBOARD=1` is on by default in the windows and steamos defaults; the macOS pad and audio are already confirmed with `RECOMP_HOST_PAD=1`, so 6.3 is a re-check.
 - [x] 0.3 Standing test rule, from now on: every run of a packaged launcher sets `BLINX2_DATA_DIR`, and `HOME` too on macOS, to a scratch directory under the session scratchpad, never the real user-data folder (design 5).
 
 Order: sections 1 (small, fixes a real bug), 2 (the one-liner), 3 and 4 (icon), 5 (progress view, the largest and the most cosmetic, so last), then the gates. One commit per section, each leaving `pytest scripts` green, so the branch can merge even if 5 is cut short.

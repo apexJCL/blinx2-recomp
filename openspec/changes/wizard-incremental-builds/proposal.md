@@ -1,6 +1,6 @@
 ## Why
 
-The user asked (2026-10-17, BLX-195) for incremental updates in the
+The user asked (2026-10-17) for incremental updates in the
 wizard: keep the build folder between runs, track what each stage was
 built from by hashing its inputs, and end with either a full installer
 or a patch installer that copies only the files that changed.

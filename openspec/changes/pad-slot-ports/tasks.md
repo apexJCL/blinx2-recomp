@@ -1,7 +1,7 @@
 ## 0. Review
-- [x] 0.1 Opus review, round 1 (`runs/padslot/REVIEW.md`, cat 97bf37f): S1 double keyboard read, S2 the Deck cause overstated, S3 stale comments, N1 to N7. All fixed in acd399c and toolkit 10528b3.
-- [x] 0.2 Opus review, round 2 (`runs/padslot/REVIEW-r2.md`, cat acd399c, toolkit 10528b3): B1 a lone pad never marked active, N1 `active=` semantics, N2 motors on a swap, N3 the one-poll press, N4 README, N5 kbm_script. All fixed in d156bb1 and toolkit 631c5f4.
-- [x] 0.3 Fable reads and improves the spec (the writing agent was Opus; CLAUDE.md). Commit `openspec: pad-slot-ports Fable read`. The merge is reviewed against this version.
+- [x] 0.1 Review, round 1 (`runs/padslot/REVIEW.md`, cat 97bf37f): S1 double keyboard read, S2 the Deck cause overstated, S3 stale comments, N1 to N7. All fixed in acd399c and toolkit 10528b3.
+- [x] 0.2 Review, round 2 (`runs/padslot/REVIEW-r2.md`, cat acd399c, toolkit 10528b3): B1 a lone pad never marked active, N1 `active=` semantics, N2 motors on a swap, N3 the one-poll press, N4 README, N5 kbm_script. All fixed in d156bb1 and toolkit 631c5f4.
+- [x] 0.3 The reviewer reads and improves the spec (the writing agent was another model; CLAUDE.md). Commit `openspec: pad-slot-ports the reviewer read`. The merge is reviewed against this version.
 
 ## 1. Map
 - [x] 1.1 `src/pad_slots.c`/`.h`: init, update (free gone slots, then the lowest free port to each new slot in slot order), activity, idle, mapped, slot_of, ports, format. No host or guest state.
@@ -25,9 +25,9 @@
 - [x] 4.4 Test: a pad pressed while alone keeps port 0 when a second comes up and is pressed; the idle and mapped masks the glue reads.
 - [x] 4.5 Test: two never-pressed pads whose first press falls in the same poll are handled in slot order (`0x3, a0x3` stays `0:0,1:1`; `0x2, 0x3, a0x3` goes from `0:1,1:0` to `0:0,1:1`).
 
-## 4b. Rebase onto BLX-15 (round 4, `fix/pad-slot0-r2`, toolkit `fix/pad-only-state-r2`)
+## 4b. Rebase onto the tracker item (round 4, `fix/pad-slot0-r2`, toolkit `fix/pad-only-state-r2`)
 - [x] 4b.1 Toolkit: 10528b3 and 631c5f4 cherry-picked onto posix-host/portability c8a8214f, clean.
-- [x] 4b.2 cat: af947c8's change replayed onto main 04eaf77 in one commit; the conflicts were main's trace gating of the `host port=` and rumble lines (BLX-123), kept, and the env.md rows.
+- [x] 4b.2 cat: af947c8's change replayed onto main 04eaf77 in one commit; the conflicts were main's trace gating of the `host port=` and rumble lines, kept, and the env.md rows.
 - [x] 4b.3 One port map with SDL hot-plug (design.md decision 7): `PadSlots.last`, a returning slot takes its old port when free and another pad is up, else the lowest free; D2's player-1 and no-shift rules hold at the title's ports.
 - [x] 4b.4 The watch also runs on the other ports' polls while port 0 has no source (decision 7, the B1 review with hot-plug in place).
 - [x] 4b.5 Tests: a replug keeps its port, the lowest free when it is taken, a lone returning slot takes port 0, the port remembered after a swap, same-poll presses (4.5); `test_four_pads_middle_replugged` now expects each slot back on its own port.
@@ -36,8 +36,8 @@
 - [x] 5.1 Mac build (`DEVELOPER_DIR=/Library/Developer/CommandLineTools`); `uv run pytest scripts` (58 pass, 15 of them `test_pad_slots.py`; `test_gitignore` fails only in a worktree, where `game_files` is a symlink, not the real dir); ruff check and format clean; toolkit `tests/posix_ctest.sh` 0 FAIL with `input_map` passing (`runs/padslot/posix-ctest-r3.log`, toolkit 631c5f4).
 - [x] 5.2 `blinx2 golden` Metal on the round-3 tree (cat d156bb1, toolkit 631c5f4): attract, stage1, story pass (`runs/padslot/golden-r3.log`; runs 20261013-204450, -204517, -204636; `pads=none`; attract carried a host-load warning and still passed). Round 2 (acd399c) also passed: 20261013-202353, -202420, -202540.
 - [x] 5.3 Round 1 (cat 97bf37f, before promotion): `blinx2 bench golden` D3D11/Proton passed (bench-logs 20261013-193245, -193404, -193555). Proton, one bench vpad: with `PROTON_NO_STEAMINPUT=1`, `pads=0:0` and START on port 0 (20261013-195017); with Steam Input on, `pads=0:0,1:1` and START on port 1 (20261013-194641), which is the inert-pad case this change then fixed.
-- [ ] 5.4 Pending (the Linux/Proton host down): `blinx2 bench golden` D3D11/Proton on the exact tips of `fix/pad-slot0-r2` and `fix/pad-only-state-r2` (round 4; the round-3 tips d156bb1 and 631c5f4 were never run there), and the Steam Input on vpad probe, which should log `sources ... ports=0x3 pads=0:0,1:1`, then `[INPUT] t=<s> pads=0:1,1:0 active=0x2` on the first press, no `ports=` change, and `host port=0 buttons=START`.
-- [ ] 5.5 Pending (the user): a Steam Deck Desktop Mode log with the `pads=` field. `pads=1:0` in the sources line means a lone pad on index 1; `pads=0:0,1:1` then `pads=0:1,1:0 active=0x2` means Steam's inert pad on index 0. Record the answer in TASKS.md under BLX-117.
+- [x] 5.4 Done 2026-10-18 on the Deck (cat d6f45b1, toolkit 878d473a). bench golden D3D11 passes (bench-logs 20261017-182559/-182720/-182910). The vpad probe (20261017-183325) shows 4 slots: `ports=0xF pads=0:0,1:1,2:2,3:3`, then on the first START `pads=0:2,1:1,2:0,3:3 active=0x4` and `host port=0 buttons=START`, with no `ports=` change. These are the same behaviour as the Linux/Proton strings below. Original text: `blinx2 bench golden` D3D11/Proton on the exact tips of `fix/pad-slot0-r2` and `fix/pad-only-state-r2` (round 4; the round-3 tips d156bb1 and 631c5f4 were never run there), and the Steam Input on vpad probe, which should log `sources ... ports=0x3 pads=0:0,1:1`, then `[INPUT] t=<s> pads=0:1,1:0 active=0x2` on the first press, no `ports=` change, and `host port=0 buttons=START`.
+- [x] 5.5 Done (the user, 2026-10-17): Steam Deck Desktop Mode, launched from Steam, logs `ports=0x1 pads=0:0` (a lone pad on index 0, not Steam's inert pad), and START works on the title screen. Log game-20261017-190638.log on the Deck. Recorded in TASKS.md under the tracker item.
 
 ## 6. After the merge
-- [ ] 6.1 Toolkit first (`fix/pad-only-state-r2` squashed onto `posix-host/portability`), then cat (`fix/pad-slot0-r2` squashed onto `main`), then the usual post-merge steps from CLAUDE.md: notes to `notes/padslot/`, the runs cited above kept under `runs/padslot/`, worktrees removed, the Linux/Proton host synced and `blinx2 bench integrate --golden`, TASKS.md updated with the gate results and BLX-117's state.
+- [ ] 6.1 Toolkit first (`fix/pad-only-state-r2` squashed onto `posix-host/portability`), then cat (`fix/pad-slot0-r2` squashed onto `main`), then the usual post-merge steps from CLAUDE.md: notes to `notes/padslot/`, the runs cited above kept under `runs/padslot/`, worktrees removed, the Linux/Proton host synced and `blinx2 bench integrate --golden`, TASKS.md updated with the gate results and the tracker item's state.

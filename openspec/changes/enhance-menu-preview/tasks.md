@@ -11,7 +11,7 @@ for the orchestrator's "go" and hold `flock -w 3600 ~/.recomp-run.lock`.
 
 ## 0. Prerequisite
 
-- [x] 0.1 BLX-71's `fix/hud-pack-text` (CLI 4ef7cd4 `enhance/xpr.py`, cat 1e5128f `lng_us` patterns) is reviewed and merged on its own; phases 1 and 7 rebase on it. Nothing of it is redone here.
+- [x] 0.1 The tracker item's `fix/hud-pack-text` (CLI 4ef7cd4 `enhance/xpr.py`, cat 1e5128f `lng_us` patterns) is reviewed and merged on its own; phases 1 and 7 rebase on it. Nothing of it is redone here.
 
 ## 1. Toolkit: live plumbing (D1, D2, D2b, D6 `textures.font` / `textures.text`)
 
@@ -25,7 +25,7 @@ for the orchestrator's "go" and hold `flock -w 3600 ~/.recomp-run.lock`.
 - [x] 1.6 `recomp_env.h`: `TEXTURES_FONT` and `TEXTURES_TEXT` rows; `enhance.c` reads both and applies them to the pack's kinds; the pack log line gains the per-kind counts, scales, the bc3 count and `textures.font=.. textures.text=..` when a pack is loaded (`ENHANCE_PACK_RE` still reads the path: it stops at the first space).
 - [x] 1.7 ctests: `tests/host_opts_live` (request from another thread, apply at a fake flip, mask, generation), `tests/tex_pack` v2 cases (kind flags accepted, bit 2 refused, kind off = miss, a BC3 entry's byte count and the shared block vector, miss ring distinct and counted). Mac build and run; `tests/enhance_cfg` still 222 checks plus the new log lines.
 - [x] 1.8 Docs: `docs/formats/texture-pack.md` v2 section (kinds, BC3, per-entry scale); `docs/runtime/enhance-config.md` `textures.font` and `textures.text` rows, the pack line, the `tex_pack` trace.
-- [x] 1.9 Mac: stock Metal goldens unchanged (`blinx2 golden run --backend metal`), `textures.pack=none` in the log. `@stage1` with a v2 pack built from the BLX-71 branch's set (art 4x, text 2x BC3): the Mission Objectives title and lines come from the pack (sharp, dumped at that flip), the remaining misses listed with sizes and formats (`runs/enhmenu/misses-metal.txt`), the pack size recorded.
+- [x] 1.9 Mac: stock Metal goldens unchanged (`blinx2 golden run --backend metal`), `textures.pack=none` in the log. `@stage1` with a v2 pack built from the branch's set (art 4x, text 2x BC3): the Mission Objectives title and lines come from the pack (sharp, dumped at that flip), the remaining misses listed with sizes and formats (`runs/enhmenu/misses-metal.txt`), the pack size recorded.
 
 ## 2. Configuration layering (P1): `config.default.toml` + `config.toml`, before the menu
 
@@ -56,7 +56,7 @@ for the orchestrator's "go" and hold `flock -w 3600 ~/.recomp-run.lock`.
 
 - [ ] 5.1 `src/glow.{c,h}`: one atomic word for (active, factor); `glow_configure` live-safe; `scripts/test_glow.py` cases.
 - [ ] 5.2 `src/main.c host_enhance_init`: register `fx.glow`, `fx.glow_intensity`, `fps.mode` INFO through `enhance_menu_add`.
-- [ ] 5.3 `packaging/config.default.toml` (the renamed default, phase 2): `[menu]` table (enabled true, hotkey, chord) and `font = "on"`, `text = "on"` beside the commented pack line; `analysis/golden/golden.json`: `RECOMP_MENU=off`; `game.toml [golden] enhance_stock` unchanged (toolkit keys live in the CLI table). `game.toml [enhance.hud]`: `languages` (the BLX-71 branch's `lng_us` patterns move under `us`; other `lng_*` the dump holds listed), `text` patterns for baked text outside `lng_*` (`sm_*`, `mgtu*`, read off the dump), `preview` defaults.
+- [ ] 5.3 `packaging/config.default.toml` (the renamed default, phase 2): `[menu]` table (enabled true, hotkey, chord) and `font = "on"`, `text = "on"` beside the commented pack line; `analysis/golden/golden.json`: `RECOMP_MENU=off`; `game.toml [golden] enhance_stock` unchanged (toolkit keys live in the CLI table). `game.toml [enhance.hud]`: `languages` (the branch's `lng_us` patterns move under `us`; other `lng_*` the dump holds listed), `text` patterns for baked text outside `lng_*` (`sm_*`, `mgtu*`, read off the dump), `preview` defaults.
 - [ ] 5.4 `docs/env.md`: rows for `RECOMP_MENU`, `RECOMP_MENU_HOTKEY`, `RECOMP_MENU_CHORD`, `RECOMP_TEXTURES_FONT`, `RECOMP_TEXTURES_TEXT`, the `tex_pack` trace, and the Config count; `docs/packaging.md` (the menu, where Save writes, `config/enhance-hud.toml`, pack size by language and kind); README Configuration paragraph.
 - [ ] 5.5 `uv run pytest scripts`, `uv run ruff check . && uv run ruff format --check .`; `test_env_doc.py` sees every new row.
 - [ ] 5.6 Mac Metal `@stage1`: Game page toggles glow live (frame darker by 12-18 levels within one frame, as the glow spec's numbers), intensity slider, Save; stock goldens unchanged with `RECOMP_GLOW=on` pin intact.
@@ -97,5 +97,6 @@ for the orchestrator's "go" and hold `flock -w 3600 ~/.recomp-run.lock`.
 
 ## 11. Review and merge
 
-- [ ] 11.1 Opus review per phase and merge (the user, 2026-10-11: Fable writes specs only); fixes back to the phase's agent.
+- [ ] 11.1 Review per phase and merge (the user, 2026-10-11: the reviewer writes specs only); fixes back to the phase's agent.
 - [ ] 11.2 After each merge: notes to `notes/enhmenu/`, runs to `runs/`, worktrees removed, branches kept, the Linux/Proton host sync and `blinx2 bench integrate --golden`, TASKS updated, cat `game.toml` re-pinned to the merged CLI sha (phases 4, 7, 8), the public pin gap (TASKS (c)) noted for the next push round.
+- [ ] Before archive: rebuild specs/enhancements "Enhancements default to stock" from the current openspec/specs/enhancements text (config-layering and hud-pack wording, "Legacy pin still stock"), then re-apply this change's edits; openspec validate fails until then.

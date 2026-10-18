@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""occ_flips.py LOG [--min-batches 1400]: the occ-reports harness check
-(BLX-145). Reads the backend flip lines of a RECOMP_TRACE=flip log
+"""occ_flips.py LOG [--min-batches 1400]: the occ-reports harness check.
+Reads the backend flip lines of a RECOMP_TRACE=flip log
 ("[METAL] flip N batches B ..." or "[D3D11] flip N batches B ..."), takes
 the first flip with at least --min-batches batches as the screen being up,
 and prints the histogram of batch counts from there, the flips below the

@@ -2,9 +2,9 @@
 
 ## Context
 
-Written by Fable on 2026-10-11 (BLX-72) against cat `main` cbde3e8,
+Written by the reviewer on 2026-10-11 against cat `main` cbde3e8,
 toolkit `posix-host/portability` f8696da and the CLI `main` e2ab3a0, from
-the assessment in `assessment.md`. No separate Fable review is needed.
+the assessment in `assessment.md`. No separate review is needed.
 
 Facts the design rests on:
 
@@ -37,7 +37,7 @@ Facts the design rests on:
   scales already coexist). Texels are A8R8G8B8 on disk and uploaded as
   BGRA8; both backends also support BC3 textures natively
   (`DXGI_FORMAT_BC3_UNORM`, `MTLPixelFormatBC3_RGBA` on macOS).
-- BLX-71 (coordinator, 2026-10-11): the Mission Objectives title, lines
+- The tracker item (coordinator, 2026-10-11): the Mission Objectives title, lines
   and "OR" are pre-rendered DXT3 images (512x32, 512x64) in `lng_us`
   `MIXF` containers holding `XPR0` resources, not glyphs; the builder read
   only `media` and `.dds`. The prototype fix on `fix/hud-pack-text` (CLI
@@ -120,7 +120,7 @@ difference, not a blocker.
   0-1 are the kind (`0` art, `1` `XRTP_KIND_FONT`, `2` `XRTP_KIND_TEXT`),
   bit 4 is `XRTP_FLAG_BC3` (D2b); any other bit is refused.
   `docs/formats/texture-pack.md` gets the v2 section; the CLI writes v2
-  (D13). Why three kinds and not two: the baked text images BLX-71 found
+  (D13). Why three kinds and not two: the baked text images the tracker item found
   are neither glyphs the font swap draws nor art the xBR kernel shapes
   well (anti-aliased text is better served by a smoother kernel or by
   staying at 2x), and a player may want sharp HUD art with the game's
@@ -149,7 +149,7 @@ bounded memory, no allocation on the upload path.
 
 ### D2b. Pack size: per-kind scale and a BC3 payload (toolkit, CLI)
 
-The BLX-71 prototype's 427 entries are 372 MB at 4x; the remaining
+The prototype's 427 entries are 372 MB at 4x; the remaining
 ~2,000 text images would be several GB raw. Two levers, both in the pack
 format and both already half there:
 
@@ -203,7 +203,7 @@ format and both already half there:
    `[enhance.hud] text` patterns; it never guesses from pixels in this
    change (D16 assesses detection).
 
-Everything here is additive to the BLX-71 branches: `xpr.py` and the
+Everything here is additive to the branches: `xpr.py` and the
 `lng_us` patterns land first; this change gives their entries a kind, a
 scale and a payload format.
 
@@ -343,7 +343,7 @@ Pages and the toolkit's own items:
   `textures.text` on/off (D2; each shown only when the loaded pack has
   an entry of that kind, else "none in this pack"), INFO lines: entries
   per kind, scales, BC3 count, hits, misses (candidates / other), the
-  first four missed candidate hashes with size and format (the BLX-71
+  first four missed candidate hashes with size and format (the tracker item
   view: a `512x32 DXT3` row would have named the Mission Objectives
   title), "CPU path: pack ignored" on the CPU backend.
 - **Game**: the title's items (cat: D9).
@@ -491,7 +491,7 @@ Where it lives was weighed three ways:
 
 - **Assets.** The picker lists the `[enhance.hud] textures` set from the
   dump (`hud.select` + `load_items`, cached; `.dds` and, through the
-  BLX-71 branch's `xpr.py`, the `MIXF`/`XPR0` images), grouped by kind
+  the tracker item branch's `xpr.py`, the `MIXF`/`XPR0` images), grouped by kind
   (art, font, text) and language, with a few curated defaults pinned at
   the top from `game.toml [enhance.hud] preview = [...]` (cat: the font
   atlas, the life bar, the radar, a menu piece, the Mission Objectives
@@ -501,7 +501,7 @@ Where it lives was weighed three ways:
   page: its missed candidate hashes are joined against the dump's hashes
   and listed as "seen at runtime, not in the pack" (named when the dump
   has them, hash-only when it does not: the composed-at-runtime case).
-  That is the BLX-71 class made visible: a `512x32 DXT3` miss named
+  That is the class made visible: a `512x32 DXT3` miss named
   `lng_us:...` would have said where the title came from.
 - **Upscale mode.** Side by side at the chosen scale (2, 3, 4), on a crop
   the owner drags (default 64x64) so a re-render is well under a second:
@@ -828,7 +828,7 @@ plus the per-key pins; `game.toml [golden] enhance_stock` and the CLI's
    and the pack module, phase 2 the layer's reader, the launchers and
    packaging), phase 1 adds the `textures.font`/`textures.text` keys that
    the first `config.default.toml` should already carry, and phase 1 is
-   what gives the BLX-71 entries a kind and a smaller pack right away;
+   what gives the entries a kind and a smaller pack right away;
    ordering the reader change second costs nothing since the menu, the
    only consumer of Save, comes after both.
 
@@ -884,7 +884,7 @@ plus the per-key pins; `game.toml [golden] enhance_stock` and the CLI's
 
 Phases, each mergeable alone (one worktree and agent at a time):
 
-0. **BLX-71 merges first** (`fix/hud-pack-text`, its own review): the
+0. **The tracker item merges first** (`fix/hud-pack-text`, its own review): the
    MIX/XPR0 reader and the `lng_us` patterns. This change rebases on it.
 1. **Toolkit live plumbing** (no UI): `nv2a_host_opts_request/apply` in
    both backends and the null/CPU ones, texture generation, pack
@@ -994,14 +994,14 @@ sound choice was made:
     stored value in phase 1; the presenters act on them in phase 3.
 
 12. **1.9 evidence (Metal, `@stage1`, render scale 2)**. The v2 pack from the
-    BLX-71 set is 158.8 MB: 427 entries, 267 art (140.4 MB), 1 font (4.2 MB),
+    the tracker item set is 158.8 MB: 427 entries, 267 art (140.4 MB), 1 font (4.2 MB),
     159 text (14.2 MB, all BC3 at 2x). The five Mission Objectives textures
     (three `mis_r01s01_01` lines, `demo_font01obj`, `demo_or_mis`) hit from
     the pack and show no misses; with `RECOMP_TEXTURES_TEXT=off` the same five
     miss as DXT3 candidates and the hit count drops from 21 to 16. The final
     miss ring (64 entries, 36 candidates) is in `runs/enhmenu/misses-metal.txt`.
     The stock goldens (attract, stage1, story) pass with `textures.pack=none`.
-13. **Review fixes (Opus, phase 1)**. Both GPU backends now present first and
+13. **Review fixes (phase 1)**. Both GPU backends now present first and
     apply live options after (`d3d11_on_flip`, `metal_on_flip`): applied
     before, the present sized a frame drawn at 2x by the new 1x scale and
     showed its top-left quarter for one flip. `scale_drop` drains the pending

@@ -2,8 +2,8 @@ Worktrees: `wt/<name>/cat` off `main` and `wt/<name>/xboxrecomp` off `posix-host
 
 ## 0. Spec review
 
-- [x] 0.1 This spec was not written by Fable, so Fable reads it and improves it, then commits the revision on the spec branch.
-- [x] 0.2 Implementation starts only from Fable's revised commit.
+- [x] 0.1 This spec was not written by the reviewer, so the reviewer reads it and improves it, then commits the revision on the spec branch.
+- [x] 0.2 Implementation starts only from the revised commit.
 
 ## 1. Toolkit: the fallback report (D3), first
 
@@ -41,6 +41,6 @@ Worktrees: `wt/<name>/cat` off `main` and `wt/<name>/xboxrecomp` off `posix-host
 
 ## 6. Merge
 
-- [x] 6.1 Fable review. Fixes go back to the branch agent. Done: `notes/fable-reviews/2026-10-06-runtime.md` §4, no blocker. Its should-fix, `tools.conformance`, ran on the Linux/Proton host at toolkit 4773a01 (cat a72db5b): 5739/5741 pass, every test/cmp/jcc vector included; the two x87 failures predate the change.
+- [x] 6.1 Review. Fixes go back to the branch agent. Done: the review notes §4, no blocker. Its should-fix, `tools.conformance`, ran on the Linux/Proton host at toolkit 4773a01 (cat a72db5b): 5739/5741 pass, every test/cmp/jcc vector included; the two x87 failures predate the change.
 - [x] 6.2 Squash-merge the toolkit change (`recomp: lift test as cmp of the AND so cmp/test joins keep their branch`, body naming the report and jo/jno), then the cat regeneration with the new `game.toml` toolkit pin. Done 2026-10-06: toolkit b0eb653 (from daddeab), cat 9c8bf09 (from edfb30c).
 - [x] 6.3 Close the stage 1 water stutter in `TASKS.md`; add the fallback counts (before/after, unique and reachable) and the D5 follow-up entries (cmp + result-setter joins; whether entry-block alias bodies are ever entered). Done 2026-10-07: the stutter is closed (the user verified it on the Steam Deck), the counts are 1,987 unique (21,008 emitted, 43 at joins) before and 1,967 (20,617, 23) after, and the D5 entries are in TASKS.md.

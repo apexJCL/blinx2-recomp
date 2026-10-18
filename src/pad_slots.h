@@ -10,11 +10,11 @@
  * real one (the bench reproduces it: pads=0:0,1:1, START on port 1; with
  * PROTON_NO_STEAMINPUT=1 it reads pads=0:0). A
  * Steam Deck launched from Desktop Mode is suspected to be that case (its
- * log's pads= field will tell, BLX-117).
+ * log's pads= field will tell).
  *
  * This is the one map from host pads to the title's ports. The host's slot
  * is only the pad's identity: XInput's user index (the lowest free one when
- * a pad arrives), or the SDL backend's slot, which hot-plug (BLX-15) gives
+ * a pad arrives), or the SDL backend's slot, which hot-plug gives
  * back to the same model when it is replugged. The SDL backend's own port
  * rules (sdl2-hotplug D2) are restated here at the title's ports, so they
  * hold on every host and alongside the rules below.

@@ -1,6 +1,6 @@
 # Design: shader-precompile
 
-Revised 2026-10-13 after the Opus review (`runs/shaderpc/REVIEW-spec.md`):
+Revised 2026-10-13 after the review (`runs/shaderpc/REVIEW-spec.md`):
 the DXBC blob store and the `pso` records left v1 (Follow-up), adoption
 happens inside the existing miss paths, the index is append-only and
 never purged, and the trace and index are driven by first use.
@@ -36,7 +36,7 @@ and the timing build, read on 2026-10-13 with `runs/shaderpc/flipan.py`
 (flip intervals from the `[GPU] flip N T ms` timestamps, compiles from the
 `[d3d11] compiled` lines in between, combiner counts from the present
 summaries) and `runs/shaderpc/spc-sum.py`. The Linux/Proton host was down during this
-spec, so no new Proton run was taken; the BLX-100 1-2 checkpoint run is
+spec, so no new Proton run was taken; the 1-2 checkpoint run is
 task 0.3.
 
 **Proton, BLiNX 2 (the Linux/Proton host, GE-Proton11-7, D3D11), golden runs of
@@ -56,7 +56,7 @@ split between the two is task 0.3's `compile`/`create` stage times), and
 the first frame of a scene carries 25-30 of them. The run's other 3D frames
 sit at 33 ms. 37 vertex programs and 10 combiner states cover `@stage1`,
 41 and 10 `@attract`, 22-24 and more combiners the story hub. The
-operator's Deck slowdown right after the 1-2 checkpoint (BLX-100) fits
+operator's Deck slowdown right after the 1-2 checkpoint fits
 this shape (new shaders at a scene change) but is not yet measured.
 
 **Proton, Burnout 3** (`20261013-133515`, pacing series): flips 13237 and
@@ -71,7 +71,7 @@ no gap over 33.6 ms and no new fragment shader near the event. Golden run
 78 ms with 34 vertex and 8 fragment functions compiled between presents
 600 and 900, on a warm system cache. (That log also shows 90-131 ms frames
 every 5.0 s from flip 1444 on, each right after a 38 KB `[READ]`; not
-shader work, noted for BLX-100's host contrast and left alone here.)
+shader work, noted for the tracker item's host contrast and left alone here.)
 
 **Mac, Metal, timing build** (toolkit worktree `spike/shaderpc-timing`,
 never merged: a `shaderpc:` line per `newLibraryWithSource` and per

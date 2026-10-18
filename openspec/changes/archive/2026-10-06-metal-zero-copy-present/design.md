@@ -205,7 +205,7 @@ At scale > 1:
 
 ## Decided
 
-The four questions the proposal left open, decided by Fable at the spec review (the user had delegated unattended decisions):
+The four questions the proposal left open, decided by the reviewer at the spec review (the user had delegated unattended decisions):
 
 1. **New present and lazy write-back are the Metal backend's defaults; the old paths sit behind `metal_present=readback` and `metal_writeback=always`.** The opt-in rule guards stock *behaviour*; this change produces the same frames, dumps and window output and only removes copies, so it is a fix, and the backend itself is already opt-in. The condition is the golden gate: if any Metal golden verdict moves, the defaults flip back until the cause is found.
 2. **A title's CPU reads of its framebuffer see stale bytes under the default, and the guard is debug-only.** Every Proton golden already runs this way on D3D11, the probe saw zero reads in the two scenes that cover 3D and menus, the guard's `PROT_NONE` breaks kernel-side I/O into those pages, and `always` is one key away. The guard switches on reads only, so the allocator's `bzero` does not defeat the default.

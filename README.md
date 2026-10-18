@@ -45,7 +45,9 @@ toolchain, testing, environment variables, docs, contributing, legal).
 The game runs at 30 frames per second and 4:3, as on the Xbox. A 60 fps mode
 is not planned (the stage logic steps a fixed 1/30 s, so a faster loop plays
 at double speed), and widescreen (Hor+) is not implemented yet: a wide window
-or screen is pillarboxed, never stretched.
+or screen is pillarboxed, never stretched. External frame-generation tools
+(Lossless Scaling, lsfg-vk, AMD AFMF, NVIDIA Smooth Motion) can show it at
+60; they are unsupported, see [docs/frame-generation.md](docs/frame-generation.md).
 
 Every stage and boss has been reached in scripted runs; the title, attract
 mode, stage 1 and the story route to the hub are checked frame by frame
@@ -158,7 +160,7 @@ takes `KEY=value` lines for any `RECOMP_*` variable.
 | Glow | `fx.glow`, `fx.glow_intensity` | `RECOMP_GLOW`, `RECOMP_GLOW_INTENSITY` | `"on"`/`"off"`; `1.0` (0.0 to 2.0) | Turns the game's screen glow pass off, or scales it. |
 | Window size | (none) | `RECOMP_WINDOW_SCALE` | `2` | Initial window size, 640x480 times this (the SDL window on macOS). |
 | Aspect | `display.aspect` | `RECOMP_DISPLAY_ASPECT` | `"4:3"` only | Other values are reported as not implemented and 4:3 is used. |
-| Frame rate | `fps.mode` | `RECOMP_FPS_MODE` | `"lock30"` only | `lock60` and `free` are reported as not available (see [Platforms](#platforms)). |
+| Frame rate | `fps.mode` | `RECOMP_FPS_MODE` | `"lock30"` only | `lock60` and `free` are reported as not available (see [Platforms](#platforms)); for a 60 fps look, see [external frame generation](docs/frame-generation.md). |
 
 ```toml
 # config/config.toml, for example
@@ -503,6 +505,7 @@ fork code has no raw `getenv`.
 |---|---|
 | [docs/packaging.md](docs/packaging.md) | building and installing the bundles on every target, settings, the HUD pack, troubleshooting, maintainers' pins |
 | [docs/input.md](docs/input.md) | playing on keyboard and mouse: the default keys, rebinding, the mouse settings |
+| [docs/frame-generation.md](docs/frame-generation.md) | external frame-generation tools for a 60 fps look (unsupported): what each needs, what to expect from a 30 fps base, the settings that help |
 | [docs/env.md](docs/env.md) | every environment variable, by tier, with defaults and where it is read |
 | [game.toml](game.toml) | the manifest the CLI reads; the CLI's [docs/manifest.md](https://github.com/apexJCL/xboxrecomp-cli/blob/main/docs/manifest.md) documents each key |
 | [analysis/golden/golden.json](analysis/golden/golden.json) | the golden scenarios, their frames and tolerances |

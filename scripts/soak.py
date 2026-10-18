@@ -39,7 +39,7 @@ refused. Exits 1 if any run was not ok, 2 off macOS. Proton soaks would go
 through blinx2 bench (a follow-up: Wine has no SIGUSR1 thread dump).
 
 Macs: wrap it in notes' mac-run-lock (one game run at a time on the host).
-Release playthrough soak (BLX-101): run it per stage prefix, 10 runs or more
+Release playthrough soak: run it per stage prefix, 10 runs or more
 each, with OUT under the workspace runs/, never inside a worktree.
 """
 

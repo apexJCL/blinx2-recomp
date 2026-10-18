@@ -3,7 +3,7 @@
 A warm `blinx2 bench integrate --golden` takes about 400 s and a Metal golden
 pass on the Mac about 190 s, and both are often run twice: a scenario comes
 back INCOMPLETE or flaky, and the only way to rerun it is the whole pass
-(`notes/bench-speed/report.md`, BLX-36). The verdicts live only on the
+(`notes/bench-speed/report.md`). The verdicts live only on the
 controller's stdout, so nobody can measure how often each scenario flakes.
 Every golden also re-runs the 17 Proton toolkit tests (about 100 s) even
 when nothing they test changed, and every agent writes its own Mac runner
@@ -12,7 +12,7 @@ before an anchored frame and cause INCOMPLETEs of their own.
 
 ## What Changes
 
-Report proposals P4, P2a, P5, P9 and P3, in that order (BLX-37):
+Report proposals P4, P2a, P5, P9 and P3, in that order:
 
 - **P4 (CLI)**: `bench golden` writes each scenario's run checks, compare
   output and verdict to `bench-logs/<stamp>/golden.txt`, and appends one

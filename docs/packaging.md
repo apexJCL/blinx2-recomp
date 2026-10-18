@@ -334,6 +334,8 @@ console-original timing, where the wait holds a CPU core as on the Xbox. To
 get it, put `[present]` and `pacing = "spin"` in `config/config.toml`, or
 `RECOMP_PRESENT_PACING=spin` in `config/launch.env`; the bundle's README.txt
 says the same, and `blinx2 package` prints it as a note.
+External frame-generation tools for a 60 fps look are unsupported;
+[frame-generation.md](frame-generation.md) has the settings that help them.
 `config/launch.env` holds your own
 environment settings, `KEY=value` per line, read after the bundle's
 `launch.env.default`. `logs/` keeps one log per launch, the newest

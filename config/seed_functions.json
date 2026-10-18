@@ -227,32 +227,32 @@
   },
   {
     "start": "0x002DA624",
-    "source": "ICALL failure in every merged Mac golden (2.4k-25k per run): x87 CRT helper (fstp; fstp; fldz; ret) reached through the jmp [ebx] table at 0x002DA611. Dropped by v0.14.0's entry proofs (v0.14.0 sync, BLX-161); a function on 70c4371.",
+    "source": "ICALL failure in every merged Mac golden (2.4k-25k per run): x87 CRT helper (fstp; fstp; fldz; ret) reached through the jmp [ebx] table at 0x002DA611. Dropped by v0.14.0's entry proofs (v0.14.0 sync); a function on 70c4371.",
     "observed": true
   },
   {
     "start": "0x0005E410",
-    "source": "ICALL failure in every merged Mac golden (1-2 per run): worker-thread body passed as the PsCreateSystemThreadEx ctx to routine 0x002980E7 (push imm at 0x0005E39F, 0x001E0237, 0x001FD994). Dropped by v0.14.0's entry proofs (v0.14.0 sync, BLX-161); a function on 70c4371.",
+    "source": "ICALL failure in every merged Mac golden (1-2 per run): worker-thread body passed as the PsCreateSystemThreadEx ctx to routine 0x002980E7 (push imm at 0x0005E39F, 0x001E0237, 0x001FD994). Dropped by v0.14.0's entry proofs (v0.14.0 sync); a function on 70c4371.",
     "observed": true
   },
   {
     "start": "0x00235730",
-    "source": "stored as a callback at obj+0x9C by 0x0023541D, beside code pointers 0x002354E0 and 0x0027E210; decodes as a 469-byte body (push ecx ... pop ecx; ret). Dropped by v0.14.0's entry proofs (v0.14.0 sync, BLX-161); a function on 70c4371.",
+    "source": "stored as a callback at obj+0x9C by 0x0023541D, beside code pointers 0x002354E0 and 0x0027E210; decodes as a 469-byte body (push ecx ... pop ecx; ret). Dropped by v0.14.0's entry proofs (v0.14.0 sync); a function on 70c4371.",
     "observed": false
   },
   {
     "start": "0x0033CED0",
-    "source": "atexit destructor thunk (mov ecx, 0x112F8C0; jmp sub_00348580), pushed to sub_002D5678 by static init sub_0033CEB0. Dropped by v0.14.0's entry proofs (v0.14.0 sync, BLX-161); a function on 70c4371.",
+    "source": "atexit destructor thunk (mov ecx, 0x112F8C0; jmp sub_00348580), pushed to sub_002D5678 by static init sub_0033CEB0. Dropped by v0.14.0's entry proofs (v0.14.0 sync); a function on 70c4371.",
     "observed": false
   },
   {
     "start": "0x0033D0B0",
-    "source": "atexit destructor thunk (mov ecx, 0x112FDE8; jmp sub_00348580), pushed to sub_002D5678 at 0x0033D09A. Dropped by v0.14.0's entry proofs (v0.14.0 sync, BLX-161); a function on 70c4371.",
+    "source": "atexit destructor thunk (mov ecx, 0x112FDE8; jmp sub_00348580), pushed to sub_002D5678 at 0x0033D09A. Dropped by v0.14.0's entry proofs (v0.14.0 sync); a function on 70c4371.",
     "observed": false
   },
   {
     "start": "0x0033D0E0",
-    "source": "atexit destructor thunk (mov ecx, 0x112FE58; jmp sub_00348580), pushed to sub_002D5678 at 0x0033D0CA. Dropped by v0.14.0's entry proofs (v0.14.0 sync, BLX-161); a function on 70c4371.",
+    "source": "atexit destructor thunk (mov ecx, 0x112FE58; jmp sub_00348580), pushed to sub_002D5678 at 0x0033D0CA. Dropped by v0.14.0's entry proofs (v0.14.0 sync); a function on 70c4371.",
     "observed": false
   }
 ]

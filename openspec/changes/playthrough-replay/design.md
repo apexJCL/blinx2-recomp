@@ -25,7 +25,7 @@ What the pieces know today:
 | `[GPU] flip N T ms .. batches B` | per-flip batch count on every backend; `T` is `xbox_log_ms()`, a timestamp since start | a per-flip frame time (that is `[PACING] flip N t_us`, trace `pacing=all`, which `pacing_stats.py` already parses) |
 
 Timing facts that decide the design (from the toolkit and the generated
-code, verified by the research agents and the Opus review, 2026-10-13):
+code, verified by the research agents and the review, 2026-10-13):
 
 - Every guest clock is host time (`KeTickCount`, QPC, `rdtsc` scaled to
   733 MHz, `KeQuerySystemTime`), but the title does not use a dt: each
@@ -46,7 +46,7 @@ code, verified by the research agents and the Opus review, 2026-10-13):
 - Sofdec movies and ADX use the audio device as master clock; flips per
   movie differ per host. The attract demo itself was observed deterministic
   on Metal (stage1-water spike).
-- The light pool (`0xAACDFC`, `0x8E9088`) was a main/loader race (BLX-1);
+- The light pool (`0xAACDFC`, `0x8E9088`) was a main/loader race;
   the title gates some draws on occlusion-query results, which differ
   between GPUs. Both are reasons a replay may *render* differently without
   being out of sync.
@@ -399,7 +399,7 @@ runs before the push, as for every CLI round.
   scratch `runs/apulock-deck/scripts/deckrun.sh`: refuses a root under
   `~/Games`, refuses if a game is running, Desktop Mode env or Game Mode's
   `WAYLAND_DISPLAY=gamescope-0`, `timeout -s TERM`, copies the newest
-  `logs/game-*.log` back), and the `ssh deck 'bash <root>/deckrun.sh ..'`
+  `logs/game-*.log` back), and the `ssh <bench-host> 'bash <root>/deckrun.sh ..'`
   that runs the scratch root's installed launcher with the replay
   environment in that root's `config/launch.env`. The scratch root holds a
   bundle built by `blinx2 package` from the merged main (so the engine has
@@ -483,7 +483,7 @@ that commit goes into the public toolkit round before cat's.
 Each is its own OpenSpec change and tracker item (task 0.2 files them),
 blocked by this one:
 
-- **replay-smoke-library**: a recording per entry of BLX-101's smoke list
+- **replay-smoke-library**: a recording per entry of the tracker item's smoke list
   (prefixes exist in `scripts/shots/pad/`), `"end"` anchors per stage (goal
   or boss-defeated dwords), `xbr replay report` (segments down, hosts
   across), per-host baselines kept beside the recording
@@ -550,14 +550,14 @@ blocked by this one:
 
 Nothing to migrate: every key is new and off by default; presets, goldens
 and soaks are unchanged. Roll-out: the CLI release, then cat's pin bump
-with `[replay]`, each behind an Opus review; then the recording session with
+with `[replay]`, each behind a review; then the recording session with
 the user; then the three replays. Rollback is unsetting the keys.
 
 ## Open Questions (for the user)
 
 1. **Which stage first?** Proposed: stage 1-1 from `@stage1` (fastest load,
    its route is golden-covered, its enemies and water are known content).
-   The alternative is 5-1 from `scripts/shots/pad/st5.txt`, where BLX-10's
+   The alternative is 5-1 from `scripts/shots/pad/st5.txt`, where the tracker item's
    crash lived.
 2. **Where to record?** Proposed: on the Mac, windowed Metal, with the
    user's pad (sound on if they want it; it is their session). Recording on

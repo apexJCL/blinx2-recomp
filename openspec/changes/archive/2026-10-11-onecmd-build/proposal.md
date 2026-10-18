@@ -25,7 +25,7 @@ fork at the pinned `blinx2-v0.1.0`. Nothing in cat or the CLI uses it yet; the
 archived `runtime-missing-files` change left "an ISO-against-extraction check
 (`tools/xiso/xdvdfs.py`)" as an optional follow-up (TASKS.md).
 
-Tracker: BLX-79. Spec by Fable; the implementation and its Opus review are
+Spec by the reviewer; the implementation and its review are
 the next agent's.
 
 ## What Changes
@@ -156,10 +156,10 @@ None.
 
 Proposed 2026-10-11 against cat `main` 2b552e3, CLI `main` 13f4091 (v0.4.0),
 toolkit `posix-host/portability` (tools/xiso at 6d69551, unchanged since the
-reader landed). Tracker BLX-79. Scope narrowed by the user the same day: no
+reader landed). Scope narrowed by the user the same day: no
 bootstrap; ISO/XISO input and the README's player top only.
 
-Revised 2026-10-11 after the Opus review, against cat `main` ddc59a8 and CLI
+Revised 2026-10-11 after the review, against cat `main` ddc59a8 and CLI
 `main` 2b95e72 (v0.5.1; v0.5.0 and v0.5.1 shipped meanwhile, so the release
 is v0.6.0). Operator decisions the same day (design "Decisions (operator,
 2026-10-11)"): folder sources are clone-copied and `--link` is for

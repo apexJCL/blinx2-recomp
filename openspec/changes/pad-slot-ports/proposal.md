@@ -1,6 +1,6 @@
 ## Why
 
-BLX-117. A Steam Deck launched from Desktop Mode (Konsole, `debug-menu.sh`) logged `host port=1` and `ports=0x3`: the script on port 0, the pad on port 1. `src/pad_input.c` mapped host slot N (the XInput user index, or the SDL slot) to guest port N, and the title reads player 1 from port 0 only, so the pad did nothing. Every earlier Deck log was taken in Game Mode, where Steam Input puts the pad on index 0, which hid the bug.
+The tracker item. A Steam Deck launched from Desktop Mode (Konsole, `debug-menu.sh`) logged `host port=1` and `ports=0x3`: the script on port 0, the pad on port 1. `src/pad_input.c` mapped host slot N (the XInput user index, or the SDL slot) to guest port N, and the title reads player 1 from port 0 only, so the pad did nothing. Every earlier Deck log was taken in Game Mode, where Steam Input puts the pad on index 0, which hid the bug.
 
 That log fits two causes, and does not tell them apart:
 - the Deck's built-in pad alone on XInput user index 1, index 0 empty;
@@ -29,7 +29,7 @@ Which cause the Deck has stays unknown until a Desktop Mode log shows the new `p
 ## Non-goals
 
 - Telling Steam's virtual pad apart by VID/PID: XInput does not expose them, and activity works on both backends.
-- Hot-plug on SDL hosts is BLX-15 (`sdl2-hotplug`, merged first). This change makes its stable-port rules part of the one slot-to-port map, at the title's ports (design.md decision 7), and leaves the backend's slots as they are.
+- Hot-plug on SDL hosts is the tracker item (`sdl2-hotplug`, merged first). This change makes its stable-port rules part of the one slot-to-port map, at the title's ports (design.md decision 7), and leaves the backend's slots as they are.
 - A way to pin a pad to a port by hand.
 
 ## Impact

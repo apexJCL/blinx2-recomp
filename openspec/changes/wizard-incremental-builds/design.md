@@ -987,6 +987,93 @@ edit them. Per game:
   (excluding the dump, build trees and `tca-old/`). Local source mode
   needs a commit, and the stage keys need a tree id.
 
+## Implementation notes (deviations, 2026-10-17)
+
+Where the implementation (CLI `feat/wizard-incremental-builds`, toolkit
+`feat/wizard-incremental-builds`, cat `feat/wizard-incr-pin`) differs from
+the decisions above, and why.
+
+Stage keys and reuse (D1 to D3, D11):
+
+- The stage key includes the version string, since README.txt carries it.
+- generate and icon have no import edge: the gen key already holds the
+  XBE sha (and gen/'s listing digest, so a hand recomp reruns compile),
+  and icon.key holds the XBE sha.
+- The Homebrew dylib shas sit in wrap:macos's inputs, not compile's: they
+  are copied into the app at wrap time, not linked differently.
+- wrap's key has no upstream stage key: the manifest sha covers the
+  payload. On macOS the .app is relinked (clonefile) every run; only
+  hdiutil is skipped.
+- `--keep-stage` is a no-op: the stage is always kept.
+- The plan is read-only. After an import, generate and icon read "run"
+  (they are checked after the import). wrap is predicted from a recorded
+  basis; the run decides on the manifest sha.
+- `clean --all` never deletes game_files/, .venv, the Ghidra export or
+  the wizard's mark. Bundles are pruned only when `--out` is inside the
+  game folder. `--clean` keeps game-files.json. Patches are recorded and
+  pruned apart from full bundles.
+
+Reproducible output (D12):
+
+- The build time and version time (SOURCE_DATE_EPOCH or the commit
+  times) landed in phase 1, because wrap reuse needs them. The `-o`
+  digest goes after `-g<8>`, before `-dirty`, and is empty for a stock
+  build.
+- lld records its command line, cwd and PDB path in the PDB, so the
+  toolkit cannot neutralise a game's absolute `--pdb`: cat passes
+  `--pdb=` (cat 1be3106). `/pdbaltpath` and `/pdbsourcepath` go beyond
+  the spec's flag list. The PDB still holds the llvm-mingw path: equal
+  binaries need the same toolchain path, which the wizard's layout
+  gives. There is no separate .venv map, since the .venv sits inside the
+  game folder under the root map. macOS `-g` builds (OSO paths) are not
+  covered; package builds Release.
+
+Patches (D5 to D10):
+
+- macOS patches ship the app's signed parts whole, and the half-size rule
+  does not count them.
+- A bundle record is a base only when `--patch-from` names it; the
+  default base is the version installed on this host.
+- A patch that changes game data needs `--yes` when nothing can ask.
+- A change to game files alone keeps the version.
+- The history's `what` for a patch is "patch".
+- Windows: apply.exe reads `patch.lst`, not patch.json, and takes the
+  `Local\<App>-apply` lock. The switch has a short rename window. It
+  pauses when double-clicked. `migrate` checks only the program files.
+- A v1 installer run over a migrated install (found in 7.5) puts v1's
+  root files and launcher back. The game then runs v1 from the root and
+  ignores `current.txt`, and the uninstall entry names v1 again. Running
+  the current full installer again repairs it completely: the root is
+  clean, the stub is back and the entry is right. Installers already
+  shipped cannot be changed, so there is no code change; the full
+  installer is the documented repair.
+
+Wizard (D4, D13, D14):
+
+- A bundle source records its plain path as origin (git opens a bundle
+  only by path). A checkout's clone uses a `file://` URL, not
+  `--no-local`.
+- The clean checks ignore untracked files: byproducts a .gitignore misses
+  would otherwise block every run.
+- In local mode the config comes from a throwaway clone at the commit
+  being built, and the update check compares the release the binary
+  embeds.
+- The Welcome line comes from the mark alone. Whether the clone is clean
+  is checked at Checks, after the tools are fetched.
+- The output line ("Makes:") and its Change… dialog are on the Summary.
+  The plan's `output` is a prediction made against the newest bundle
+  record; the run decides again on the real manifest.
+- The disk line and Free space are on the Done page, since they need the
+  runner that Checks sets up.
+- Install now for a steamos patch runs `./install.sh` in the unpacked
+  folder, without `--steam`.
+
+Gates:
+
+- The Deck's Proton toolkit tests were not run for 3.4: they compile in
+  the Deck's distrobox, and builds stay on the Mac. The toolkit change
+  is CMake link flags, covered by the POSIX ctest `reproducible_link`.
+
 ## Risks / Trade-offs
 
 - **[A wrong skip ships stale code]:** the key misses an input.

@@ -23,7 +23,7 @@
  * Host pads reach the ports through pad_slots.h: the first host pad to
  * come up drives port 0 whatever its slot, merged there with the script and
  * the keyboard; later pads take the next free ports, a replugged pad its
- * old one (with SDL hot-plug, BLX-15, the backend's slot follows the pad),
+ * old one (with SDL hot-plug, the backend's slot follows the pad),
  * and a pad's first press takes the port of a pad that has never sent
  * anything (Steam's inert virtual pad ahead of the real one under Proton).
  * pad_slots is the only port map; the backend's slot is the pad's
@@ -387,7 +387,7 @@ extern void (*xbox_FileOpenHook)(const char *guest_path, uint32_t status);
  * @story-load), then idle. Title state 0xD shows the 3D cat in the yellow
  * suit and the camo character on the left, each drawn only when the title's
  * own visibility test (GET_REPORT, read the next frame) says it is visible:
- * the screen of BLX-145, where a test still incomplete at that read dropped
+ * the screen, where a test still incomplete at that read dropped
  * them (157 batches a flip instead of 1509). The harness case for
  * occ-reports runs it with RECOMP_DEBUG=occ_delay_us=16000 and checks the
  * flip log with scripts/occ_flips.py. */

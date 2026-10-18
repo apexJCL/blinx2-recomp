@@ -1,9 +1,6 @@
 # Change: Compile the game's shaders before the frame that needs them
 
-Tracker BLX-118 (Fable, spec only; in v1 scope by the user's decision of
-2026-10-13: "yes, spec it for v1 - consider if the approach could be kept
-game-agnostic and whether this could exist on the `xboxrecomp` repo or has
-to be somewhere else"). Revised after the Opus review of 6f82a98
+Revised after the review of 6f82a98
 (`runs/shaderpc/REVIEW-spec.md`). Both GPU backends build a shader on the
 render (ack) thread the first time a vertex program or combiner state is
 seen, so the first frame that needs a new one waits for the compiler. This

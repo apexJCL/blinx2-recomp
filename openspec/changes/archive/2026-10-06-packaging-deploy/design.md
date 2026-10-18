@@ -251,9 +251,9 @@ Nothing migrates automatically. The bench and goldens keep their layout with the
 
 2. **Build hosts** (user, 2026-10-05): Windows, Linux and macOS can all build; one stdlib Python CLI (`blinx2.py`) is the entry point on every host; no ssh deploy, bundles are copied by hand; `bench.sh` and golden-over-ssh are not ported now.
 
-3. **`makensis` from the package manager on Linux and macOS** (Fable, 2026-10-05), and only for the windows target: NSIS ships no Linux or macOS binary, so the alternatives are building it (SCons plus a C++ toolchain) or Wine, both bigger hoops than one package that `doctor` names exactly.
+3. **`makensis` from the package manager on Linux and macOS** (2026-10-05), and only for the windows target: NSIS ships no Linux or macOS binary, so the alternatives are building it (SCons plus a C++ toolchain) or Wine, both bigger hoops than one package that `doctor` names exactly.
 
-4. **The steamos bundle is a tar, with no plain-folder option** (Fable, 2026-10-05): one shape means one code path and one set of tests, the tar is the same file from every host, and a folder option would be correct only on two of the three hosts.
+4. **The steamos bundle is a tar, with no plain-folder option** (2026-10-05): one shape means one code path and one set of tests, the tar is the same file from every host, and a folder option would be correct only on two of the three hosts.
 
 ## Open Questions
 

@@ -10,6 +10,32 @@ No release contains game data: you build the game from your own disc.
 
 ## [Unreleased]
 
+## [2026.10.1] - 2026-10-17
+
+Updates are now patches: from this release on, the build wizard
+rebuilds only what changed and installs it over your current version,
+instead of downloading and building the whole game again. Built with
+xboxrecomp-cli v0.8.0 and the toolkit at blinx2-v0.5.1.
+
+### Added
+- Incremental builds and patch installers. Rebuilding gives the same
+  files byte for byte, so an update ships only the files that differ
+  from your installed version. A 2026.10.0 install can take this
+  release as its first patch; on Windows, the first update moves the
+  install to the new versioned layout and may be a full install once.
+- `docs/frame-generation.md`: how to get a 60 fps look with outside
+  frame-generation tools (Lossless Scaling, lsfg-vk) while the game
+  itself runs at its stock 30 fps.
+
+### Fixed
+- Direct3D 11 and Metal: texture-shader clip planes now cut what they
+  should, as the software renderer already did. No BLiNX 2 scene seen
+  so far uses them, so nothing in the game is expected to look different.
+
+### Known issues
+- The game crashed once in stage 5-1 on macOS, after about 90 seconds;
+  it has not happened again in later runs and is still being watched.
+
 ## [2026.10.0] - 2026-10-17
 
 The first stable release. It builds and installs the game from your own
@@ -122,7 +148,8 @@ blinx2-v0.3.1.
 - The game crashed once in stage 5-1 on macOS, after about 90 seconds;
   this is being investigated.
 
-[Unreleased]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.0...HEAD
+[Unreleased]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.1...HEAD
+[2026.10.1]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.0...v2026.10.1
 [2026.10.0]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.0-rc.2...v2026.10.0
 [2026.10.0-rc.2]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.0-rc.1...v2026.10.0-rc.2
 [2026.10.0-rc.1]: https://github.com/apexJCL/blinx2-recomp/releases/tag/v2026.10.0-rc.1

@@ -16,6 +16,9 @@ machine, right-click the .zip > Properties > Unblock before extracting
 Note: this build is tested under Proton on Linux only, not on native
 Windows.
 
+For a 60 fps look, external frame-generation tools may work but are
+unsupported: https://github.com/apexJCL/blinx2-recomp/blob/main/docs/frame-generation.md
+
 Controls
 --------
 A controller works as player 1. The keyboard and the mouse work too,

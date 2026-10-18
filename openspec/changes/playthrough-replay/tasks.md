@@ -1,6 +1,6 @@
 ## Context
 
-Spike output (BLX-116): this change is phase 1 only, one recorded stage
+Spike output: this change is phase 1 only, one recorded stage
 replayed on all three hosts with one check per host; it archives when
 group 4 is done. The follow-up changes (design § Follow-up changes) are
 filed in the tracker by 0.2 and specced when picked up. Work starts when the
@@ -12,7 +12,7 @@ through `sh notes/mac-run-lock.sh` with `SDL_AUDIODRIVER=dummy` (headless)
 and no sound without asking; runs under `xbox-recomp/runs/replay/`, never
 inside a worktree. The Linux/Proton through `blinx2 bench`, which takes the lock
 itself; the Deck only by the user, from a scratch root. Every merge is a
-squash after an Opus review, followed by the post-merge steps of CLAUDE.md
+squash after a review, followed by the post-merge steps of CLAUDE.md
 (notes copied to `notes/replay/`, worktree removed and branch kept,
 `blinx2 bench integrate --golden`, TASKS.md). Sizes: S ≤ half a day, M 1-2
 days.
@@ -25,7 +25,7 @@ CLI round goes before cat's.
 ## 0. Before implementation (the user, the orchestrator) — S
 
 - [ ] 0.1 The user answers design § Open Questions 1-6 (stage, where to record, frame-counter pinning, baseline, end event, Mac sound). Record the answers in design.md, quoted and dated. Verify: each question has an answer or "proposal stands".
-- [ ] 0.2 File the follow-up changes of design § Follow-up changes (replay-smoke-library, bench-replay, replay-frames, replay-rng-pin, soak-check, b3-replay) in the tracker as Backlog items blocked by BLX-116's implementation item. Verify: `pt context` of each names this change and its follow-up section.
+- [ ] 0.2 File the follow-up changes of design § Follow-up changes (replay-smoke-library, bench-replay, replay-frames, replay-rng-pin, soak-check, b3-replay) in the tracker as Backlog items blocked by the tracker item's implementation item. Verify: `pt context` of each names this change and its follow-up section.
 
 ## 1. Game engine: counter, hook, recorder, `include`, `timeout`, `probe`, log fields (`cat`) — M
 
@@ -42,22 +42,22 @@ CLI round goes before cat's.
 - [ ] 1.11 `game.toml`: in one commit, bump `[toolkit]` to the commit with 2.1, `[cli]` to the release of 3.6, and add `[replay] json = "config/replay.json" dir = "analysis/replay"`. Verify: `./blinx2 --help` runs through the pinned CLI with the table present; `scripts/test_game_pins.py` passes.
 - [ ] 1.12 Mac gates: build (Metal, and the CPU backend still builds), `uv run pytest scripts`, `uv run ruff check . && uv run ruff format --check .`, `blinx2 golden run --backend metal` with every verdict unchanged (the engine change is on the poll path every golden uses). Verify: stamps here.
 - [ ] 1.13 Proton gate (on "go"): `blinx2 bench tests` and `blinx2 bench golden` on the branch pair, every verdict unchanged; `exit-code` 4 for the strict timeout of 1.4 under Proton. Verify: the bench-logs stamps here.
-- [ ] 1.14 Opus review of the cat branch; fixes applied; squash merge; post-merge steps (notes to `notes/replay/`, worktree removed, `blinx2 bench integrate --golden`, TASKS.md). Verify: the merge sha and the integrate stamp here.
+- [ ] 1.14 Review of the cat branch; fixes applied; squash merge; post-merge steps (notes to `notes/replay/`, worktree removed, `blinx2 bench integrate --golden`, TASKS.md). Verify: the merge sha and the integrate stamp here.
 
 ## 2. Toolkit: the flip count accessor — S
 
 - [ ] 2.1 `xbox_FlipCount(void)` beside `xbox_VblankCount()` in `kernel.h`/`kernel_bridge.c` (or the existing accessor if one is found: name it here), returning the counter `[GPU] flip N` prints (`s_gpu.flips`), read with `__atomic_load_n(.., __ATOMIC_RELAXED)` or by making the field `_Atomic`, since the walker thread writes it. Verify: a ctest reads it after N flips of the walker test and gets N; `tests/posix_ctest.sh <build-dir>` 0 FAIL; the CPU backend builds.
 - [ ] 2.2 Burnout 3 builds against the branch on the Mac and its race smoke runs under Proton on "go" (CLAUDE.md gate for toolkit changes). Verify: `b3/` configures, links and runs.
-- [ ] 2.3 Opus review, squash merge into `posix-host/portability`, the commit named for the next public toolkit round (`blinx2/portability`, before cat's round). Verify: the merge sha here and in `notes/public-toolkit-map/`.
+- [ ] 2.3 Review, squash merge into `posix-host/portability`, the commit named for the next public toolkit round (`blinx2/portability`, before cat's round). Verify: the merge sha here and in `notes/public-toolkit-map/`.
 
 ## 3. CLI: `xbr replay` (`xboxrecomp-cli`) — M
 
 - [ ] 3.1 `src/xboxrecomp_cli/replay.py` `lower <rec> [--game game.toml | --replay-json J] [-o out] [--no-anchors] [--timeout-scale F] [--dry-run]` (design D4): `include @NAME` for a preset prefix or a file prefix's steps (refusing a prefix whose last step is timed), anchor `wait .. timeout` steps (`max(30, 3 × recorded gap)` s) with `check` anchors leaving the poll base alone and `resync` anchors re-basing (refusing `resync` on an `open`), `wait polls k` plus actions per `p` line with coalesced stick runs and `BUTTON/Np` presses, `probe` steps at `k` lines, `# segment NAME kind= rec-flips rec-polls` comments; writes `meta.json` (name, prefix, segments, probes, header fields, the shas `record` adds). Verify: `tests/test_replay_lower.py` on a synthetic recording (made-up addresses such as `0x00001000`, no game output): a `check` anchor keeps absolute re-basing, a `resync` anchor re-bases, `--no-anchors` gives one segment, a timed-prefix fixture is refused, and a tiny script interpreter in the test replays the output and reproduces the fixture's `p` lines.
 - [ ] 3.2 `check <run-dir|log> --rec --script [--baseline run-dir]` (design D6): the verdict ladder (CRASH, DESYNC, STALL from the launcher's verdict, INCOMPLETE, EXIT, ok), TAINTED on a `host port=0` line, NONSTOCK from the `[ENHANCE]` lines through `golden.py`'s stock check; per-segment flips/s and p50/p95/max frame ms from `[PACING] flip N t_us` through `pacing_stats.py`'s parsers with its `[GPU] flip` timestamp-difference fallback and 3D rule, between `flip=` bounds; PERF only against `--baseline` (same host and backend; none given: info only); the `perf.floor_flips` NOTE; probe comparison (integers equal, floats within tol; first difference named; DRIFT if it persists to the next anchor; the frame counter reported apart; the poll offset printed at every `check` anchor); audio starves and underruns from `[AUDIO-HOST]`/`[XA2]` or "n/a (dummy audio)". Exit 1 on CRASH/DESYNC/DRIFT/PERF, 2 on INCOMPLETE/STALL, 0 otherwise. Verify: `tests/test_replay_check.py` on synthetic logs for each verdict, one PERF against a baseline, one divergence that recovers; `grep -nE '0x[0-9A-Fa-f]{5,}' src/xboxrecomp_cli/replay.py tests/test_replay_*.py` finds nothing.
-- [ ] 3.3 `record <name> --prefix P [--game]`: prints the command and environment (design D8), then validates `rec.txt` (`# end`, anchors hit, `[ENHANCE]` stock, host input before `d` warned), adds the exe sha256 and the cat and toolkit shas to `meta.json`, and calls `lower`. `deck-cmd <name> --root R`: prints the `scp` of `replay.txt` and of the package-data runner `src/xboxrecomp_cli/replay/deckrun.sh`, and the `ssh deck 'bash <root>/deckrun.sh ..'` line; refuses a root under `~/Games` (exit 2); never runs them. Verify: tests for the printed commands and the refusal; `deckrun.sh` refuses a root under `~/Games` and a running game in a shell test with a fake `pgrep`.
+- [ ] 3.3 `record <name> --prefix P [--game]`: prints the command and environment (design D8), then validates `rec.txt` (`# end`, anchors hit, `[ENHANCE]` stock, host input before `d` warned), adds the exe sha256 and the cat and toolkit shas to `meta.json`, and calls `lower`. `deck-cmd <name> --root R`: prints the `scp` of `replay.txt` and of the package-data runner `src/xboxrecomp_cli/replay/deckrun.sh`, and the `ssh <bench-host> 'bash <root>/deckrun.sh ..'` line; refuses a root under `~/Games` (exit 2); never runs them. Verify: tests for the printed commands and the refusal; `deckrun.sh` refuses a root under `~/Games` and a running game in a shell test with a fake `pgrep`.
 - [ ] 3.4 `golden_run.py`: extract launch/tail/stop into a function `run`, `golden run` and `replay run` share; add `soak.py`'s stall rule (no flip for `--stall` s, also before the first; SIGUSR1 thread dump, then stop; verdict STALL in `run-info.txt`). Verify: `tests/test_golden_run.py` cases show `golden run`'s behaviour unchanged (same env, same stop flip, same exit codes) and the stall rule firing on a fixture tail.
 - [ ] 3.5 `run <name> --backend metal|cpu [--secs] [--baseline]` on the shared launcher: the replay environment, limit `1.5 × length + 60` s, run directory `bench-logs/<stamp>-<backend>-replay-<name>/` with `run-info.txt` carrying the exe sha256 and the cat and toolkit shas, then `check` into `replay.txt` there. Verify: one replay run on the Mac writes the directory and the check; `golden run` tests still pass.
-- [ ] 3.6 `manifest.py`: optional `[replay]` table (`json`, `dir`); `main.py` TOOLS gains `replay`; `--help` text; `uv run pytest tests`, `uv run ruff check . && uv run ruff format --check .`; a `game.toml` without `[replay]` still validates. Opus review, squash merge into `main` with the noreply identity, annotated tag, `scripts/audit-public.sh origin/main..main` clean, push in the CLI's public round before cat's. Verify: the tag and the audit output here.
+- [ ] 3.6 `manifest.py`: optional `[replay]` table (`json`, `dir`); `main.py` TOOLS gains `replay`; `--help` text; `uv run pytest tests`, `uv run ruff check . && uv run ruff format --check .`; a `game.toml` without `[replay]` still validates. Review, squash merge into `main` with the noreply identity, annotated tag, `scripts/audit-public.sh origin/main..main` clean, push in the CLI's public round before cat's. Verify: the tag and the audit output here.
 
 ## 4. Phase 1 runs: one stage, three hosts — S (plus the user's half hour)
 

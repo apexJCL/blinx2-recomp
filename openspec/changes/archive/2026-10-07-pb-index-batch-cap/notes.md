@@ -1,6 +1,6 @@
 # pb-index-batch-cap: implementation notes
 
-Branches `fix/pb-index-batch-cap`. Toolkit: off `posix-host/portability` 4773a01, with the prototype carried over as d43b654 and the implementation in ffb8a93. Cat: off `main` 3564cb4, with the spec (76e234b, Fable's pass b43bff5) and these notes. gen/ was not regenerated, because the lifter is unchanged between the prototype's base b0eb653 and 4773a01. Raw runs are in `xbox-recomp/runs/horizon/`.
+Branches `fix/pb-index-batch-cap`. Toolkit: off `posix-host/portability` 4773a01, with the prototype carried over as d43b654 and the implementation in ffb8a93. Cat: off `main` 3564cb4, with the spec (76e234b, the pass b43bff5) and these notes. gen/ was not regenerated, because the lifter is unchanged between the prototype's base b0eb653 and 4773a01. Raw runs are in `xbox-recomp/runs/horizon/`.
 
 ## Where the implementation differs from the spec
 

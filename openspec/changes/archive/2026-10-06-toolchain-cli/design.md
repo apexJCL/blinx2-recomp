@@ -351,9 +351,9 @@ Real gates on the Linux/Proton host, in order and each before the next phase mer
 | 4 removal | `.git-blame-ignore-revs` tidy; packaging spec sync | `scripts/bench.sh`, `scripts/pipeline.sh` | pytest; the orchestrator has amended CLAUDE.md and the memory notes first |
 
 Each phase is one branch on the agent's worktree, squash-merged by the
-orchestrator after a Fable review (phase 0: squash merge, with the
+orchestrator after a review (phase 0: squash merge, with the
 format-only pass landed as its own commit on main, so
-`.git-blame-ignore-revs` can name its main sha) (batched if the Fable quota requires,
+`.git-blame-ignore-revs` can name its main sha) (batched if the review quota requires,
 but never skipped for phases 1 and 2).
 
 ### D10. Rules kept

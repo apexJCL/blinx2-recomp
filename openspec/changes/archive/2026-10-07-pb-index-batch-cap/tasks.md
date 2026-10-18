@@ -2,8 +2,8 @@ Worktrees: `wt/horizon/cat` off `main` 3564cb4 and `wt/horizon/xboxrecomp` off `
 
 ## 0. Spec review and branch state
 
-- [x] 0.1 This spec was not written by Fable, so Fable reads it and improves it, then commits the revision on the spec branch.
-- [x] 0.2 Implementation continues only from Fable's revised commit.
+- [x] 0.1 This spec was not written by the reviewer, so the reviewer reads it and improves it, then commits the revision on the spec branch.
+- [x] 0.2 Implementation continues only from the revised commit.
 - [x] 0.3 Merge `posix-host/portability` (4773a01, the D3D11 one-target-per-surface change) into the toolkit branch before any further gate: the prototype branched from b0eb653 and the D3D11 goldens must run with both.
 
 ## 1. Toolkit: the cap, the report and the 32-bit element (D1 to D4)
@@ -43,8 +43,8 @@ Worktrees: `wt/horizon/cat` off `main` 3564cb4 and `wt/horizon/xboxrecomp` off `
 
 ## 5. Merge
 
-- [ ] 5.1 Fable merge review; its fixes go back to this branch's agent.
-  - Archive note (2026-10-07): not done yet; the Fable merge reviews are batched (Fable quota). Listed in TASKS.md.
+- [ ] 5.1 Merge review; its fixes go back to this branch's agent.
+  - Archive note (2026-10-07): not done yet; the merge reviews are batched (review quota). Listed in TASKS.md.
 - [x] 5.2 Squash merge: toolkit `pb_exec: index batches up to 0x80000, ARRAY_ELEMENT32, overflow reported`; cat: this change plus the TASKS.md entries from section 4. Done 2026-10-06: toolkit d9a5c36 (from ffb8a93), cat d126f24 (from ca65931); the section 4 entries landed with the archive, 2026-10-07.
 - [ ] 5.3 Post-merge: notes to `notes/horizon/`, the referenced runs stay in `runs/horizon/`, worktree removed, the Linux/Proton host `blinx2 bench integrate --golden`.
   - Archive note (2026-10-07): the orchestrator's post-merge step. The integrate after today's merges is running (TASKS.md); `wt/horizon` is still there.

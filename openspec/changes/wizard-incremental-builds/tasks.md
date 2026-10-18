@@ -35,16 +35,16 @@ Phase map:
 
 ## 1. Stage state and keys (CLI)
 
-- [ ] 1.1 `buildstate.py`: the state directory at `$(git rev-parse
+- [x] 1.1 `buildstate.py`: the state directory at `$(git rev-parse
       --git-dir)/xbr/` (`<game>/.xbr/` only outside git) (D1); load and
       save `build-state.json` atomically (`_write_json`),
       `stage_key(inputs, upstream)` (canonical JSON, sha256),
       `begin(stage)` (drop the entry), `record(stage, key, inputs,
       outputs)`, `check(stage, key)` returning reasons (D1, D3). A pytest
       that `tree_state` stays clean after a full run.
-- [ ] 1.2 Output checks: size + `mtime_ns`, sha256 on doubt or
+- [x] 1.2 Output checks: size + `mtime_ns`, sha256 on doubt or
       `--verify`; directory outputs as a listing digest (D3).
-- [ ] 1.3 Key inputs per stage as in D2:
+- [x] 1.3 Key inputs per stage as in D2:
       - import: the marker + the `game_files/` listing, with
         `game-files.json` caching sha256s, which `write_manifest` reads;
       - generate: the existing gen key, with import as its only upstream
@@ -61,15 +61,15 @@ Phase map:
       - `wrap:<t>`: the staged `manifest.json` sha256 first, then the kind,
         the base manifest sha256 and the wrapper versions (D2).
       Paths use `$ROOT` / `$TK`.
-- [ ] 1.4 Wire `package` through it: skip a stage when `check` passes,
+- [x] 1.4 Wire `package` through it: skip a stage when `check` passes,
       rerun it and everything below otherwise; a compile whose toolchain
       digest moved calls `start_afresh` first; `write_manifest` always
       reruns. `import` and `enhance hud`, which the wizard calls on their
       own, write their entries through the same module (D1).
-- [ ] 1.5 Reuse `dist/.stage-<target>/` in place: copy only files whose
+- [x] 1.5 Reuse `dist/.stage-<target>/` in place: copy only files whose
       sha256 changed, clonefile or hard-link game files; the wrap writes
       the versioned bundle beside it and never renames it (D11).
-- [ ] 1.6 pytest:
+- [x] 1.6 pytest:
       - key chaining: a change in each input class invalidates exactly
         its stage and the ones below;
       - a CLI or toolkit pin bump with unchanged `tools/` reuses generate;
@@ -87,67 +87,67 @@ Phase map:
 
 ## 2. Plan, clean, bundle records (CLI)
 
-- [ ] 2.1 `package --plan --json`: per stage `reuse` or `run` with the
+- [x] 2.1 `package --plan --json`: per stage `reuse` or `run` with the
       reasons, and estimates from `build-logs/timings.json` (D13).
-- [ ] 2.2 `package --clean` (keeps gen/ and its gen key) and
+- [x] 2.2 `package --clean` (keeps gen/ and its gen key) and
       `--clean=all` (D3); `xbr clean [--bundles|--build|--all] [--yes]`
       printing what it frees, `--all` keeping `.git/xbr/wizard.json`
       (D11). pytest: `--clean` on an up-to-date folder reuses generate;
       `--clean=all` reruns it; the mark survives `clean --all`.
-- [ ] 2.3 At each wrap, copy the manifest to
+- [x] 2.3 At each wrap, copy the manifest to
       `.git/xbr/bundles/<target>/<manifest sha256>.json`; keep the newest 2
       bundles per target in `dist/` (`--keep-bundles N`); list them as
       `bases` in `package --plan --json` (D5.3).
-- [ ] 2.4 pytest for 2.1 to 2.3, including clean refusing paths outside
+- [x] 2.4 pytest for 2.1 to 2.3, including clean refusing paths outside
       the game folder.
-- [ ] 2.5 The plan's HUD stage estimate defaults to the measured 4 to 8 s
+- [x] 2.5 The plan's HUD stage estimate defaults to the measured 4 to 8 s
       when `timings.json` has no entry yet.
 
 ## 3. Reproducible output (toolkit, CLI)
 
-- [ ] 3.1 Toolkit runtime CMake: `-ffile-prefix-map` for the game root,
+- [x] 3.1 Toolkit runtime CMake: `-ffile-prefix-map` for the game root,
       `$TK`, the llvm-mingw root and the `.venv` on all targets; Windows
       `-Wl,--no-insert-timestamp` (the mingw driver the build uses;
       `/Brepro` only for a target linked by `lld-link` directly);
       macOS `ZERO_AR_DATE=1`, `-Wl,-reproducible` when the linker has it
       (D12). A ctest that links a small target twice and compares the
       bytes of the binary and the PDB, the PDB GUID included.
-- [ ] 3.2 CLI: `built` and the version's time from `SOURCE_DATE_EPOCH`,
+- [x] 3.2 CLI: `built` and the version's time from `SOURCE_DATE_EPOCH`,
       else the newest of the game's and the toolkit's commit times;
       `"volatile": ["built", "sources.*.branch"]`; the `-o<6 hex>` options
       digest in the version when the option set, the HUD pack or the CMake
       `-D` list is not stock (D12). pytest: two builds differing only in
       render scale, or only in `--allow-debug`, get different versions,
       and a stock build keeps today's format.
-- [ ] 3.3 Check by hand on BLiNX 2 (Mac, under the lock): two clean
+- [x] 3.3 Check by hand on BLiNX 2 (Mac, under the lock): two clean
       builds in two folders give equal `cat_recomp.exe`, `.pdb` and macOS
       binaries. Record the sha256s in the branch notes.
-- [ ] 3.4 Goldens on the first build with the flags: `blinx2 golden` on
+- [x] 3.4 Goldens on the first build with the flags: `blinx2 golden` on
       Metal and `blinx2 bench golden` for D3D11 under Proton, per the
       workspace gates (the flags touch the runtime build).
 
 ## 4. Patches and appliers (CLI)
 
-- [ ] 4.1 `package/patch.py`: base loading from a manifest, a version
+- [x] 4.1 `package/patch.py`: base loading from a manifest, a version
       folder, an app, or a bundle tar (read in place); the usability check
       (app, target, `data_layout`, sha256 on every kept path); the diff
       into changed, new, deleted and kept; `patch.json` (D5, D6).
-- [ ] 4.2 Base lookup on the host (D5.2, the current version only) and
+- [x] 4.2 Base lookup on the host (D5.2, the current version only) and
       from `.git/xbr/bundles/` (D5.3); `package --patch-from X`, `--full`,
       default patch when the base is usable and the patch is under half
       the full size.
-- [ ] 4.2b The patch-aware game-file sync (D6), shared by the steamos
+- [x] 4.2b The patch-aware game-file sync (D6), shared by the steamos
       applier and modelled for `apply.c`: `want` from the new manifest,
       kept files verified before any change, only new and changed files
       written (`.partial` + flush + rename), only `deleted` removed,
       strays reported. pytest: a code-only patch leaves all 715 kept game
       files of a B3-shaped fixture in place; a kept file with a wrong
       sha256 refuses before any write.
-- [ ] 4.2a Game-file changes in a patch: on steamos and Windows the
+- [x] 4.2a Game-file changes in a patch: on steamos and Windows the
       wizard and the applier warn "this update also changes game data;
       rolling back will not undo that" before applying; on macOS no
       warning, since rollback restores them (D10).
-- [ ] 4.3 SteamOS: `install_lib.py` `cmd_patch` (D7): `cmd_install`'s
+- [x] 4.3 SteamOS: `install_lib.py` `cmd_patch` (D7): `cmd_install`'s
       pre-steps and post-steps around the patch program step and the D6
       sync, in `cmd_install`'s order; `fsync` added to `install_program`,
       the patch step and `switch`; the `launch.lock` check, new for both
@@ -166,7 +166,7 @@ Phase map:
       - `install` and `patch` refuse while `launch.lock` is held;
       - rollback returns to the base, and `--keep 3` prunes;
       - a base from a pre-Proton-pin install gets the Proton step.
-- [ ] 4.4 macOS: `templates/macos/apply.command`, the `xbr-swap` helper
+- [x] 4.4 macOS: `templates/macos/apply.command`, the `xbr-swap` helper
       (`renamex_np(RENAME_SWAP)`, `F_FULLFSYNC`; CLT clang, universal
       arm64 + x86_64, `-mmacosx-version-min` = the game's deployment
       target, signed ad hoc), the previous app at
@@ -185,7 +185,7 @@ Phase map:
         simulated) change nothing and offer `~/Applications`.
       Once by hand on this Mac: `/Applications` with and without the App
       Management permission (needs-user to toggle it).
-- [ ] 4.5 Windows (0.1 decided), as in D8:
+- [x] 4.5 Windows (0.1 decided), as in D8:
       - the stable root stub (`stub_abi = 1`, reads `current.txt`); the
         manifest's `root` block (stub_abi, stub and `apply.exe` sha256
         and size) outside `files[]`; a Windows base usable only with
@@ -209,33 +209,33 @@ Phase map:
         root `apply.exe` after the switch.
       Tests: a host-built unit test of `apply.c`'s portable plan logic,
       and a Python model test of the same plan.
-- [ ] 4.6 Base mismatch messages as in D10 on all three appliers (not
+- [x] 4.6 Base mismatch messages as in D10 on all three appliers (not
       current, a wrong manifest sha, a kept file mismatch), exit non-zero,
       and nothing changed.
-- [ ] 4.7 `docs/bundle.md` in the CLI (new): `manifest.json` schema 2,
+- [x] 4.7 `docs/bundle.md` in the CLI (new): `manifest.json` schema 2,
       `patch.json`, the per-target layouts and appliers. `docs/manifest.md`
       documents `game.toml` and only gains `[wizard] private`.
 
 ## 5. Local source mode and manifest schema 2 (CLI)
 
-- [ ] 5.1 `[wizard] private` (bool, default false) in the manifest
+- [x] 5.1 `[wizard] private` (bool, default false) in the manifest
       schema; `repo` may be absent only when `private = true`, else the
       existing config error; a private game's `wizard config` omits repo
       and update fields; `xbr wizard build` and the publish flow refuse a
       private game (D14). pytest for all four cases (public with repo,
       public without repo is an error, private without repo, private with
       repo refused for publish).
-- [ ] 5.2 Manifest `schema 2`: `source` (`tag` / `local` / `dev`, filled
+- [x] 5.2 Manifest `schema 2`: `source` (`tag` / `local` / `dev`, filled
       from the clone's mark), `volatile`; readers accept 1 and 2;
       `private_leaks` covers `source` (a pytest that neither a local path
       nor a `file://` origin ever lands in it).
-- [ ] 5.3 `docs/manifest.md` (`[wizard] private`) and `docs/wizard.md`
+- [x] 5.3 `docs/manifest.md` (`[wizard] private`) and `docs/wizard.md`
       (developer section: `--source` and `--patch-from`, never shown to
       players).
 
 ## 6. Wizard (Go)
 
-- [ ] 6.1 `repo.Ensure` (D4): clone; fetch-and-checkout a clean marked
+- [x] 6.1 `repo.Ensure` (D4): clone; fetch-and-checkout a clean marked
       clone at another commit (fetch `tag <tag>` and check it against the
       lock commit in player mode; fetch `REF` with no lock check in local
       mode); accept and mark a legacy clone
@@ -245,37 +245,45 @@ Phase map:
       Go tests on temp repos: a tag bump, a legacy clone from today's
       `repo.Clone`, a downgrade, a dirty clone, a foreign origin, local
       then player mode, and a fetch failure leaving the old checkout.
-- [ ] 6.2 `--source PATH[#REF]`: checkout or bundle clone, `file://`
+- [x] 6.2 `--source PATH[#REF]`: checkout or bundle clone, `file://`
       origin, the mark with `source: local`, config from `wizard config
       --json --dev`, the banner on every screen, absent from settings and
       the player help (D14); a warning when the checkout is dirty; the
       hidden `--patch-from FILE` passed through to `package` (D5.1). Go
       tests for both kinds, a bad ref, a dirty checkout, and a game with
       a `repo` (the update check still runs, provenance is `local`).
-- [ ] 6.3 Screens (D13): the build folder line, the output choice per
+- [x] 6.3 Screens (D13): the build folder line, the output choice per
       target from `package --plan --json`, "Rebuild everything",
       the cross-host base picker from the plan's `bases`, the end screen's
       apply steps and "Install now" on the host's own target, the disk
       line and "Free space".
-- [ ] 6.4 `xbr wizard check` passes: `wizard/check.sh` (`gofmt -l` empty,
+- [x] 6.4 `xbr wizard check` passes: `wizard/check.sh` (`gofmt -l` empty,
       `go vet`, `go test`, `staticcheck`), then the double build with
       equal sha256s.
 
 ## 7. Gates
 
-- [ ] 7.1 CLI: `uv run pytest tests`, `uv run ruff check . && uv run ruff
+- [x] 7.1 CLI: `uv run pytest tests`, `uv run ruff check . && uv run ruff
       format --check .`, `xbr wizard check`.
-- [ ] 7.2 Toolkit: Mac build with `DEVELOPER_DIR=/Library/Developer/
+- [x] 7.2 Toolkit: Mac build with `DEVELOPER_DIR=/Library/Developer/
       CommandLineTools`, `tests/posix_ctest.sh <build-dir>` 0 FAIL.
-- [ ] 7.3 Equality test (D12): a pytest on the CLI's fixture game that
+- [x] 7.3 Equality test (D12): a pytest on the CLI's fixture game that
       builds clean in one temp folder and incremental (previous commit,
       then one code change) in another, and compares `files[]` minus the
       declared volatile fields. Then once by hand on BLiNX 2 on the Mac
       under the lock: a clean steamos build and an incremental one after a
       one-line runtime change give equal staged manifests. Record the
       times of both runs.
-- [ ] 7.4 cat: `uv run pytest scripts`, ruff, the CLI pin moved.
-- [ ] 7.5 (needs-user: the PC in Windows) Windows:
+      Done (2026-10-17): `tests/test_incremental.py::test_incremental_equals_clean`.
+      BLiNX 2 by hand with a one-line toolkit runtime change that reaches
+      the exe (bench branch 6117bf7f, a guest_vmem.c message; the exe
+      sha256 goes from bcb8d71d to acf7a405): incremental 8.8 s wall,
+      clean `--clean` 29.4 s; the same bundle name, 497 `files[]` equal,
+      and the manifest equal minus `volatile`.
+- [x] 7.4 cat: `uv run pytest scripts`, ruff, the CLI pin moved.
+      Done against the CLI branch through `XBOXRECOMP_CLI_DIR`: 81 passed,
+      ruff clean. The pin itself needs a tag, so it moves in 10.1.
+- [x] 7.5 (needs-user: the PC in Windows) Windows:
       - a BLiNX 2 v1 in-place install migrates to the new layout, and the
         game starts;
       - a patch applies and the game starts;
@@ -288,38 +296,47 @@ Phase map:
       - the uninstaller leaves no program files, removes the junction
         without touching the root `game_files\` through it first, and
         keeps the data folder.
-- [ ] 7.6 Opus review of the CLI and toolkit branches; fixes back to the
+      Done (2026-10-17, native Windows 11, 7 of 7 pass, with the review
+      fixes at CLI ec41b58): runs/wizard-incr-75/RESULTS.md. It also
+      covered a damaged patch file ("damaged patch", nothing changed) and
+      a reinstall repairing a damaged version.
+- [x] 7.6 (Done 2026-10-18: MERGE WITH FIXES, the fixes at CLI ec41b58.) review of the CLI and toolkit branches; fixes back to the
       branch's agent.
 
 ## 8. SSX 3 and Spartan packaging (their sessions; this spec edits nothing there)
 
-- [ ] 8.1 (xb-windows) Spartan: `git init` in `spartan/tca` and a first
+- [x] 8.1 (xb-windows) Spartan: `git init` in `spartan/tca` and a first
       commit, excluding the dump, the build trees and `tca-old/` via
       `.gitignore`, which also covers every output a package run writes
       (`build-pkg-*`, `dist/`, `analysis/`, `src/recomp/gen/`, `.venv`,
       `game_files/`, `build-logs/`).
-- [ ] 8.2 (ssx3-ec, xb-windows) Each game: enable `[package]` (`app` as
+- [x] 8.2 (ssx3-ec, xb-windows) Each game: enable `[package]` (`app` as
       drafted: `Ssx3`, `SpartanTotalWarrior`; targets the game builds),
       `[data]` defaults, and `[wizard]` with `private = true` and no
       `repo` until the game has a public repo, an icon if one exists and
       no config options (no enhancements layer) (D15).
-- [ ] 8.3 (ssx3-ec, xb-windows) `packaging/launch.env.default.windows`
+- [x] 8.3 (ssx3-ec, xb-windows) `packaging/launch.env.default.windows`
       (and `.macos` where macos is a target), `packaging/windows/
       README.part` (and `macos/`).
-- [ ] 8.3a (ssx3-ec, xb-windows) A `LICENSE` on the same terms as cat's and
+- [x] 8.3a (ssx3-ec, xb-windows) A `LICENSE` on the same terms as cat's and
       b3's (the orchestrator's call, 2026-10-17); the CLI refuses to
       package without one.
-- [ ] 8.4 (ssx3-ec, xb-windows) `<game> package steamos --plain` builds a
+- [x] 8.4 (ssx3-ec, xb-windows) `<game> package steamos --plain` builds a
       bundle on the Mac, and `<game> wizard config --json --dev` prints a
       valid config, both at the CLI pin that has phase 5. After the
       package run, `git status --porcelain` in the game tree is empty
       (the stage keys and the version need a clean tree).
+      Done 2026-10-17 at CLI v0.8.0 (5e2f287): Spartan spartan/tca 4ccbc9c,
+      d0219a6, 90c93da; SSX 3 ssx3/recomp a70e0ac plus d3b30d6
+      (ITEM/packaging 60290f7). Both: package steamos rc 0, a
+      schema 2 manifest, no config.default.toml, GE-Proton11-7 pinned, a
+      clean tree after, and wizard config --dev valid (private, no repo).
 
 ## 9. Acceptance on the Steam Deck (needs-user: the Deck in desktop mode)
 
 Every build runs on the Mac through the wizard (`xbr-wizard`, steamos
 target, the output folder on the Mac); the bundle or patch is copied to
-the Deck with `scp` and installed there over `ssh deck`. Nothing is built
+the Deck with `scp` and installed there over `ssh <bench-host>`. Nothing is built
 on the Deck. The install keeps the default 3 versions; no larger `--keep`
 is ever passed.
 
@@ -328,7 +345,7 @@ Burnout 3 (incremental build and patch):
 - [ ] 9.1 Base. Read the base manifest locally from `b3/dist/
       Burnout3Takedown-20261012.1309-c56574b4-te5d407e-g7e7298dd-
       dirty90bdf81c-steamos.tar`, and check its sha256 equals
-      `ssh deck sha256sum ~/Games/Burnout3Takedown/versions/<that
+      `ssh <bench-host> sha256sum ~/Games/Burnout3Takedown/versions/<that
       version>/manifest.json`. That install was not made by the wizard;
       its schema 1 manifest is a valid base (D5).
 - [ ] 9.2 First wizard build of B3 in a fresh build folder
@@ -372,8 +389,11 @@ SSX 3 and Spartan (full builder through local source mode):
 
 ## 10. Merge and release
 
-- [ ] 10.1 Squash-merge the CLI and toolkit branches, tag the CLI, move
-      the pin in cat and b3 (the orchestrator).
+- [x] 10.1 Squash-merge the CLI and toolkit branches, tag the CLI, move
+      the pin in cat and b3 (the orchestrator). Done 2026-10-17: CLI
+      6b8cea3, release 5e2f287 tagged v0.8.0 (not pushed yet); toolkit
+      c3cb5064; cat and b3 pin v0.8.0. The toolkit pin moves with the next
+      fork push round.
 - [ ] 10.2 After the merge, the workspace steps (notes, runs, worktree
       removal, TASKS).
 - [ ] 10.3 Archive this change only after `cli-extraction` is archived:

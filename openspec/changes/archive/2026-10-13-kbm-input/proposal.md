@@ -1,6 +1,6 @@
 # Change: Keyboard and mouse input, with the mapping in the config file
 
-Tracker BLX-96, required for v1.0 (epic BLX-99). Spec first: the operator
+Required for v1.0. Spec first: the operator
 tunes the default mapping in this document, then implementation starts.
 
 ## Why
@@ -30,7 +30,7 @@ player with one cannot change a single key:
 - **The switch lives in `launch.env`, not in the config file.** The
   bundles turn the keyboard on with `RECOMP_KEYBOARD=1` in
   `launch.env.default` (Windows, macOS; steamos through the same
-  mechanism). Since `config-layering` (BLX-74) the player's settings live
+  mechanism). Since `config-layering` the player's settings live
   in `config/config.toml` over the shipped `config.default.toml`, with the
   environment on top; an input switch set from `launch.env` cannot be
   turned off from `config.toml`, and a key layout cannot live in an
@@ -93,7 +93,7 @@ player with one cannot change a single key:
   delta gains a `REMOVED` section for that requirement (task 7.4), which
   cannot be written today because the main spec does not hold it yet.
 - **The parked `input-selection` spike** (cat `spike/input-selection`
-  e09b325, deferred to the very end, BLX-26) proposed per-port source
+  e09b325, deferred to the very end) proposed per-port source
   selection, pad pinning by GUID, pad remapping, a WASD layout with ramps,
   an `input.ini` bindings file and SDL hot-plug. This change takes the
   parts v1.0 needs and places them where the project now keeps such
@@ -101,8 +101,8 @@ player with one cannot change a single key:
   as `[input]` tables in the TOML config layer instead of a flat
   `input.ini`, since `config-layering` landed). It does **not** fold in
   per-port source selection, GUID pins or pad remapping (spike D2, D8),
-  which stay parked, and hot-plug now belongs to `sdl3-migration` D8
-  (BLX-78, BLX-15). When the spike is picked up it starts from a smaller
+  which stay parked, and hot-plug now belongs to `sdl3-migration` D8.
+  When the spike is picked up it starts from a smaller
   scope and the vocabulary this change fixes (control names, key names).
 - **`enhance-menu-preview`** D4 reads the menu hotkey through
   `xbox_FramebufferKeyDown(vk)`; the VK table stays, so nothing there
@@ -110,7 +110,7 @@ player with one cannot change a single key:
   `xbox_InputMouseSuspend(int)`, so the cursor is free while the menu is
   open (task 7.3 hands it over). `F10` stays the menu's key and bindings
   that use it are warned about.
-- **`sdl3-migration`** (BLX-78) renames the SDL event fields and the
+- **`sdl3-migration`** renames the SDL event fields and the
   relative-mouse call; the mouse feeder lives in one new file,
   `mouse_sdl.c`, so whichever branch merges second ports one file.
 - **`config-layering`** supplies the files, the precedence, the error
@@ -166,7 +166,7 @@ player with one cannot change a single key:
   the next release: the steamos `README.part` Controls paragraph, and
   `RECOMP_MOUSE=0` in the `bench integrate` pin string (not a gate:
   `RECOMP_CONFIG=none` plus the code default already give off).
-- **Burnout 3** (`b3/`): unaffected until BLX-75 wires the layer; then its
+- **Burnout 3** (`b3/`): unaffected until the tracker item wires the layer; then its
   `config.default.toml` may turn the keyboard on for its USB pad path,
   which reads `xbox_InputGetState(0)`. The toolkit `src/input` change is
   built and smoke-run on Burnout 3 under Proton (CLAUDE.md gate).

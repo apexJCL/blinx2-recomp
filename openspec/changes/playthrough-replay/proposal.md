@@ -1,9 +1,9 @@
 # Change: Record a playthrough once, replay it on every host
 
-Tracker BLX-116 (spike, Fable, spec only; not a v1 blocker). The user asked
-on 2026-10-13 for a way to make the release soak (BLX-101) tractable:
+The user asked
+on 2026-10-13 for a way to make the release soak tractable:
 record a human playthrough once and replay it unattended on Mac/Metal,
-Proton/D3D11 (the Linux/Proton host through `blinx2 bench`) and the Steam Deck. BLX-101
+Proton/D3D11 (the Linux/Proton host through `blinx2 bench`) and the Steam Deck. The tracker item
 itself is now a manual smoke pass per platform; this change is phase 1 of
 the automation that takes over after v1: one recorded stage replayed on all
 three hosts with one check per host. The later phases are proposed as
@@ -40,7 +40,7 @@ one:
   game-route spec already demands that every screen exit end on a game
   event; a replay needs the same, plus care not to re-base on events other
   threads time (file opens from the loader and audio threads).
-- **The checks exist, scattered.** `scripts/soak.py` (BLX-10) has the
+- **The checks exist, scattered.** `scripts/soak.py` has the
   verdict ladder (STALL > CRASH > EXIT > INCOMPLETE > ok), the stall rule
   and the Mac launcher; `golden_run.py` and `bench/host/run_game.sh` have
   the locks, the run directories and the end checks; `[PACING] flip N t_us`
@@ -98,7 +98,7 @@ one:
   the Linux/Proton host: the recording is pushed with `rsync` (`bench sync` excludes
   `analysis/`), then `blinx2 bench run` with the replay environment in
   `BENCH_ENV`; the bench takes its own lock. Deck: `blinx2 replay deck-cmd
-  <name>` prints the `scp` and `ssh deck` commands for the user to run in
+  <name>` prints the `scp` and `ssh <bench-host>` commands for the user to run in
   their own session against a scratch install root holding a `blinx2
   package` bundle (never `~/Games/BLiNX2/hdd`, never unasked); the runner
   script ships as CLI package data; logs come back by `scp` and go through

@@ -23,15 +23,15 @@ sha256 = [
 # The CLI and the toolkit, each at a release tag. The commit locks the tag:
 # a tag that names another commit (moved, re-pushed) is refused.
 [cli]
-tag = "v0.7.7"
-commit = "f34648a8363b94752c05afd4b6a5012afdf9dd26"
+tag = "v0.8.0"
+commit = "5e2f2876d23b085f0c6f59b098717317e6c8f96a"
 url = "https://github.com/apexJCL/xboxrecomp-cli.git"
 
 [toolkit]
 url = "https://github.com/apexJCL/xboxrecomp.git"
-tag = "blinx2-v0.5.0"
+tag = "blinx2-v0.5.1"
 branch = "blinx2/portability"
-commit = "1eee31451be8e347cd89760e9064fae294929242"
+commit = "06c97d1304c210687124d2cec4d6ef826880492d"
 
 [toolchain]
 llvm_mingw = "20260922"

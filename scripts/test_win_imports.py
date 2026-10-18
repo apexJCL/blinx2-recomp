@@ -3,7 +3,7 @@
 ship with Windows. mingw-w64's plain libxinput.a imports XINPUT1_3.dll, the
 DirectX June 2010 redistributable; a stock Windows 10/11 lacks it and the
 exe dies with 0xC0000135 before it opens a window or a log. Proton ships the
-DLL, so the Proton bench never shows it (BLX-127). Reads every built
+DLL, so the Proton bench never shows it. Reads every built
 build-win/ and build-pkg-win/ game exe with llvm-objdump -p; skips when
 there is no Windows build or no llvm-objdump.
 

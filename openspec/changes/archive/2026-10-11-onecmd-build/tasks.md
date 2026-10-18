@@ -205,7 +205,7 @@ Phase map:
   audio or kernel changes. If the review disagrees, `blinx2 bench golden`
   on the Linux/Proton host under the run lock is the one run to add.
 
-## 4R. Opus review fixes (merge after fixes, no blockers)
+## 4R. Review fixes (merge after fixes, no blockers)
 
 - [x] 4R.1 The marker goes into `.partial` before the swap, so the rename
   finishes the import; a copy or `--link` beside an unmarked
@@ -228,7 +228,7 @@ Phase map:
 
 ## 5. Review and merge (main session)
 
-- [x] 5.1 Opus review of both branches (the CLI's reader copy against
+- [x] 5.1 Review of both branches (the CLI's reader copy against
   upstream's file, the refusal paths, the name checks, the `--replace` swap
   and its recovery, the README as a first-time player). Fixes go back to
   the branch's agent.
@@ -247,6 +247,6 @@ Phase map:
 - [ ] 6.2 the Linux/Proton host: sync and rebuild `~/xbox-recomp` under the run lock and
   run `blinx2 bench integrate --golden` as every integration merge does (the
   pin changed; the game did not).
-- [ ] 6.3 `TASKS.md`: BLX-79 done with the shas; b3 follow-up noted (pin the
+- [ ] 6.3 `TASKS.md`: the tracker item done with the shas; b3 follow-up noted (pin the
   CLI release, its README's dump sentence); the public push round queued
   (CLI first, then cat; audits and the noreply identity as the rules say).

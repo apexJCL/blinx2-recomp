@@ -4,8 +4,8 @@ Order: the sections run top to bottom. Each toolkit section ends with a Mac buil
 
 ## 0. Spec review (before any code)
 
-- [x] 0.1 Fable reads this change (proposal, design, the kernel-file-io delta) and improves it in place, then commits the revision on `spec/runtime-missing-files`.
-- [x] 0.2 The implementing agent resumes only from Fable's revised commit.
+- [x] 0.1 The reviewer reads this change (proposal, design, the kernel-file-io delta) and improves it in place, then commits the revision on `spec/runtime-missing-files`.
+- [x] 0.2 The implementing agent resumes only from the revised commit.
 
 ## 1. Toolkit: the path layer (D2, D3)
 
@@ -99,7 +99,7 @@ Order: the sections run top to bottom. Each toolkit section ends with a Mac buil
   If Burnout 3 builds and boots on the Mac, run the same route there too: that is the only run that exercises §4 on Burnout 3. If it does not boot there yet, say so in TASKS.md as an open gate on §4.
   Result 2026-10-06 (host dir `~/xbr-assets`, driver `runs/missing-files/b3gate.sh`, compare `b3cmp.py`; b3 4788d52, gen 4118995396daf383 from current tools, dump `~/xbox-recomp/burnout_3` for both): base (posix-host/portability 4e9a2f2, `20261006-122823-base-race`) and new (4f35dea, `20261006-110030-new-race`) both reach the race (crash1.rws, E_djrace, tracks\US; 144 frames each on the host). FAILED pairs identical: `t:\$u\contentmeta.xbx` and `TDATA\FFFE0000\MUSIC\ST.DB`, both 0xC000003A. No `[FILE] missing` line. The Mac route was not run (B3 does not boot on the Mac yet): open gate on section 4.
   - Archive note (2026-10-07): the Mac route is still open, in TASKS.md as the open gate on section 4 (Burnout 3 does not boot on the Mac yet).
-- [x] 8.7 Fable review of the merge. Its fixes go back to this branch's agent. Done: `notes/fable-reviews/2026-10-06-runtime.md` §1, no blocker. The two should-fixes are toolkit 99123b6 (`missing_list` written once; open successes only under `missing=all`) and cat a9e6262 (the env.md rows); CLI 9309837 adds both ctests to the Proton list.
+- [x] 8.7 Review of the merge. Its fixes go back to this branch's agent. Done: the review notes §1, no blocker. The two should-fixes are toolkit 99123b6 (`missing_list` written once; open successes only under `missing=all`) and cat a9e6262 (the env.md rows); CLI 9309837 adds both ctests to the Proton list.
 
 ## 9. After the merge
 

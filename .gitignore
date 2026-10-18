@@ -16,9 +16,7 @@ analysis/golden/*
 analysis/golden/audio/
 src/recomp/gen/
 .venv-ghidra
-build-*/
-# build-*/ is the build trees; this openspec change is not one.
-!openspec/changes/build-wizard/
+/build-*/
 third_party
 # blinx2 setup: the pinned venv, and the toolkit clone (it must not enter the
 # -dirty hash of a packaged version).

@@ -6,7 +6,7 @@ host slot masks (what xbox_InputIsConnected reports each frame) and, as
 aMASK, activity masks (the slots whose pad was pressed), checking the
 slot:port map, the port mask and the reverse lookup after each one. The
 title reads player 1 from port 0, so a pad alone on a slot above 0, or
-behind Steam's inert virtual pad, must still reach it (BLX-117).
+behind Steam's inert virtual pad, must still reach it.
 
   python3 scripts/test_pad_slots.py
   uv run pytest scripts/test_pad_slots.py
@@ -251,7 +251,7 @@ def test_pad_pressed_alone_keeps_port_zero():
 def test_replug_keeps_its_port():
     """A pad pulled and replugged takes its old port back, not the lowest free.
 
-    The SDL backend gives a replugged model its old slot (BLX-15), and
+    The SDL backend gives a replugged model its old slot, and
     XInput the lowest free index, so the slot stands for the pad.
     """
     _need_cc()

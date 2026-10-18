@@ -169,13 +169,16 @@ endif()
 # to the big-object format on its own when a generated file needs it; GCC's
 # assembler has to be told. lld writes a PDB of public symbols even without -g,
 # which is what the fault handler's SymFromAddr needs to name a function.
+# `--pdb=` lets lld name it after the exe, beside it: lld records its link
+# command line in the PDB, so an absolute path there would make two builds
+# of the same inputs in two folders differ (the toolkit's reproducible flags
+# take care of the rest).
 if(MINGW)
     if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
         set_property(SOURCE ${RECOMP_GEN_SOURCES} APPEND PROPERTY
             COMPILE_OPTIONS -Wa,-mbig-obj)
     else()
-        target_link_options(${PROJECT_NAME} PRIVATE
-            "-Wl,--pdb=$<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.pdb")
+        target_link_options(${PROJECT_NAME} PRIVATE "-Wl,--pdb=")
     endif()
 endif()
 

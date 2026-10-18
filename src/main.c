@@ -1156,7 +1156,7 @@ static int host_main(void)
 
     /* D3D8 builds the KEVENT its vblank DPC sets inline, without
      * KeInitializeEvent. The toolkit gives such an event a host event only on
-     * request (upstream's ke_guest_event, BLX-35); without it KeSetEvent hands
+     * request (upstream's ke_guest_event); without it KeSetEvent hands
      * the guest address to the host as a handle and the DPC faults on POSIX.
      * An explicit RECOMP_TITLE_KEVENTS in the environment still wins. */
     if (!recomp_env(RENV_TITLE_KEVENTS))
@@ -1168,7 +1168,7 @@ static int host_main(void)
      * mac-one-cpu). The stage loader and its loader thread add lights to
      * one global pool with an unlocked read-modify-write (sub_00037CE0); run
      * on two host cores they lost entries and the terrain baked black (dark
-     * water, BLX-1). The one-core pin (RECOMP_GUEST_CPUS) narrows that where
+     * water). The one-core pin (RECOMP_GUEST_CPUS) narrows that where
      * the host has thread affinity; macOS has none, and the lock closes it
      * everywhere. An explicit RECOMP_GUEST_LOCK in the environment still
      * wins (=0 is the A/B). */

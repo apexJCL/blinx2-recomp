@@ -1,6 +1,6 @@
-# Free camera and modding tools: spike (BLX-197, 2026-10-17)
+# Free camera and modding tools: spike (2026-10-17)
 
-Opus, research spike: this assesses the work and builds nothing. Game `cat/` at main `277e780`.
+The agent, research spike: this assesses the work and builds nothing. Game `cat/` at main `277e780`.
 Toolkit `xboxrecomp/` is on `posix-host/portability`. The enhancements design is on
 `spike/enhancements` `baeb15b`.
 
@@ -8,7 +8,7 @@ The evidence comes from small read-only scripts over the game files and from thr
 Metal runs (`RECOMP_DEBUG` `mem_dump` and `vsh_const_dump` on `@stage1`). The raw runs stay
 private and are not in the repo. Generated-code line numbers refer to `src/recomp/gen/` at main
 `277e780`. Effort is in person-weeks (pw) of agent sessions. Every pw figure is a **guess** unless
-the text says otherwise. An Opus review (2026-10-17) corrected the view-matrix reading in
+the text says otherwise. A review (2026-10-17) corrected the view-matrix reading in
 section 5. This version includes those fixes.
 
 **Headline.**
@@ -216,7 +216,7 @@ disable the cull test once its function is found.
 - **HUD hide.** Skip HUD batches in shared backend code (`nv2a_backend_common`), so Metal and D3D11
   agree by construction. The CPU rasteriser only has to build, so its gap goes in TASKS.
   - The program hash alone is too coarse: the XDK pass-through `B2913952` also draws the Sofdec
-    movie quad (`openspec/changes/present-surface/design.md:16`), and the pass-through programs
+    movie quad (`openspec/changes/archive/2026-10-17-present-surface/design.md:16`), and the pass-through programs
     probably draw the fades too.
   - Filter on the hash (`5474DB2A`, `B2913952`) **plus state**: the render target is the back
     buffer, the depth test is off and blending is on.
@@ -236,7 +236,7 @@ disable the cull test once its function is found.
 | M0c | **`.edt` presets** (about half a day): find the reader of `edit_char/*.edt` (search the `mdl_param_list_tg` string's xrefs) and map the 108 bytes to MODEL_EDIT parts and colours | a byte map in this change | 0.1 |
 | M1 | The mod-layer slice (section 6.3) with `camera.free` as its first module; the `sub_0005C930` wrapper with `on_frame` and input capture; fly controls | `enhance_stock` golden unchanged; a `scripts/test_*.py` case for the keys | 1.5-2 |
 | M2 | HUD hide in `nv2a_backend_common` (hash + state), a ctest for the filter, a list of the batches it matches | Metal golden + `blinx2 bench golden` under Proton | 0.5-1 |
-| M3 | Freeze (if the flag exists), reset, the cutscene check, docs, an Opus review | full gates | 0.5-1 |
+| M3 | Freeze (if the flag exists), reset, the cutscene check, docs, a review | full gates | 0.5-1 |
 
 Total: **3.5-5 pw (guess)**.
 

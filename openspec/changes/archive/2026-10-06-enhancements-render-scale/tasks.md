@@ -52,8 +52,8 @@ Worktrees: `wt/enh-scale/xboxrecomp` (toolkit, branch `enhance/render-scale` off
 
 ## 9. Review, merge and cleanup
 
-- [x] 9.1 Fable review of both branches before merge, with the R4 checklist: every new backend/presenter statement behind `scale > 1`, a non-default filter, `fullscreen` or a size mismatch; no link from `xbox_kernel`/`xbox_d3d8`/`xbox_video` to `xbox_enhance`; env rows present. Fixes go back to this branch's agent.
-  - Archive note (2026-10-06): done. Fable reviewed both branches; fixes recorded in cat b23a179 and toolkit cb5ac1a (notes/enh-scale/RESUME-enh-scale.md).
+- [x] 9.1 Review of both branches before merge, with the R4 checklist: every new backend/presenter statement behind `scale > 1`, a non-default filter, `fullscreen` or a size mismatch; no link from `xbox_kernel`/`xbox_d3d8`/`xbox_video` to `xbox_enhance`; env rows present. Fixes go back to this branch's agent.
+  - Archive note (2026-10-06): done. The reviewer reviewed both branches; fixes recorded in cat b23a179 and toolkit cb5ac1a (notes/enh-scale/RESUME-enh-scale.md).
 - [x] 9.2 After merge: copy untracked notes to `notes/enhancements-render-scale/`, keep `runs/enh-scale/`, remove `wt/enh-scale` (`git worktree remove --force` + `rm -rf`), keep the branches; sync and rebuild the Linux/Proton host (`scripts/bench.sh integrate`) and run golden under the run lock; update `TASKS.md`.
   - Archive note: done. Merged as toolkit fbfc46f and cat 627b578; notes in `notes/enh-scale/`, runs in `runs/enh-scale/`, worktree removed; the Linux/Proton host integrate plus golden passed (cat b811d7e).
 
@@ -65,7 +65,7 @@ Worktrees: `wt/enh-scale/xboxrecomp` (toolkit, branch `enhance/render-scale` off
   - [ ] window resized (`xdotool windowsize`) with each filter. **Blocked by Wine:** Wine 11's x11drv never applies an external resize, so the game gets no WM_SIZE (Proton verification below). Open in TASKS.md;
   - [x] fullscreen;
   - [x] flips/s 1× vs 2× against `render-gpu-backend` 3.2.
-- [x] 10.4 Proton checklist (from the Fable review; each item a log line or a dump to look at):
+- [x] 10.4 Proton checklist (from the review; each item a log line or a dump to look at):
   - The first-present `[D3D11]` line names the path actually taken: `copy` at stock 640x480; `copy` for 2x in a 1280x960 window with nearest or integer; `scaling blit` otherwise. Integer with an exact-size frame must say `copy`.
   - `xdotool windowsize` per filter (nearest, linear, integer): `window resized: swap chain WxH` appears, no `ResizeBuffers ... hr=` line and no `no back buffer` line; the frame is letterboxed or centred as the filter says.
   - The blit shaders compile (no `nv2a_present_vs`/`nv2a_present_ps` compile error) on Wine's d3dcompiler_47.
@@ -73,7 +73,7 @@ Worktrees: `wt/enh-scale/xboxrecomp` (toolkit, branch `enhance/render-scale` off
   - `present.fullscreen` under Wine/Gamescope: a WS_POPUP at the monitor size, the frame placed by the filter, no exclusive-mode flicker.
   - The 2x `d3d11_dump` is 1280x960 (the RT), and `px_probe` coordinates hit the same guest pixels as at 1x.
   - Burnout 3 at stock and at 2x (10.3).
-- [x] 10.3 Burnout 3 (`b3/`) at stock and `RECOMP_RENDER_SCALE=2` under Proton: menu script runs, 1× unchanged, 2× renders (eyeball the dump); the upstream gate for the common and D3D11 parts. Done 2026-10-11 by BLX-75 (b3 37204d3): race gate PASS at 1x and 2x under Proton, 1x checked by eye and flips/s (random track, no pixel A/B).
+- [x] 10.3 Burnout 3 (`b3/`) at stock and `RECOMP_RENDER_SCALE=2` under Proton: menu script runs, 1× unchanged, 2× renders (eyeball the dump); the upstream gate for the common and D3D11 parts. Done 2026-10-11 by the tracker item (b3 37204d3): race gate PASS at 1x and 2x under Proton, 1x checked by eye and flips/s (random track, no pixel A/B).
   - Archive note: open, in TASKS.md (the Burnout 3 upstream gate).
 
 ## Results (2026-10-04, macOS Metal unless noted)
@@ -138,7 +138,7 @@ Wall p50 is about 32.5 ms everywhere. There is no 25% flips/s drop at 2×. The 4
 - Proton is not run this round (10.x).
 - 7.3: llvm-mingw cat+toolkit builds link clean with `XBOXRECOMP_ENHANCE` ON and OFF; the Mac build with OFF also links. The only warning in a touched file is the pre-existing `writes_back` initializer (nv2a_pb_d3d11.c). Logs are in `runs/enh-scale/build-{win-ON,win-OFF,mac-OFF}.log`.
 
-**Fable review fixes (2026-10-04).**
+**Review fixes (2026-10-04).**
 - Toolkit: 54d0c16 occlusion rounding at scale 3 (a count of 4 rounded to 0; it is now clamped to 1, with tests). 5b17037 D3D11: the first-present log names the path taken, a lost back buffer is guarded, stock is compared against the created size and windowed. 7c1839e Metal: the host readback is gated on a write-back or a window. cb5ac1a docs: the box filter works in gamma space.
 - Not done, review item 3: a nearest blit that shrinks the frame stays point-sampled. `nearest` means nearest on both backends, and `linear` is the choice for a smooth downscale. Doing it in SDL would add output-size tracking to the stock path.
 - Re-verified on the Mac: `render_scale`, `enhance_cfg`, `nv2a_tex` and `nv2a_backend_smoke` pass (4 scenes identical). Metal stock golden `@attract` and `@stage1` gave CLOSE on every frame (cliff 0.192 and stick 0.506, the same as main; hud 1.377 vs main 1.353) (`runs/enh-scale/fix1-*`). A 2x headless attract still writes back 640x480 dumps, and golden rejects it as not stock. llvm-mingw ON and OFF link, with only the pre-existing warning.

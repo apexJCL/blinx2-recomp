@@ -1,8 +1,8 @@
 ## 0. Before implementation
 
-- [x] 0.1 Fable revised this spec after the user's answers (bundle the game files; no lock in the installed game; windows and steamos as separate bundles; saves kept everywhere).
+- [x] 0.1 The reviewer revised this spec after the user's answers (bundle the game files; no lock in the installed game; windows and steamos as separate bundles; saves kept everywhere).
 - [x] 0.2 Worktree `wt/packaging/cat` on `feat/packaging`, cut from `spec/packaging`. No toolkit worktree: the toolkit is used read-only through `XBOXRECOMP_DIR`. If a toolkit change turns out to be needed, it gets its own worktree off `posix-host/portability` and a task here.
-- [x] 0.3 Fable read the cross-platform amendment (build on any host, one CLI, no ssh deploy) and recorded decisions 3 and 4 in design "Decided". Phase 2 starts from this version.
+- [x] 0.3 The reviewer read the cross-platform amendment (build on any host, one CLI, no ssh deploy) and recorded decisions 3 and 4 in design "Decided". Phase 2 starts from this version.
 
 ## 1. Data location keys (`src/main.c`, `src/env/recomp_env_game.h`, `docs/env.md`)
 
@@ -239,8 +239,8 @@ Every agent run on the Linux PC is wrapped in `flock -w 3600 ~/.recomp-run.lock`
 ## 10. Review, merge and cleanup
 
   - Mac cleanup is in the report; the Linux PC's cleanup comes with 9.3-9.7.
-- [x] 10.1 Fable review of the branch, including a public-repo audit of the delta: no host names ("the gaming PC" or "a SteamOS-like Linux gaming PC"), private paths, the personal email, binaries, bundles or game data. `export-public.sh` on the branch head passes its own checks. The branch's agent applies the fixes.
-  - Archive note: done. Fable review: merge-with-fixes, fixes applied (cat acc065d).
+- [x] 10.1 Review of the branch, including a public-repo audit of the delta: no host names ("the gaming PC" or "a SteamOS-like Linux gaming PC"), private paths, the personal email, binaries, bundles or game data. `export-public.sh` on the branch head passes its own checks. The branch's agent applies the fixes.
+  - Archive note: done. Review: merge-with-fixes, fixes applied (cat acc065d).
 - [x] 10.2 The orchestrating session merges `--no-ff` into cat `main`, then runs `bench.sh integrate` and golden.
   - Archive note: done. Merged as cat 333358e; the Linux PC gates (cat 11d6c8a) ran the D3D11 golden after it (7/7 CLOSE).
 - [x] 10.3 After the merge:

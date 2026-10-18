@@ -9,7 +9,7 @@ Raw runs go in `xbox-recomp/runs/metalrb/`. The run and summary scripts are `run
 - [x] 0.1 Probe (toolkit 1d2079b): `metal_prof`, `metal_no_writeback`, `metal_no_window`, `metal_fb_watch`, with env.md rows.
 - [x] 0.2 stage1 and the story menu at scale 1, 2 and 3, windowed: baseline, plus both consumers off. stage1 at 3x was also run with each consumer off on its own. The table is in proposal.md.
 - [x] 0.3 Framebuffer readers: `fb_watch` on `@stage1` and `@story-hub`. Only `write_present_bmp` (dumps) read the surface, plus one `bzero` at re-allocation (design, Context).
-- [x] 0.4 Spec review (Fable): design D1–D4 corrected, the four open questions decided (design, "Decided").
+- [x] 0.4 Spec review: design D1–D4 corrected, the four open questions decided (design, "Decided").
 
 ## 1. Executor hook (toolkit)
 
@@ -125,7 +125,7 @@ Raw runs go in `xbox-recomp/runs/metalrb/`. The run and summary scripts are `run
   - `render-gpu-backend` tasks 4.9 ticked, pointing here;
   - cat `TASKS.md`: replace the "Metal CPU round trips" item with the result; add the flip-wait follow-up (design D6) and the D3D11 `sync_guest` follow-up for its report and mid-frame dumps (proposal, Impact).
   Done: both toolkit headers in 5437712; `render-gpu-backend` 4.9 ticked; TASKS.md item replaced, with the D6 flip-wait and D3D11 `sync_guest` follow-ups and optional 6.1.
-- [x] 7.3 Fable review of the branch; fixes go back to this branch's agent, never to the main session. Then the orchestrating session merges: toolkit `--no-ff` into `posix-host/portability`, cat `--no-ff` into `main`.
-  - Archive note: done. Fable reviewed the branch; its fixes are toolkit ad1a241 and cat 873be3e. Merged as toolkit 81be009 and cat b607417.
+- [x] 7.3 Review of the branch; fixes go back to this branch's agent, never to the main session. Then the orchestrating session merges: toolkit `--no-ff` into `posix-host/portability`, cat `--no-ff` into `main`.
+  - Archive note: done. The reviewer reviewed the branch; its fixes are toolkit ad1a241 and cat 873be3e. Merged as toolkit 81be009 and cat b607417.
 - [x] 7.4 After the merge (orchestrating session): copy untracked notes to `notes/metalrb/`; the runs are already in `runs/metalrb/` (copy any new shots there with `cp -c` if they were made elsewhere); `git worktree remove --force` both worktrees and `rm -rf wt/metalrb`, keeping the branches; `scripts/bench.sh integrate` and golden on the Linux/Proton host; update `cat/TASKS.md`.
   - Archive note: done. The Linux/Proton host `integrate` plus golden ran after b607417 (rc=0; attract-cliff EXACT, the other 7 frames CLOSE), `wt/metalrb` is removed, the notes live in `runs/metalrb/`, and TASKS.md is updated (cat 97f95f6).

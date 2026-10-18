@@ -2,7 +2,7 @@ Each experiment runs later in its own worktree, after the user's go for each run
 
 ## 1. External frame-generation docs (route B3, S)
 
-- [ ] 1.1 Write a player-facing section in `docs/` on Lossless Scaling (Windows), lsfg-vk with `decky-lsfg-vk` (Linux and the Deck), AMD AFMF and NVIDIA Smooth Motion. For each: what it needs, the expected artefacts at a 30 fps base (HUD ghosting, particle smear, +1 base frame of latency, below the vendors' recommended base), and the settings that help (`present.pacing=sleep`, borderless window, vsync). Mark it unsupported. No code. **Done when** the user approves the text.
+- [x] 1.1 (`docs/frame-generation.md`, the tracker item; the user approved the text on 2026-10-18.) Write a player-facing section in `docs/` on Lossless Scaling (Windows), lsfg-vk with `decky-lsfg-vk` (Linux and the Deck), AMD AFMF and NVIDIA Smooth Motion. For each: what it needs, the expected artefacts at a 30 fps base (HUD ghosting, particle smear, +1 base frame of latency, below the vendors' recommended base), and the settings that help (`present.pacing=sleep`, borderless window, vsync). Mark it unsupported. No code. **Done when** the user approves the text.
 - [ ] 1.2 Only with the user's OK and their own Lossless Scaling copy: one lsfg-vk check on the Deck over `@stage1-hold`. **Pass:** the layer loads under our Proton build and presents at 60. The user's verdict on the footage is recorded in TASKS. No build changes.
 
 ## 2. Draw-matching probe (route A gate, S)
@@ -12,7 +12,7 @@ Each experiment runs later in its own worktree, after the user's go for each run
   - the golden scenarios `@stage1`, `@stage1-hold` and `@story`;
   - one boss or time-control scene;
   - **a pan and turn route** (a scripted camera rotation and a run with turns), because the existing sample is mostly a held camera.
-- [ ] 2.3 Write `scripts/fps60_match.py` (stdlib, with `scripts/test_fps60_match.py`). It matches draws between flips N-1 and N by key plus order within the key. It **classifies each differing row per program** as a matrix (a 4x4 or 4x3 block whose last row is (0,0,0,1) or orthonormal), a vector (unit length) or a scalar, and checks the result against BLX-197's reading (`c[100..107]` W·V, `c[0..47]` palettes, `c[112]` a view-space vector). It also tags programs as particle or spawn (high unmatched rate, CPU-written vertices). Per flip and per scene class, it reports the matched fraction, the unmatched draws by program and tag, the row roles, and the largest per-draw transform delta.
+- [ ] 2.3 Write `scripts/fps60_match.py` (stdlib, with `scripts/test_fps60_match.py`). It matches draws between flips N-1 and N by key plus order within the key. It **classifies each differing row per program** as a matrix (a 4x4 or 4x3 block whose last row is (0,0,0,1) or orthonormal), a vector (unit length) or a scalar, and checks the result against the tracker item's reading (`c[100..107]` W·V, `c[0..47]` palettes, `c[112]` a view-space vector). It also tags programs as particle or spawn (high unmatched rate, CPU-written vertices). Per flip and per scene class, it reports the matched fraction, the unmatched draws by program and tag, the row roles, and the largest per-draw transform delta.
 - [ ] 2.4 Add cut detection to the script (V delta or a matched-fraction drop) and check it against the known cuts in `@story`.
 - [ ] 2.5 Factor the camera. The generic fallback takes V as the most common W·V among a frame's draws. Once free-camera M0a lands, compare that with `V_game`. **Pass:** the two agree on at least 95% of 3D flips. Otherwise route A uses `V_game` on BLiNX 2 and records the fallback's failure rate for other titles.
 - **Gate (stop rule for route A), per scene class, on 3D gameplay flips:**
@@ -60,7 +60,7 @@ Each experiment runs later in its own worktree, after the user's go for each run
 
 ## 6. Store-tracing generator option (funded, S-M, about 1 pw)
 
-Funded by the user on 2026-10-17. It serves BLX-197's free camera (M0a: who composes `V_game` into `0xAAD3A0` or the `0x885E20` stack, and who writes the `0xAAF450` ring) and the mods as much as mod60. mod60 itself stays parked unless the traces show a path.
+Funded by the user on 2026-10-17. It serves the tracker item's free camera (M0a: who composes `V_game` into `0xAAD3A0` or the `0x885E20` stack, and who writes the `0xAAF450` ring) and the mods as much as mod60. mod60 itself stays parked unless the traces show a path.
 
 **Scope:** a debug-only generator option in `tools/recomp`, the store-side twin of `--trace-functions`. Given address ranges, it emits a hook before each guest store whose target may fall in a range. The hook logs the store's guest va, the target address, the size and the value, plus the calling function, to a per-thread ring flushed to a file. The ranges come from `game.toml` or the env through `recomp_env`. Stock builds emit nothing, and the CLI exposes it as an `xbr` option, so Burnout 3 can use it too.
 
