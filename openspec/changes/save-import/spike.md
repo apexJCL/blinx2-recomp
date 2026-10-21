@@ -158,7 +158,7 @@ path against its source):
   directory in portable mode, or the custom location in its `settings.ini`.
   Saves are under `EmuDisk\Partition1\UDATA\` there.
 - On Linux and SteamOS it runs under Wine or Proton, so the same tree sits in
-  a prefix, at `<prefix>/drive_c/users/<user>/AppData/Roaming/Cxbx-Reloaded/`.
+  a prefix, at the prefix's `%APPDATA%\Cxbx-Reloaded\`.
   The detector looks in the default Wine prefix and in Steam's
   `compatdata/*/pfx` prefixes, and reads only the folders that exist.
 - On macOS it runs only under Wine-based tools, so it is reached with

@@ -380,7 +380,7 @@ opened); and the round-2 Deck-box build was reproduced byte for byte on
 the Mac in an emulated Fedora 42 image, so the Linux output depends on
 the image alone. Fallback for the Linux step, if Docker on the Mac turns
 fragile: the same Dockerfile on WSL on the Windows PC (the user's offer;
-the distro and its vhdx on `D:\xbr\`) or on the Linux/Proton host; the pinned digest
+the distro and its vhdx on `D:\bench\`) or on the Linux/Proton host; the pinned digest
 gives the same hash. Why not fyne-cross (needs Docker too, pins by tag,
 one more tool), zig cc (a sysroot with the X11/GL headers to assemble)
 or UTM (a VM for one compile).

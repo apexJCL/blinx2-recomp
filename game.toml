@@ -13,25 +13,106 @@ path = "game_files/default.xbe"
 title_id = 0x4D530065
 # The known dumps: the goldens were recorded on the old one (aa186954). The
 # two have the same section bytes, entry point and kernel thunk; only the
-# header differs (TASKS.md, 2026-10-06), so both are known. Another dump
-# builds, packages and plays with a warning; bench golden refuses it.
+# header differs (TASKS.md, 2026-10-06), so both are known. Another dump is
+# judged by [xbe.sections] below (xbr fingerprint): a header-only change is
+# known too, modded data or modded code builds, packages and plays with a
+# warning, and only bench golden refuses it.
 sha256 = [
     "0c57fd72053077bc938876d1f2477b937e1f70566500c0e020bb45bbfa4ddc5e",
     "aa186954c47d9f0a98f8690948e8c43bae15201aa49c3457a42402a142b0c60e",
 ]
 
+# The sha256 of each section's raw bytes in the known dumps, from
+# `blinx2 fingerprint --toml`. Code is .text plus [pipeline.disasm]
+# extra_sections; the rest (M11, MDLPL, ...: executable but model data) is
+# data.
+[xbe.sections]
+".text" = "c0eca268b2ceb8d7e281acb70a141b24ed604287411342f517b5bb63c0dde57c"
+"D3D" = "11f818a81d8ccd6e2745fdd044f05bc5fdb41df890544e31449a2c3b953cbe61"
+"D3DX" = "37d8a16533c517ce47a2500602d0684396774ee5e19176a2a4c8aee4ddd8357c"
+"XGRPH" = "51bc7289fb23ec7a77edf475f7fb5a16190d9151c9d29c6073e03c4c48c8a8f0"
+"DSOUND" = "fbb4f3908c7e8458b9219958a6e3071a1d06db5e1c7ceac710695b1d1be47398"
+"PSFD_I" = "9d11aa01dfe9a9468bcdd5c7088500b6a33c86cfc04b0c6a35fb7e9ef0726de9"
+"PSFD_B" = "2b68a7ceb647dba4d861421d1e9b72baaed10483c370a769486c85573f596013"
+"PSFD_P" = "5d9cf1807eb77e460d7d5bac3854ea7f4cb8aaa750a2c0b2ae2b6de0eeadf8a4"
+"PSFD00" = "3fb7173e8b120a4524ee63a88b0adad1ad9bdcba7b1b51b567f67a7876433f8f"
+"SRCADV" = "009c19c11be7a9aa554fd2ca5aec4dc5ff7ff09c0e9fc54b4cbcbc73e201619d"
+"SRCED" = "ca0178c467221ec622fb3b0b4423053d279d6b35f38e67047a7233a132e6a3d9"
+"SRCAC" = "d33f99d80aa79c0e71bd2043c23b2e33b2f5a53d307d19adb484727ae2a7fac9"
+"XPP" = "ad68b2b01cfdd1e7e605f94226a336947fb1f63aed0efd6ad26e3c43911fe7c0"
+".rdata" = "c36a3d1330103d12ce59b57533b14ae06b83c5d8097bcad90f024af43e54d73a"
+".data" = "1a5a4629abe7be6144c72f634020772b7138d209a37d9d122148f406558ca833"
+"DOLBY" = "f0a884e7a36c81d3f6e5254ea998ced15c326d5212f2dbc341c1afb3817c780d"
+"DATED" = "739483560719e9e14e99fd6c93380ba14fa4f08ff2af24267072f0157c392a88"
+"DATADV" = "a72d6bc3546c67195a7c34eb49e5c85c94b6002c6c4c6a5806c472e50fd53cbd"
+"MDLGIM" = "39d9f1534f34cf1ee874ad9594a19299a00b5243ac376c890cfaa594fe159092"
+"MDLAO" = "c208ac359f7f16329ef919121c6394e6c69a02f91dda41c1e16c8ed5703c64ea"
+"MDLGA" = "ed09a5503f4b1fd35c6ca19e4007c65d80f428e123b2ee89619fb47fdefd0998"
+"G2" = "65a23bedc0593c2246a443280d2200f5de47c8f8eaf5e4fdc76c0bbb4d4a7d75"
+"M93" = "d2b1957ffa431f8a06d350dc3fbe79be2e2166e22dc4cdbae0af34744f3b0b9a"
+"M91" = "a0904c238510e4d4d24af77b39cd6f9999dfd0b5fe8d9d777242f2ecc095065f"
+"G5" = "06f8cbfd269467eb1230cff6742fbe169f61217b154d1e08d25ccd13e931115f"
+"M41" = "a2cb8392848b45f229abbb5e1a8d438304f6994899b6f2bc14fba6f225569278"
+"M44" = "40b178489f96f8a3f9dc11160dda0d3ebd0adbed032c1bdedae551a4eefc3bc6"
+"G3" = "8f4625cbb73664868774f968d62d82f0f97631899e0cd2c9ee69c188435a9088"
+"M13" = "27d373fbf61bb0836d1986c9e09d44001783c2bad662618ab24079b4c9c888f4"
+"G1" = "05a8004c5f43ecc11094fa1af8f7cd71d47dd065aa5287438af336b8378e427c"
+"M11" = "c684021e716a992cbccb042a2181ea4ae10cd9b62455ad7c28fab7ce0df86015"
+"DSKERDAT" = "7a7d7a6828b61193dac6157dc39cc8ec09d44c1e5a749b33b496c88a8f25bb0d"
+"MDLBS5" = "adf58a1e187cb9d18130c61b8112e4a3498208b64470a2e4c4b3876e8cf74766"
+"MDLPL" = "136d1fe09ee9c179c35438fc5141103a93ce000fa689387d8d343943b7853967"
+"MDLEN" = "d5ef0326bfe10d7281d4031837a7fdc4e6f78db99a77575fa7f61541d822d231"
+"M24" = "707d3054703ac81878c0d2639d63399da5fe82902a842f1911e1a5b9001f0c62"
+"M61" = "661de4a20114123f87204b8184b7d8d424cccdfc3cffcf2e50295a170ecf97b7"
+"M31" = "c3890acee90ec4beb5a7d98355a56b2b6a2ec7fa1ae5e6a75305576143b89a52"
+"M53" = "214a5aa9e2bd9682f7557a29d1c0e8b449f2471cdbb34a2b06da74e88508c4f2"
+"G4" = "2d385e052fe0bc95b8f3bafe48ecfbd7d3f046cc6df2596d4511e6ffa8a8bc19"
+"M33" = "939642fef9678557f82bbbd51cad17cdd0d366cd2524688e358db68bb6aad4c8"
+"M23" = "78cd03bb7856e4595cb93b4922f7d015a53a6b20517bdc4f2e96ab8b4e858256"
+"M21" = "8feb8277940ef34266dcaccd9845d8d31d2b5ae661e07b3f9bdcb5995c10becc"
+"M14" = "0dde2d6403e6b5cb17fbbbf17fd0353372cdd25c481ea56a6e4905feff375fca"
+"MOTPL" = "4ebf4be3ed88f610f4263e63c0e07f5fb194209e017bb32619370ef448a1f3fd"
+"M34" = "d36f40b81b61d6f2ef931095c7bb54b3f9bb21643fb06fa3c22b02b185905a0a"
+"M121" = "bbfee77ee35ff9d8498f2310dd685c495885b80ff2e1a580d6b02f621641bd05"
+"GIMCOM" = "b32217e2b1e54e640606ac8a3fbb409769f0c5cf9a907379e33908dabe5cda3d"
+"M51" = "d6549da9f4d24bbd3c96252b403a1ee9f33a3113e169762a3ef35ba2083ccf3a"
+"M43" = "60603e971ad979141ce56723bbdd3481f2ee35f99645f923c821b4b6cea89cfa"
+"M111" = "ea17d23c67d04204eb61c421490359bec329c987e04fb74ed36c956445db3fd3"
+"MDLMG" = "1bad21b8a23e3f1c9bcba504a834e106ed6c9bdc507a25ab071a7cd80732d879"
+"M64" = "4e78f33d66bc80e4b49f3b39498ce0f744266f2bc56399c0f2fa4ecbd54e4e6e"
+"M54" = "175d326ed971d2776a23c71e9e7475738552fb481aaf19d54f1e159997785cd6"
+"MDLBK" = "97b8ff8a90924a43adbb83082293c9f57df21187daa806faf1dab34083d5bf64"
+"MDLRT" = "b31c594dddc89c852983f58ef7ce1a8cf507ece3aa0d5bcc16498e5bdd9b8795"
+"MDLBN" = "9a9f15a1173bb7e8461a10da036f841ee43cb59eac17133bb90481d21ad8c7fc"
+"MDLBT" = "4dd3c4f3dc71cd14082fe682c1fb074a1e24cae57d2613b5176fb54010b04f09"
+"MDLST" = "8ca92bb9512f3178903b5f3dcdca0eaa0082d443ac203d333767931ef58b2370"
+"MDLTC" = "c8d5daff813735d1733ed68e7b8d63d76e065c467a32d677a1b3257a1a96f480"
+"MDLSK" = "ba80addf23a6051a3094ccbb007430fa03ec26370316dcbd2ded912f93390a84"
+"MDLOB" = "e81e987900dea7cf0497e08a41140faefa06be34811c435f0981eee83cba644e"
+"MDLSR" = "2a070d55a03089d5111b0dd28006097926720a29f1fbf403ca92e9daa9e179d5"
+"MDLNT" = "e7a420d463964c749f8c24e3853c050925036b5389ae7bcecd4b590a55ad2e57"
+"MDLYP" = "1af9b5b8ba14c360a012af865e5a7bbc68312981cca43cb1a99e0a37acb41f33"
+"MDLTT" = "d203eddc2fd9345313ba57e9d472151ddec98a4939d69e18d2d6855221ee6a5a"
+"MDLKF" = "d6afabfd9d731f6ada9945b288ce2b0d57156b810f7cb8d5f9eabea2a85e5550"
+"MSHIP" = "93919f16d14553f92455d7ffad08e6bc4cfd3203a4275b8672e482d9ca6ffd3e"
+"MDLBEN" = "67bc27538509f29fdff67a9287b0bfe2853a3cc32238dd23b3d63d309bb24a8d"
+"COMTNK" = "7051cc8d2abf06b7a38253af4f8ba346d427f0804a20bba29bdc02fc4e4bc259"
+"MDLTNK" = "106dca06730b4c1ccc38beead64f39e649a0cef55cf9c7c59c430a21168d718a"
+"MOTP0" = "0b3376f4c7c74747aa16e5eae83cb029027f1baae486740292d4a29862e7f6d3"
+"$$XTIMAGE" = "6a7ebbf1c0ec39e82aac6c317e65a30f1ec0c1696e1971d664ce433aebb0113e"
+
 # The CLI and the toolkit, each at a release tag. The commit locks the tag:
 # a tag that names another commit (moved, re-pushed) is refused.
 [cli]
-tag = "v0.8.0"
-commit = "5e2f2876d23b085f0c6f59b098717317e6c8f96a"
+tag = "v0.10.0"
+commit = "5dc46ba514279e7c16df42a5d641ec9e69e96628"
 url = "https://github.com/apexJCL/xboxrecomp-cli.git"
 
 [toolkit]
 url = "https://github.com/apexJCL/xboxrecomp.git"
-tag = "blinx2-v0.5.1"
+tag = "blinx2-v0.6.0"
 branch = "blinx2/portability"
-commit = "06c97d1304c210687124d2cec4d6ef826880492d"
+commit = "1c434a090897597da20f00fee5f3129342701191"
 
 [toolchain]
 llvm_mingw = "20260922"
@@ -64,9 +145,24 @@ stock_cmake = ["-DXBOXRECOMP_ENHANCE=ON", "-UCAT_GEN_OPT"]
 nonstock_vars = ["CAT_GEN_OPT"]
 icon_var = "CAT_APP_ICON"
 
+# What a build needs, for the job count and the disk check (the CLI's
+# docs/manifest.md). Measured on the Mac: one generated-code compile
+# (recomp_0017.c) peaks at 1220 MiB and disasm at 1722 MiB; analysis/ and
+# gen/ take about 1.2 GB on disk, and the imported game_files/ 3.3 GB.
+# Measured peaks raise these, never lower them.
+[build.resources]
+gen_job_mib = 1220
+tool_mib = 1722
+tool_step = "disasm"
+generate_mib = 1280
+game_files_mib = 3187
+
 [data]
 game_files = "game_files"
 game_files_exclude = ["default_analysis.json", "UDATA", "TDATA"]
+# The full dump's file count, without the names above: doctor reports a
+# dump with more or fewer (information only).
+reference_files = 485
 dir_env = "BLINX2_DATA_DIR"
 windows = "%LOCALAPPDATA%\\BLiNX2"
 steamos = "~/Games/BLiNX2"
@@ -82,7 +178,7 @@ frames = "analysis/golden/frames"
 audio = "analysis/golden/audio.json"
 # The game's own enhancement keys at their stock values (docs/env.md): a
 # golden run showing another value is not a stock run.
-enhance_stock = { "fps.mode" = "lock30", "fx.glow" = "on", "fx.glow_intensity" = "1" }
+enhance_stock = { "camera.free" = "off", "fps.mode" = "lock30", "fx.glow" = "on", "fx.glow_intensity" = "1" }
 
 [package]
 app = "BLiNX2"
@@ -91,6 +187,9 @@ targets = ["windows", "steamos", "macos"]
 brew = ["sdl2", "sdl3", "openssl", "libepoxy"]
 dylib_companions = ["libSDL3.dylib=brew:sdl3"]
 content = "packaging"
+# The launch.env key the bundle sets to the dump's fingerprint; main.c
+# prints it at boot ([BOOT] build xbe:).
+stamp_env = "RECOMP_BUILD_XBE"
 templates = "packaging"
 icon = "xbe"
 
@@ -106,7 +205,7 @@ targets = ["windows", "steamos", "macos"]
 # the pins in [cli], [toolkit] and its setup-pins.json.
 
 # The wizard's open-source credits (xboxrecomp-cli docs/wizard.md,
-# Credits): this repo is ours, listed first, before the CLI's repos.
+# Credits): this repo is mine, listed first, before the CLI's repos.
 [[wizard.credit]]
 name = "blinx2-recomp"
 role = "this recompilation of BLiNX 2 for PC and Mac"
@@ -259,3 +358,20 @@ refs_exclude = [
 ]
 # The audit's tier split: runs from the last three days may still be named.
 days = 3
+
+# The top-level entries beyond the standard layout (the CLI's
+# docs/layout.md): the golden thresholds under analysis/, the toolkit's
+# licence notice, the openspec commands for the agent, and the Python
+# version uv picks.
+[layout]
+extra = ["analysis", "NOTICE", ".claude", ".python-version"]
+
+# The public repo (the CLI's docs/layout.md): `blinx2 public init` once per
+# clone, then each round `blinx2 public export` and the push it prints. The
+# private notes, the patterns and the rewrite rules stay out of it.
+[public]
+url = "git@github.com:apexJCL/blinx2-recomp.git"
+author = "carlos <4037632+apexJCL@users.noreply.github.com>"
+# Globs dropped from the export on top of the CLI's private set. A tracked
+# file on an ignored path needs one (scripts/test_public_exclude.py).
+exclude = []

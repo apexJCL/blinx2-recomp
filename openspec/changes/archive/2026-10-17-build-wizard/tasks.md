@@ -240,7 +240,7 @@ Phase map:
   there); on the Deck the run stops at the summary and the Mac-built
   steamos tar is installed with `./install.sh --steam` as today.
 - [ ] 5.3 **Windows PC (native, at the PC or with the user present; the
-  scratch is `D:\xbr\scratch\wizard\`, never `C:`):** the zip from the
+  scratch is `D:\bench\scratch\wizard\`, never `C:`):** the zip from the
   Mac's build; double-click; the SmartScreen dialog text recorded for
   the docs; MinGit and uv fetched into `tools\`; the win32 dump dialog;
   windows target preselected; a build to the setup program; Install now

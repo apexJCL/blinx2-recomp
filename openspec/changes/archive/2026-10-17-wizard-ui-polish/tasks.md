@@ -1,7 +1,7 @@
 Conventions: **CLI** = branch `feat/wizard-ui-polish` off `main` a3208e4
 (v0.7.0) in the CLI worktree `wt/wizard-ui/xboxrecomp-cli`, commits
 authored and committed as `carlos <4037632+apexJCL@users.noreply.github.com>`,
-no tracker ids, host names, private paths or claude.ai links in the
+no tracker ids, host names, private paths or Claude chat links in the
 messages (the squash message leaves out any `Claude-Session:` line);
 **cat** = `wt/wizard-ui/cat`, branch `spec/wizard-ui-polish` (this spec;
 the `[cli]` pin bump at merge time is the main session's, 6.2). The

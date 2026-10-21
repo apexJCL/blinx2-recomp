@@ -77,6 +77,8 @@ set(GAME_SOURCES
     src/pad_slots.c
     src/save_seed.c
     src/glow.c
+    src/free_cam_fly.c
+    src/free_camera.c
     # Add game-specific sources here, e.g.:
     # src/asset_loader.c
     # src/custom_renderer.c

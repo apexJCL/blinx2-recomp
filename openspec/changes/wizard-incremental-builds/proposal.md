@@ -122,7 +122,7 @@ Two additions from the user (2026-10-17, same item):
   (`templates/runtime/` CMake, game `CMakeLists.txt`).
 - **Games:** cat and b3 need no change beyond the CLI pin. SSX 3 and
   Spartan get `[package]`, `[wizard]` and `packaging/` from sessions
-  ssx3-ec and xb-windows; Spartan first needs a git history.
+  the SSX 3 session and the Spartan session; Spartan first needs a git history.
 - **Disk:** the kept folder grows by the old bundles the player keeps; a
   cap and a cleanup command bound it (design D11).
 - **Legal:** patches hold the player's own derived files (the program and

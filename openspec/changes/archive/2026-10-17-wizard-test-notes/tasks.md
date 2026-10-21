@@ -1,7 +1,7 @@
 Conventions: **CLI** = `wt/font-link/xboxrecomp-cli`, branch
 `feat/wizard-font-link` off `main` 029e875, commits authored and
 committed as `carlos <4037632+apexJCL@users.noreply.github.com>`, no
-claude.ai links; **cat** = `wt/font-link/cat`, branch
+Claude chat links; **cat** = `wt/font-link/cat`, branch
 `spec/wizard-font-link`. The wizard-build-checklist change is implemented
 on the same branches.
 
@@ -37,7 +37,7 @@ on the same branches.
   `bash wizard/check.sh`, `bash scripts/audit-public.sh main..HEAD`.
 - [x] 4.2 cat: `uv run pytest scripts`, ruff (against the v0.7.3 pin;
   note what cannot pass before the pin bump).
-- [x] 4.3 Windows (`D:\xbr\wizard-fb\` only): the CLI clone at the tip,
+- [x] 4.3 Windows (`D:\bench\wizard-fb\` only): the CLI clone at the tip,
   `blinx2-wizard.exe` rebuilt (or `-next` while the user's copy runs),
   `wizard font --json` with the game's font and with a name that is not
   installed, recorded here.
@@ -55,14 +55,14 @@ on the same branches.
   loads it.
 - Mac: `font_report` finds PT Sans Narrow Bold in
   `/System/Library/Fonts/Supplemental/PTSans.ttc` (macOS ships it).
-- Windows 11 (`D:\xbr\wizard-fb\` only): the CLI clone checked out at
+- Windows 11 (`D:\bench\wizard-fb\` only): the CLI clone checked out at
   7395578 from a bundle; `blinx2-wizard.exe` rebuilt on the Mac
   (`./blinx2 wizard build --dev --only windows`, sha256 4c838494...)
   and replaced in place (no copy was running); `run-wizard.cmd`
   unchanged. The test checkout's `game.toml` (public main 87f6020)
   carries this branch's `hud_pack` lines, so `--game` shows them.
   `wizard font --json`: `{"font": "PT Sans Narrow Bold", "found": true,
-  "path": "C:\\Users\\...\\AppData\\Local\\Microsoft\\Windows\\Fonts\\PTSansNarrow-Bold.ttf"}`
+  "path": "<home>\\AppData\\Local\\Microsoft\\Windows\\Fonts\\PTSansNarrow-Bold.ttf"}`
   (the per-user font folder); `--name "No Such Font Bold"`: `found:
   false, path: null`. `wizard config --json --dev` carries `hint` and
   `font_hint` apart. So on that PC the Options page shows "PT Sans
@@ -90,5 +90,5 @@ on the same branches.
   clean; `wizard check --dev` (check.sh, race, staticcheck, and the
   double build of all three assets: equal sha256s, NOTICES.txt the same
   bytes, 8ea0c6d9..., in the zip, the app and the tar); audit-public
-  clean, noreply only. Windows (`D:\xbr\wizard-fb\` only, no copy
+  clean, noreply only. Windows (`D:\bench\wizard-fb\` only, no copy
   running): exe replaced, sha256 35b42094...; the cli clone at 8fd4028.

@@ -16,7 +16,9 @@
 # when the tag has none. Only the release job can write: it creates the
 # release as a draft, attaches the assets, then publishes it, so the
 # release is never public without all four files. A -rc. tag is a
-# pre-release.
+# pre-release. A release this run did not draft (published, or made by
+# hand) keeps its title, notes, pre-release mark and draft state; the job
+# attaches the four files only when it has none of them.
 name: release-wizard
 
 on:
@@ -200,13 +202,50 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           case "$TAG" in *-rc.*) pre=true ;; *) pre=false ;; esac
-          # A release that already exists (a draft from an earlier run)
-          # takes the title, notes and pre-release mark from this run too.
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release edit "$TAG" --title "$TAG" --notes-file notes/notes.md --prerelease="$pre" --repo "$GITHUB_REPOSITORY"
-          else
+          repo=(--repo "$GITHUB_REPOSITORY")
+          files=(assets/*.zip assets/*.tar.gz assets/SHA256SUMS)
+          bot="github-actions[bot]"
+          # A release made with this job's GITHUB_TOKEN has the Actions bot
+          # as its author; one made in the web UI, with gh, or with any
+          # personal token has that person's login. So a draft by the bot is
+          # this workflow's own, and anything else (or a published release)
+          # is never edited: at worst a bot draft from another workflow is
+          # treated as this one's, never a maintainer's release.
+          if state=$(gh release view "$TAG" "${repo[@]}" --json isDraft,author \
+              --jq '"\(.isDraft) \(.author.login)"' 2> view.err); then
+            :
+          elif grep -q "release not found" view.err; then
             gh release create "$TAG" --draft --verify-tag --title "$TAG" \
-              --notes-file notes/notes.md --prerelease="$pre" --repo "$GITHUB_REPOSITORY"
+              --notes-file notes/notes.md --prerelease="$pre" "${repo[@]}"
+            state=created
+          else
+            # Any other failure (network, auth, rate limit) must not be
+            # read as "no release": creating one would fail or duplicate.
+            cat view.err >&2
+            echo "::error::cannot read the release for $TAG; nothing changed"
+            exit 1
           fi
-          gh release upload "$TAG" assets/*.zip assets/*.tar.gz assets/SHA256SUMS --clobber --repo "$GITHUB_REPOSITORY"
-          gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"
+          if [ "$state" = created ] || [ "$state" = "true $bot" ]; then
+            # This run's draft, or one an earlier run left: the latter
+            # takes this run's title, notes and pre-release mark.
+            if [ "$state" != created ]; then
+              gh release edit "$TAG" --title "$TAG" --notes-file notes/notes.md --prerelease="$pre" "${repo[@]}"
+            fi
+            gh release upload "$TAG" "${files[@]}" --clobber "${repo[@]}"
+            gh release edit "$TAG" --draft=false "${repo[@]}"
+          else
+            # A release this run did not draft: its text and state stay as
+            # they are. The assets go up all together or not at all, so
+            # SHA256SUMS never sits beside files from another build.
+            have=$(gh release view "$TAG" "${repo[@]}" --json assets --jq '.assets[].name')
+            clash=()
+            for f in "${files[@]}"; do
+              if grep -qxF -- "${f##*/}" <<< "$have"; then clash+=("${f##*/}"); fi
+            done
+            if [ ${#clash[@]} -gt 0 ]; then
+              echo "::warning::$TAG already has ${clash[*]}; no asset uploaded (delete them to attach this build)"
+            else
+              gh release upload "$TAG" "${files[@]}" "${repo[@]}"
+            fi
+            echo "::notice::$TAG is a release this run did not draft (published, or made by hand): its title, notes and state were left alone"
+          fi

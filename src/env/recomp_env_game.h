@@ -24,6 +24,7 @@
 #define RECOMP_ENV_GAME_KEYS(X) \
     CAT_ENV_FOLDER_KEYS(X) \
     X(SAVE_SEED,         CONFIG, "RECOMP_SAVE_SEED",         NULL, "seed the save dir from this save before boot") \
+    X(BUILD_XBE,         CONFIG, "RECOMP_BUILD_XBE",         NULL, "the XBE a packaged build was made from (sha256 and verdict), printed at boot") \
     X(INPUT_SCRIPT,      CONFIG, "RECOMP_INPUT_SCRIPT",      NULL, "scripted pad: @preset, file or inline script") \
     X(INPUT_STRICT,      CONFIG, "RECOMP_INPUT_STRICT",      NULL, "1: a bad input script ends the run") \
     X(HOST_PAD,          CONFIG, "RECOMP_HOST_PAD",          NULL, "0/1: host gamepads in or out") \
@@ -31,8 +32,18 @@
     X(FPS_MODE,          CONFIG, "RECOMP_FPS_MODE",          NULL, "enhancements: fps.mode, lock30 only (lock60 and free are not available)") \
     X(GLOW,              CONFIG, "RECOMP_GLOW",              NULL, "enhancements: fx.glow, on|off (the mode-3 glow pass)") \
     X(GLOW_INTENSITY,    CONFIG, "RECOMP_GLOW_INTENSITY",    NULL, "enhancements: fx.glow_intensity, 0.0..2.0 (scales the glow layer)") \
+    X(CAMERA_FREE,       CONFIG, "RECOMP_CAMERA_FREE",       NULL, "enhancements: camera.free, off|on (a hotkey toggles a free-flying camera)") \
+    X(CAMERA_FREE_SPEED, CONFIG, "RECOMP_CAMERA_FREE_SPEED", NULL, "enhancements: camera.free_speed, 0.05..20, a multiplier of the fly speed (1)") \
+    X(CAMERA_FREE_LOOK_SENS, CONFIG, "RECOMP_CAMERA_FREE_LOOK_SENS", NULL, "enhancements: camera.free_look_sens, 0.05..10, a multiplier of the look rate (1)") \
+    X(CAMERA_FREE_HUD,   CONFIG, "RECOMP_CAMERA_FREE_HUD",   NULL, "enhancements: camera.free_hud, keep|hide (the HUD while the free camera flies)") \
+    X(CAMERA_FREE_TOGGLE, CONFIG, "RECOMP_CAMERA_FREE_TOGGLE", NULL, "enhancements: camera.free_toggle, the key that turns the free camera on and off (F6)") \
+    X(CAMERA_FREE_HUD_KEY, CONFIG, "RECOMP_CAMERA_FREE_HUD_KEY", NULL, "enhancements: camera.free_hud_key, the key that shows or hides the HUD while flying (F7)") \
+    X(CAMERA_FREE_FREEZE_KEY, CONFIG, "RECOMP_CAMERA_FREE_FREEZE_KEY", NULL, "enhancements: camera.free_freeze_key, the key that stops and restarts the world while flying (F8)") \
+    X(CAMERA_FREE_RESET_KEY, CONFIG, "RECOMP_CAMERA_FREE_RESET_KEY", NULL, "enhancements: camera.free_reset_key, the key that puts the free camera back on the game's (F5)") \
     X(INPUT_TRACE,       TRACE, "input",           "RECOMP_INPUT_TRACE",       "pad handles and states") \
     X(UNIMPL_BUDGET,     TRACE, "unimpl_budget",   NULL,                       "=n: [UNIMPL] lines per address before only hits 10, 100, ... (3)") \
+    X(CAM_LOG,           DEBUG, "cam_log",         NULL,                       "=n: game camera, view, projection and cull planes every n-th view build") \
+    X(CAM_FIX,           DEBUG, "cam_fix",         NULL,                       "=dx:dy:dz:dyaw:dpitch or hold[:n]: debug view through the game camera build") \
     X(APU_FAULT_BENCH,   DEBUG, "apu_fault_bench", "RECOMP_APU_FAULT_BENCH",   "=n: time n trapped APU accesses") \
     X(MEM_DUMP,          DEBUG, "mem_dump",        "RECOMP_MEM_DUMP",          "=va,bytes,prefix: guest memory dumps") \
     X(MEM_DUMP_EVERY,    DEBUG, "mem_dump_every",  "RECOMP_MEM_DUMP_EVERY",    "=s: mem_dump period, default 20") \

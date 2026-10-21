@@ -209,6 +209,8 @@ scale and a payload format.
 
 ### D3. The overlay: a CPU-rasterised panel, one blit per presenter (toolkit)
 
+*Revised 2026-10-21: layers, the presenter details and the stats strip are in R2.*
+
 Options weighed against C11, no external dependencies, three presenters
 on two threads:
 
@@ -269,6 +271,8 @@ pair in 6.x).
 
 ### D4. Input: a hook on `xbox_InputGetState`, the chord and the hotkey (toolkit)
 
+*Revised 2026-10-21: the hook on `xbox_InputGetState` is replaced by the title-glue filter `xbox_enhance_pad_filter`, because cat never calls `xbox_InputGetState`. The chord and the hotkey become bindings of the `menu.open` action (R3). The neutral pad while open and the scripted-pad rule stand.*
+
 `input_core.c` gains one hook pointer, NULL without the layer:
 
 ```c
@@ -306,6 +310,8 @@ procedures stay as they are, and the hook needs no SDL or Win32 code.
   if a script pressed BACK+START.
 
 ### D5. The menu: pages, items, a registration API (toolkit layer)
+
+*Extended 2026-10-21: the Mods, Stats, Controls and Debug pages are in R4.*
 
 `src/enhance/enhance_menu.c` holds the state machine. Pure functions over
 a `struct enhance_menu` take an input event and return the redraw
@@ -363,6 +369,8 @@ machine is redrawn only on a change (the overlay `gen` moves), so an
 open idle menu costs one blit per present and no raster.
 
 ### D6. Keys and logging
+
+*Revised 2026-10-21: `menu.hotkey` and `menu.chord` are replaced by `[input.actions] "menu.open"` (R3); `overlay.stats` is added (R2). The `[ENHANCE] menu.enabled=...` line stays and names the `menu.open` bindings.*
 
 | Key | Where | Values | Default | Env |
 |---|---|---|---|---|
@@ -832,6 +840,588 @@ plus the per-key pins; `game.toml [golden] enhance_stock` and the CLI's
    ordering the reader change second costs nothing since the menu, the
    only consumer of Save, comes after both.
 
+## Revision 2026-10-21: live switching, the overlay, host actions
+
+The user asked on 2026-10-21 for three things on top of this change:
+
+- which enhancements can switch on the fly;
+- an in-game overlay for more than the menu (mods, frame stats, debug);
+- bindings for host features (the free camera of the tracker item first), with
+  chords on the original pad and the extra buttons of the Deck and
+  modern pads.
+
+R1 to R6 below record the answers, checked against the toolkit at
+`posix-host/portability` 30fbb38e and cat `main`. They supersede the parts
+of D3, D4, D5, D6 and the Migration Plan that they name. Everything else
+in this design stands.
+
+Facts that changed since the 2026-10-11 draft:
+
+- Phase 2 (P1) landed as its own change (`archive/2026-10-17-config-layering`).
+- The mod API v1 landed (`src/enhance/mod.h`).
+- The free camera (cat `free-camera/feature`) is the first mod.
+- Hor+ landed, so `display.aspect` is owned by the merged code.
+- SDL3 has **not** landed. The toolkit is still on SDL2, and the
+  SDL3 branches in cat are unmerged. The user's standing order (TASKS,
+  2026-10-11) is "SDL3 before enhance-menu phase 3". R3 is written so it
+  works either way: SDL2 already has every button it needs (2.0.14+), and
+  the SDL3 port is a rename table. Which comes first is open question 1.
+- **cat does not call `xbox_InputGetState`.** It replaces the XDK XInput
+  entry points (`recomp_manual.c` ~183-240, the `sub_00368457` wrapper),
+  and `pad_input.c` `cat_pad_get_state` merges the pad, the script and
+  the keyboard and mouse itself. b3, ssx3, jsrf and spartan reach
+  `xbox_InputGetState` through `usb_gamepad.c`. D4's hook on
+  `xbox_InputGetState` would therefore never run in BLiNX 2. R3 replaces
+  it with a title-glue entry that both paths call.
+
+### R1. Live-switch audit
+
+Classes:
+
+- **L** live at the next flip;
+- **F** live with a cache, target or swap-chain flush (one frame or a
+  few rebuilt);
+- **S** at a later game point (next stage, scene or activation);
+- **R** restart only.
+
+"Today" is the code as merged. "After" is the code once this change's
+phases land. Every key is off or stock by default, and nothing below
+changes a stock run.
+
+#### Toolkit keys (every game)
+
+| Key | Today | After | Mechanism, cost | What blocks more |
+|---|---|---|---|---|
+| `render.scale` | F | F | `NV2A_OPT_SCALE` at the flip. `scale_drop()` drops targets, depth and textures. Metal writes back first. A few frames are rebuilt. | D3D11 scale needs a confirmation on Proton (6.x). If any target keeps stale pixels, D3D11 falls back to R. |
+| `render.aniso` | R | L | `nv2a_stage_aniso()` already reads `s_host_opts.aniso` at every draw, and samplers are keyed on it. It only needs a new `NV2A_OPT_ANISO` mask bit. Cost: one new sampler-cache entry per state. | The mask bit. |
+| `present.filter` | L on D3D11; stored only on SDL and Metal | L | D3D11 already reads `nv2a_host_opts()` at each present. The SDL loop caches `filter` once at start (`fb_present_sdl.c` ~544) and passes it to `fbm_present`, so it must read the option at each present and call `SDL_SetTextureScaleMode` when it changes. Cost: none. | The cached local. |
+| `present.fullscreen` | stored only | F on SDL and Metal; D3D11 in 3C or after a follow-up (question 4) | SDL (Metal, CPU): `SDL_SetWindowFullscreen` on the SDL main thread when the host-opts gen moves. D3D11: a `WS_POPUP` or overlapped style swap with `SetWindowPos` on the window thread, then `ResizeBuffers` at the next flip. Cost: one swap-chain resize. | Today it is read only at window creation. D3D11 is the larger half (R5 phase 3C). |
+| `present.pacing` | R (read at init) | L | `xbox_PacingSetMode` is a plain store that the loops read. The menu calls it. Cost: none. | Nothing beyond the menu item. Goldens fail a `sleep` run, as today. |
+| `present.surface` | R | R | Picks the presenter (layer or renderer; internal or window size) at window creation. | It would need the presenter torn down and rebuilt. Not worth it: the menu says "applies at restart". |
+| `display.aspect` | R | R in this change; F after F-5 | Targets are padded at creation, the shader key carries it (`key[36]`), and the window takes its shape. It needs a `scale_drop`-style flush plus a window resize, through a new `NV2A_OPT_ASPECT` bit. | Hor+ is merged. F-5 adds the flush. A per-game projection patch made at stage load (cat's cull-plane wrapper) would make it S for that game. F-5 decides. |
+| `display.movie` | R | L | Read at each movie draw. It needs an `NV2A_OPT_MOVIE` bit. | The mask bit. |
+| `display.overscan` | R | L | Read at each present on D3D11 and Metal, and by the SDL renderer's placement. It needs an `NV2A_OPT_OVERSCAN` bit and is refused with a wide aspect, as at start. | The mask bit. |
+| `textures.pack` on or off | F | F | `NV2A_OPT_PACK` bumps `nv2a_tex_pack_gen()`, and resident textures re-upload at their next bind. | None. |
+| `textures.pack` path | R | R in this change; F after F-1 | Load the new file on a worker, then swap the pack pointer at the flip and bump the gen. The old pack is freed one flip later. | Uploads hold entry pointers inside a flip, so it can only swap at the flip. Low value. Follow-up, not in R5. |
+| `textures.font`, `textures.text` | F | F | Kind mask plus the gen (phase 1). | None. |
+| `input.keyboard`, `input.mouse` | R | L | Flags read at each poll. A setter is enough. | The setter. |
+| `input.mouse_release_key` | R | L | Read at each poll. | The setter. |
+| `input.mouse_look`, `mouse_sensitivity`, `mouse_invert_x`, `mouse_invert_y`, `mouse_min_deflection`, `wheel_pulse_ms`, `stick_ramp_ms`, `walk_scale` | R | L | `enhance_input.c` reads them once into the mouse and ramp config. A setter publishes a new config struct that the poll reads. Cost: none. | The setter. |
+| `input.walk_key` | R | F | A key in the effective key map. It is rebuilt with `[input.bindings]` (pointer swap) and re-checked for clashes. | The table swap. |
+| `input.mouse_capture` | R | F | Grab mode (focus, always, never). A change re-grabs the window on the SDL main thread (`SDL_SetRelativeMouseMode`) or the Win32 window thread. | Window-thread work, like fullscreen. |
+| `[input.bindings]` | R | F | Rebuild the VK table, then swap it on the poll thread (one pointer, RCU-style; the old table freed at the next poll). | Today `enhance_input_init` writes the live table in place, which is unsafe during a poll. |
+| `menu.*`, `[input.actions]` (new) | n/a | F | Same swap as the bindings (R3). | None. |
+| `overlay.stats` (new) | n/a | L | Visibility bit of the stats layer (R2). | None. |
+
+#### Game and mod keys
+
+| Game | Key | Today | After | Mechanism, cost | What blocks more |
+|---|---|---|---|---|---|
+| cat | `fx.glow`, `fx.glow_intensity` | R (statics set once) | L | `src/glow.c` statics `s_active` and `s_factor`. The `sub_0005B7D0` wrapper reads them every frame. Pack them in one atomic word (D9). | Two plain statics written in two stores. |
+| cat | `fps.mode` | R | R | Only `lock30` exists, so the key is informational. | No other mode is implemented (60 fps is the tracker item). |
+| cat | `camera.free` on or off | R | L | `free_camera.c` init returns before registering `on_frame` and `batch_filter` when the key is off. Fix: always register them when the mod is built in, and gate both on an atomic. Turning it off runs the toggle-off path, which restores the camera, drops freeze and shows the HUD. Cost: one atomic load per frame and per batch. | Registration is init-only in API v1 (max 16 frame callbacks, max 8 filters). |
+| cat | `camera.free_speed`, `camera.free_look_sens` | R | L | Statics read every frame. Make them relaxed atomics. | Nothing beyond the setter. |
+| cat | `camera.free_hud` | S | S | Read when the camera turns on. A change applies at the next activation. | It is a choice made at entry, so S is the right class. |
+| cat | `camera.free_toggle`, `free_hud_key`, `free_freeze_key`, `free_reset_key` | R | L, as actions | Polled with `xbox_FramebufferKeyDown` and rising-edge detection. They move to R3 actions (rebindable live). The old keys stay as aliases. | R3. |
+| b3, ssx3, jsrf, spartan, kuf | (none) | | | Their `config.default.toml` holds render, display and present only (b3 also a commented `[textures]`). kuf (`kuf/project`) has no game keys either. No game keys, mods or hotkeys. | Nothing to do. The overlay and actions reach them through the toolkit. |
+
+Counts over the 26 classified rows (20 toolkit, 6 game; the row for the
+other games holds no key). A row that holds several keys counts once.
+
+| Class | Today | After this change | After F-1 and F-5 |
+|---|---|---|---|
+| L | 1 (`present.filter` on D3D11 only) | 13 | 13 |
+| F | 3 | 8 | 10 |
+| S | 1 | 1 | 1 |
+| R | 21 | 4 | 2 |
+
+- **L after this change (13):**
+  - toolkit: `render.aniso`, `present.filter`, `present.pacing`,
+    `display.movie`, `display.overscan`, `input.keyboard` and
+    `input.mouse`, `input.mouse_release_key`, the eight mouse and
+    stick-feel keys (one row), `overlay.stats`;
+  - game: `fx.glow` with its intensity, `camera.free` on or off, its
+    speed and sensitivity, its four keys as actions.
+- **F after this change (8):** `render.scale`, `present.fullscreen` (SDL
+  and Metal; D3D11 per question 4), the pack toggle, `textures.font`
+  and `text`, `[input.bindings]`, `input.walk_key`,
+  `input.mouse_capture`, `menu.*` and `[input.actions]`.
+- **S (1):** `camera.free_hud`.
+- **R after this change (4):** `present.surface` and `fps.mode`, which
+  stay restart-only, plus `display.aspect` (until F-5) and the pack path
+  (until F-1).
+
+Notable blockers:
+
+- missing `NV2A_OPT_*` mask bits (aniso, movie, overscan, aspect);
+- the SDL loop's cached filter;
+- fullscreen applied only at window creation (D3D11 hardest);
+- in-place rewrites of the input binding table;
+- mod API v1 allowing callback registration only in `init`;
+- `display.aspect` waiting on the Hor+ change.
+
+The menu marks every item with its class: a dot for L or F, "next stage"
+for S, "applies at restart" for R.
+
+### R2. The overlay, revised (supersedes D3's single panel)
+
+D3's choice stands: a hand-rolled CPU-rasterised RGBA8 buffer, the
+public-domain `font8x8_basic`, and one alpha-blended quad per presenter.
+Checked against today's presenters, it changes in four ways.
+
+**Layers, not one panel.** The overlay module keeps three layers. Each has
+its own double buffer, `gen` and writer thread:
+
+| Layer | Writer | Content | Input |
+|---|---|---|---|
+| `MENU` | poll thread (the R3 hook) | the menu pages (R4) | captures the pad (neutral to the guest) |
+| `STATS` | the presenting thread, at 2 Hz (composed there) | one small strip in a corner: fps, frame ms (average and worst of the last second), flips/s, pacing, scale, backend | none |
+| `TOAST` | the presenting thread, from a line queue any thread may push to | a short line for 2 s ("Free camera on", "Saved", "Scale 2x") | none |
+
+Each layer has exactly one writer thread, and the reader is the
+presenting thread. A layer is a **triple buffer**: the writer draws into
+its own back slot, then publishes by swapping it with the "ready" slot
+in one atomic exchange of a packed index word (with a fresh bit). The
+reader takes "ready" by swapping it with its "front" slot when the fresh
+bit is set. Neither side ever waits, and a slot is never written while
+it is read.
+
+The STATS and TOAST layers are composed by the presenting thread itself.
+`nv2a_overlay_toast` from any thread only pushes a line into a small
+lock-free ring (8 lines, the oldest dropped), which the presenting
+thread drains at 2 Hz or when the ring's count moves. Only the MENU layer
+has a writer (the poll thread) other than the reader.
+
+Drawing calls take the canvas they draw on, so no global "current layer"
+can race between two writers. The presenter reads one atomic `visible`
+mask. When it is 0 the present runs as today (one load and one branch),
+which is the zero-cost-closed rule. When it is non-zero the presenter
+draws the visible layers in a fixed order (STATS, TOAST, MENU), at most
+three quads, re-uploading a layer's texture only when its `gen` moved.
+
+The overlay, `nv2a_stats` and the R3 filter compile only under
+`XBOXRECOMP_ENHANCE`. A build without it has none of their call sites.
+
+```c
+enum nv2a_overlay_layer { NV2A_OVL_STATS, NV2A_OVL_TOAST, NV2A_OVL_MENU, NV2A_OVL_COUNT };
+struct nv2a_overlay_frame { const uint32_t *px; uint32_t w, h; int x, y; uint64_t gen; };
+struct nv2a_overlay_canvas;                                 /* one writer's back slot */
+uint32_t nv2a_overlay_visible(void);                       /* one atomic load */
+/* Reader side (the presenting thread): the newest published frame, or NULL. */
+const struct nv2a_overlay_frame *nv2a_overlay_acquire(enum nv2a_overlay_layer l);
+/* Writer side (the layer's one writer thread). */
+struct nv2a_overlay_canvas *nv2a_overlay_begin(enum nv2a_overlay_layer l,
+                                               uint32_t w, uint32_t h, int x, int y);
+void nv2a_overlay_rect(struct nv2a_overlay_canvas *c, int x, int y, int w, int h, uint32_t argb);
+void nv2a_overlay_text(struct nv2a_overlay_canvas *c, int x, int y, int scale,
+                       uint32_t argb, const char *s);
+void nv2a_overlay_publish(struct nv2a_overlay_canvas *c);
+void nv2a_overlay_hide(enum nv2a_overlay_layer l);
+void nv2a_overlay_toast(const char *fmt, ...);             /* any thread: queues a line */
+```
+
+`x` and `y` place the layer in frame-rectangle units (0..1000), so the
+same numbers land in the same place on every backend.
+
+**Per presenter, against today's code:**
+
+- **SDL renderer** (`src/video/fb_present_sdl.c`, the SDL main thread; CPU and the
+  Metal readback): the loop wakes on a frame event or every 100 ms. A
+  layer whose `gen` moved sets `dirty` and posts the frame event, so a
+  menu edit shows while the guest is in a loading pause. The overlay
+  draws after `SDL_RenderCopy(frame)` and before `shot_save`, so window
+  shots include it (wanted for README shots). `fb_dump` reads the guest
+  frame, not the renderer, so it never sees the overlay.
+- **CAMetalLayer** (`src/video/fb_present_metal.m`, `fbm_present`): a second
+  blended pipeline state and one `MTLTexture` per layer, drawn in the
+  same render pass after the frame triangle. `fbm_present` gains a
+  `const struct nv2a_overlay_frame *const *layers` argument (NULL when
+  `visible == 0`), so the SDL loop stays the only reader of the overlay
+  state. `RECOMP_WINDOW_SHOT` reads the drawable and includes it, while
+  the Metal frame dump reads the render target and does not.
+- **D3D11** (`src/d3d/nv2a_pb_d3d11.c`, the walker thread at the flip): draw after
+  `present_blit` or the stock copy **and after `dump_frame()`**, then
+  `IDXGISwapChain_Present`. On the stock copy path the overlay draw is
+  the only draw into the back buffer, so it sets the viewport and render
+  target itself and leaves `s_sc_init = 0`, as `present_blit` does. The
+  D3D11 present is on the walker thread, so a menu edit shows at the next
+  guest flip. That is fine while the guest flips. During a hang the menu
+  is frozen anyway. **Gap (backends agree):** on SDL and Metal a menu
+  edit shows within 100 ms even when the guest does not flip, but on
+  D3D11 only at the next guest flip. It is recorded in TASKS. A
+  present-only path on the walker when no flip came for 100 ms is a
+  follow-up (F-9).
+- **CPU GDI window** (`src/video/fb_present.c`, Windows CPU only): no overlay. This
+  is recorded in TASKS and follows the CLAUDE.md rule for the CPU path.
+
+**Goldens and dumps.** `RECOMP_FB_DUMP`, `fb_dump_at`, `d3d11_dump` and
+the Metal dump never contain a layer (above). `RECOMP_WINDOW_SHOT` has
+no D3D11 implementation today, so the D3D11 window checks use a host
+screenshot. **Gap:** this is recorded in TASKS under backends-agree, and
+a D3D11 back-buffer shot after the overlay draw is F-10. The golden pins
+`RECOMP_CONFIG=none`, so `menu.enabled`, `overlay.stats` and every
+`[input.actions]` default are off in code. `golden.py ENHANCE_STOCK`
+learns `menu.enabled=off`, `overlay.stats=off` and `actions hook=off`. A run whose log shows
+any of them on fails unless `--allow-enhance` names it. Window shots include
+the overlay, which is wanted for README shots and the 3.x checks.
+
+**Text.** `font8x8_basic` at integer scale: 1x for the stats strip at
+480 lines and 2x from 960, 2x or 3x for the menu as in D3. ASCII only.
+Item labels and mod names are ASCII by rule (a non-ASCII byte draws as
+`?`). A proportional face (the game's own PT Sans atlas) is not worth a
+font rasteriser in the kernel library. It can come back with microui if
+the pages outgrow the list.
+
+### R3. Host actions (new; supersedes D4's hook seam, chord and hotkey and D6's `menu.hotkey` and `menu.chord`)
+
+A game-agnostic layer in `src/enhance/enhance_actions.{c,h}` that turns
+host input into named **actions**. Actions are not guest buttons and
+never remap the pad the title sees. That job stays with
+`[input.bindings]` (keyboard to pad) and the parked cat
+`spike/input-selection` (`pad<N>.<control>` remaps, per-port source,
+GUID pins). Both of those feed the merged guest state. Actions read the
+host state beside it and only ever *remove* presses from it (a consumed
+chord).
+
+**Registry.** The toolkit registers its own actions. Mods register theirs
+through the mod API (below).
+
+| Action | Owner | Default bindings | Kind |
+|---|---|---|---|
+| `menu.open` | toolkit | `F10`, plus a pad chord (question 2) | press (toggle) |
+| `overlay.stats` | toolkit | `F12`? (question 2) | press (toggle) |
+| `shot.window` | toolkit | none | press: writes a window shot to the run dir |
+| `camera.free.toggle` | cat mod `camera.free` | `F6`, plus a pad chord (question 2) | press |
+| `camera.free.hud` | cat mod | `F7` | press |
+| `camera.free.freeze` | cat mod | `F8` | press |
+| `camera.free.reset` | cat mod | `F5` | press |
+
+Names are `<owner>.<verb>` in lowercase ASCII. A mod's actions start with
+its mod name. Duplicate names are refused at registration with a log line.
+
+**Config.** `[input.actions]` maps an action to a list of bindings. An
+empty list unbinds it:
+
+```toml
+[input.actions]
+"menu.open"          = ["F10", "back+lthumb@400", "paddle1"]
+"camera.free.toggle" = ["F6", "back+lthumb@400"]
+"overlay.stats"      = []
+```
+
+A binding is one of:
+
+- **a key:** a name from `input_names.c`'s VK vocabulary (`F1`..`F24`,
+  letters, `ctrl+F6`). Modifiers are allowed only on a key, and only a
+  modifier that is absent from the effective key map (rule 2).
+- **a pad chord:** `+`-joined names from the guest-pad vocabulary (`a b x
+  y white black ltrigger rtrigger start back lthumb rthumb dpad_*`) plus
+  the host-only names `guide`, `misc1`, `paddle1`..`paddle4` and
+  `touchpad`, with an optional hold `@<ms>` (default 0, at most 2000).
+  The chord is read on port 0 unless prefixed `pad2:` to `pad4:`.
+- **a single host-only button:** `paddle1`, `guide` and so on. It is
+  always allowed because the title can never see it.
+
+Rules, so a binding never steals what the game uses:
+
+1. A single guest button (`a`, `start`, `dpad_up`) as an action binding
+   is **refused** with a warning. Guest buttons are allowed only in a
+   chord of two or more, and only with a hold of at least 200 ms.
+2. A key the guest already receives is **refused** for an action with a
+   warning, and the guest keeps the key. The check is against the
+   **effective key map**: the compiled-in `xbox_key_map` defaults, then
+   `[input.bindings]`, `input.walk_key` and `input.mouse_release_key`
+   (F9 by default). Modifiers count as keys. Ctrl and Shift are guest keys
+   in the default map, and cat's bindings take LShift and LAlt, so
+   `ctrl+F6` is refused there unless the player unbinds Ctrl. F10 has no
+   other meaning today and is `menu.open`'s default. F11 is free: the
+   toolkit names it in `input_names.c` and warns when it is bound, but no
+   fullscreen hotkey exists.
+3. A chord is **consumed**. From the moment every button of the chord is
+   down, those buttons are reported released to the guest until each is
+   physically released. If the chord is let go before its hold time,
+   nothing fires. The guest still sees the press of the chord's first
+   button, and masking then adds a release the player did not make. With
+   `back+start`, pressing START first pauses BLiNX 2 and the mask then
+   releases START, so it is a poor default. The hold time does not help
+   here, because it only guards against firing the action by accident.
+   The design therefore:
+   - prefers defaults whose members the title ignores on a lone press:
+     host-only buttons, or a guest button with no use plus one used only
+     in menus (`back+lthumb` for BLiNX 2: lthumb has no use, BACK only
+     acts in menus);
+   - offers `[input] chord_delay_ms` (default 0, at most 100). It holds a
+     chord member back from the guest for that long after its press, so
+     a chord completed inside the window never reaches the guest. The
+     cost is that much latency on those buttons only, which is opt-in
+     because it changes how the game feels;
+   - documents the first-button effect in `config.md`.
+4. Defaults use only F-keys, two-button chords with a hold, and
+   host-only buttons. A game's `config.default.toml` may override them
+   when a default chord collides with the title (b3, ssx3, jsrf and
+   spartan get the toolkit defaults and a TASKS line to check them in
+   play).
+5. A scripted pad (`RECOMP_INPUT_SCRIPT`) never fires an action. Chords
+   and host-only buttons read the host backend's pad, which the script
+   never touches. Keyboard actions are different: kbm scripts
+   (`kbm_script.c` ~222) inject into the same key table that real keys
+   use (`xbox_InputKeyEvent`), so a scripted key **does** fire a
+   key-bound action. That is intended, because cat's `key` script step
+   is how unattended runs drive the free camera. Goldens stay safe
+   through rule 6, not through the source of the key.
+6. **Stock stays stock.** The filter is armed only by **feature keys**:
+   `menu.enabled`, `overlay.stats`, or a mod's own enable key
+   (`camera.free`). Registering an action never arms it. A golden run
+   (`RECOMP_CONFIG=none`, every feature key off) leaves it disarmed, so
+   it returns at its first test. At startup the layer logs
+   `[ENHANCE] actions hook=off`, or `[ENHANCE] actions hook=on (menu.enabled, camera.free)`
+   naming the keys that armed it. The golden harness fails a run whose
+   log says `on` unless `--allow-enhance` names one of those keys. Every
+   fire also logs `[ACTION] <name> via <binding>` unconditionally,
+   limited to 10 lines a second, so a run that fired anything shows it
+   without a trace channel.
+
+**Where it runs: a title-glue filter, not a hook on `xbox_InputGetState`.**
+cat never calls `xbox_InputGetState` (see the facts above), so D4's
+hook would never run there. The seam is one function in `mod.h`'s glue
+section, beside `xbox_mod_input_captured`:
+
+```c
+/* Host state of one port, before any script or keyboard merge. */
+struct xbox_host_pad {
+    XBOX_INPUT_STATE pad;   /* the host backend's guest-shaped state, 0 if none */
+    uint32_t extra;         /* XBOX_HOST_GUIDE | MISC1 | PADDLE1..4 | TOUCHPAD */
+    int      connected;
+};
+/* Evaluate actions and the menu for this poll; may rewrite *st (consumed
+ * chords, neutral pad while the menu is open). Returns at its first test
+ * when disarmed (rule 6). Poll thread. */
+void xbox_enhance_pad_filter(DWORD port, const struct xbox_host_pad *host,
+                             XBOX_INPUT_STATE *st);
+```
+
+There are two callers, and both call it after their own merge:
+
+- **The toolkit's `xbox_InputGetState`** (b3, ssx3, jsrf, spartan and
+  kuf, through `usb_gamepad.c`) fills `host` from the backend read it
+  already makes, before the keyboard merge and the script.
+- **cat's `cat_pad_get_state`** (`src/pad_input.c`) fills `host` from its
+  own backend read, before it merges `RECOMP_INPUT_SCRIPT` and the
+  keyboard and mouse. It calls the filter on the merged 18-byte gamepad
+  converted to `XBOX_INPUT_STATE`, then writes it back. This is a
+  ~20-line glue task in 3A and lives in cat, not the toolkit.
+
+Keyboard bindings are read through `xbox_FramebufferKeyDown(vk)`. The
+host state is kept apart from the script, which is what rule 5 needs.
+While the menu is open the filter also neutralises the pad (D4).
+
+The guest may not poll for a while (loading, a hang), so the flip also
+calls `enhance_actions_tick()` when the last poll is older than 100 ms.
+That covers keyboard and host-only buttons only, never guest-button
+chords, so `menu.open` from F10 or a paddle works on a loading screen.
+The flip tick reads the host-only state through a backend call that is
+safe off the poll thread (an atomic snapshot the backend refreshes at
+each read), and only when the filter is armed.
+
+**Extra buttons: the backend seam.** `input_backend.h` grows
+`uint32_t host_extra` beside the guest state. Each backend fills it, and
+it reaches the filter as `xbox_host_pad.extra`:
+
+| Backend | Buttons | How |
+|---|---|---|
+| SDL2 GameController (macOS, Linux native, Windows non-XInput) | `guide`, `misc1`, `paddle1-4`, `touchpad` | GUIDE is already in the SDL button table (`input_map.h` ~67, index 5) but maps to no guest button, so it only needs routing to `extra`. The new reads are 15..20 (`MISC1`, `PADDLE1-4`, `TOUCHPAD`; SDL 2.0.14+) through `SDL_GameControllerGetButton` in a second loop. `XBOX_SDL_BUTTON_COUNT` stays 15 for the guest map. |
+| XInput (Windows, Proton) | `guide` | `XInputGetStateEx` (xinput1_4 ordinal 100; Wine implements it), resolved with `GetProcAddress` by ordinal. Nothing else exists in XInput. |
+| Keyboard | none | Keys are already the key path. |
+| SDL3 (when the tracker item lands) | the same names | `SDL_GAMEPAD_BUTTON_GUIDE`, `MISC1`, `RIGHT_PADDLE1` and so on. A rename table only. |
+
+**Steam Input and the Deck.** Under Proton, Steam Input is on by default
+and presents a virtual XInput pad. The back grips (L4, L5, R4, R5) are
+not visible to XInput, and the guide button opens Steam. So on the Deck
+the documented way is to bind a grip **in Steam Input** to a keyboard key
+(`F10` for the menu, `F6` for the free camera) or to the pad chord. The
+key path then fires the action unchanged.
+
+Caveats, all for `config.md`:
+
+- **Guide under Proton** reaches `XInputGetStateEx` only with Steam
+  Input off for the title. Otherwise Steam takes the button.
+- **Native Deck paddles** (Linux build, Steam Input off) need SDL2 2.26 or
+  later with the HIDAPI Steam Deck driver. Older SDL sees the Deck as a
+  plain pad without paddles.
+- **Elite and DualSense Edge paddles** are reported as `PADDLE1-4` only
+  where the firmware mode and SDL's HIDAPI driver expose them. On some
+  firmware they mirror face buttons instead, and those are guest buttons.
+
+`docs/runtime/config.md` gets a short Deck paragraph with the Steam Input
+steps. A shipped Steam Input layout for the Deck is a follow-up (R6,
+F-6), not part of this change.
+
+**Mod API v2** (fields appended; `XBOX_MOD_API_VERSION 2`; a v1 mod still
+loads):
+
+```c
+/* Register a named action with its default bindings ("F6,back+lthumb@400").
+ * init only. Returns an id >= 0, or -1 on a duplicate or a full table (64). */
+int  (*action_register)(const char *name, const char *label, const char *defaults);
+/* Presses since the last call (edge, consumed). Any thread. */
+int  (*action_pressed)(int id);
+/* 1 while held (a chord past its hold time). Any thread. */
+int  (*action_down)(int id);
+/* A menu item on the mod's own page (R4). init only. */
+int  (*menu_add)(const struct enhance_item *it);
+/* Called with 0 or 1 when the Mods page turns the mod off or on. NULL means
+ * "applies at restart". init only. The toolkit records the request and calls
+ * fn from the next xbox_mod_frame, on the guest thread, so the mod changes
+ * guest memory and its own state from the thread its on_frame uses. */
+int  (*on_enable)(void (*fn)(int on, void *user), void *user);
+void (*toast)(const char *fmt, ...);
+```
+
+The free camera then polls `api->action_pressed(id_toggle)` in its
+`on_frame` instead of its own rising-edge detection on
+`xbox_FramebufferKeyDown`. Its `camera.free_toggle`, `free_hud_key`,
+`free_freeze_key` and `free_reset_key` keys stay readable as aliases: when
+set and `[input.actions]` does not name the action, they replace the
+key binding. One log line notes the alias. This is a small follow-up
+after the tracker item merges (R5 phase 5B). The free camera registers `on_frame`
+and `batch_filter` only when `camera.free` or `menu.enabled` is on, so a
+stock run keeps today's never-taken branch and no callback. With the menu
+on and the camera off, the callbacks are registered and gated on an
+atomic, which is what makes the Mods-page toggle live. Its actions arm
+the filter only through rule 6, which means when `camera.free` is on.
+
+**Overlap with `spike/input-selection`** (cat e09b325, parked):
+
+- **Shared:** the host-button vocabulary. Both use `input_names.c` and
+  the extra-button names added here.
+- **Not shared:** actions never remap the guest pad, choose a source or
+  pin a GUID. When the spike is revived its remaps feed the merged state
+  *before* the hook. Its `input.ini` is superseded by `config.toml`
+  (`[input.pad1]`), not by `[input.actions]`.
+
+**Coexistence with `[input.bindings]`:**
+
+- `[input.bindings]` is keyboard to guest pad, read into the VK table.
+- `[input.actions]` is host input to action.
+- A key is in one or the other, never both (rule 2).
+- Both tables rebuild live with a pointer swap on the poll thread (R1).
+
+### R4. Overlay pages (extends D5)
+
+The menu keeps D5's item table, `enhance_menu_add` and the pure state
+machine. Pages, in order:
+
+1. **Render:** `render.scale`, `render.aniso`, `present.filter`,
+   `present.fullscreen`, `present.pacing`, `display.aspect`,
+   `display.overscan`, `display.movie`, `present.surface` (R).
+2. **Pack:** as D5, with the miss list read from the snapshot (3.11).
+3. **Game:** the title's items.
+4. **Mods:** one row per registered mod (name, `on`, `off`, `failed` or
+   `restart`). A toggle calls `on_enable` when the mod gave one, or
+   records the change for the next start. Entering a row opens the
+   items the mod added with `menu_add`. The toolkit keeps the mod
+   table, the init result and the enable state. `mods.<name>` (bool,
+   default on when built in) is the persisted key, so Save writes
+   `[mods] "camera.free" = false`.
+5. **Stats:** a full-page version of the STATS layer with a 120-frame
+   frame-ms graph drawn as bars, the pacing mode, and per-second flips,
+   presents, draws and texture uploads. It also has the toggle for the
+   corner strip (`overlay.stats`).
+6. **Controls:** every registered action with its bindings, plus capture
+   (the next key, two-button chord held 400 ms, or host-only button;
+   refused under the R3 rules) and clear. This replaces phase 9's two
+   menu items.
+7. **Debug:** backend and presenter, host-opts gen, texture-cache and
+   target counts, the pack miss ring, the input sources with the extra
+   buttons seen this second (to test a paddle binding), "write a window
+   shot" (`shot.window`), and the trace channels the `recomp_env` table
+   flags as live (a new `LIVE` flag in the X-macro rows; none is live
+   today, so the page lists them read-only until a row opts in). On
+   D3D11 "write a window shot" is disabled until F-10.
+8. **Save** and **Reset to stock.**
+
+**Stats source.** `nv2a_stats.{c,h}` in the kernel library: relaxed
+atomics bumped where the work already happens (the flip, the present,
+draw submit, texture upload, pack hit or miss) and a 128-entry frame-ms
+ring written at the flip. `xbox_title_format` and `RENV_TITLE_STATS`
+already compute fps once a second, and they read the same counters, so
+the title bar and the strip agree. **Cost when off:** each counter site
+tests one relaxed-loaded flag, `nv2a_stats_on`, which is set while the
+STATS layer, the Stats page or `RECOMP_TITLE_STATS` is shown. With the
+flag clear the site does nothing more. That is the same one-load,
+one-branch rule as the overlay, and the "Enhancements default to stock"
+requirement allows it.
+
+**The guest keeps running** (D7 stands). The question for the user is
+whether the menu should also pause the guest, through a title callback
+(`enhance_menu_on_open`), when a title supplies one. cat does not in this
+change.
+
+### R5. Phases from 3 on (supersedes the Migration Plan's 3, 4, 5, 6 and 9)
+
+Each phase has its own worktree and agent and merges on its own. Estimates
+are agent-days including gates. Toolkit phases branch off
+`posix-host/portability`.
+
+| Phase | Content | Estimate | Depends on |
+|---|---|---|---|
+| **3A. Host actions** (toolkit, plus cat glue) | `xbox_enhance_pad_filter` in the toolkit, called from `xbox_InputGetState`, plus the cat glue in `cat_pad_get_state`; `enhance_actions` (registry, `[input.actions]` parser with the R3 rules, chords with a hold, consumption, `chord_delay_ms`, the flip tick, the `actions hook=` line, the rate-limited `[ACTION]` line); `host_extra` in the SDL2 and XInput backends (`XInputGetStateEx`); `menu.open` firing only a log line until 3D; mod API v2 `action_*` and `toast` (a log line until 3B); `[input.bindings]` and actions rebuilt live by pointer swap; the input setters of R1. ctests `input_actions`. Docs: `config.md`, the input README, the Deck paragraph. | 2 | none |
+| **3B. Overlay core and stats** (toolkit) | `nv2a_overlay` with triple-buffered layers and canvas handles, `font8x8`, the three presenter blits (SDL with the dirty wake, `fbm_present` layers argument, D3D11 after `dump_frame`); `nv2a_stats` (gated on `nv2a_stats_on`) and the STATS strip; `overlay.stats` key and env row; the TOAST layer. ctests `overlay`. Mac Metal and SDL-renderer window shots, plus an `fb_dump` of the same flip without the overlay; flips/s with the strip on within 5%. | 2 | none (parallel with 3A) |
+| **3C. Live-switch completion** (toolkit) | Mask bits `ANISO`, `MOVIE`, `OVERSCAN`; the SDL loop reads the filter each present; SDL fullscreen on the main thread; D3D11 fullscreen style swap and `ResizeBuffers`; pacing and input setters. `ASPECT` is left to the Hor+ change, and its row is written there. ctest `host_opts_live` cases for the new bits. | 1.5 | none (parallel) |
+| **3D. Menu** (toolkit) | `enhance_menu` (D5 and R4 pages: Render, Pack, Game, Mods, Stats, Controls, Debug, Save, Reset); the miss-ring snapshot (3.11); `recomp_cfg_patch` and Save; the mouse suspend (3.12); mod API v2 `menu_add` and `on_enable`; `menu.enabled` key. ctests `enhance_menu` and `recomp_cfg_patch`. Mac checks of the old 3.9 and 3.10. | 2.5 | 3A, 3B, 3C |
+| **4. CLI golden** | `ENHANCE_STOCK`: `menu.enabled`, `overlay.stats` (stock `off`), `textures.font` and `textures.text` (stock `on`); a check that a golden log carries no `[ACTION]` fire line. | 0.5 | 3A, 3B, 3D (the log lines) |
+| **5A. cat items** | Atomic glow (D9), Game items, `[menu]` and `[input.actions]` in `config.default.toml`, env rows, docs. | 1 | 3D, 4 |
+| **5B. Free camera onto actions** (cat) | Register the four actions through API v2; drop the private edge detector; old keys become aliases; `camera.free` live through `on_enable`; speed and sensitivity atomic; a Mods-page entry with its items; the default pad chord (question 2). | 0.5 | The tracker item merged, 3A (3D for the Mods page) |
+| **6. Proton and the Deck** (D3D11) | The old 6.x (on the Deck, not the Linux/Proton host) plus: the overlay after `dump_frame`, D3D11 fullscreen live, `XInputGetStateEx` guide on Proton (Steam Input off for the title), a Deck grip bound in Steam Input to F10 opening the menu. | 1 | 3A-5B |
+| **9. Controls** | Folded into 3D's Controls page. Only the real-pad capture checks on both hosts stay as 9.x. | 0.5 | 6 |
+| **7, 8, 10** | Unchanged. | | |
+
+**Gates per phase.** 3A, 3B, 3C and 3D each change the runtime, the
+renderer or input, so each merge gets its own gates under CLAUDE.md:
+
+- the Mac build, ctests and Metal goldens;
+- `blinx2 bench golden` on D3D11 under Proton on the Deck;
+- a Deck smoke run of the installed build;
+- the review.
+
+Each of those phases' estimates includes about 0.25 day for this. Phase 6
+then holds only the feature checks on D3D11 and the Deck that need the
+whole set.
+
+**Parallel work, ordered merges.** 3A, 3B and 3C can be developed at the
+same time in separate toolkit worktrees, but they touch shared files:
+`enhance.c` (key reads and log lines), `recomp_env.h` (rows), `mod.h`
+(the v2 fields), `fb_present_sdl.c` (3B's layers and 3C's filter and
+fullscreen), `nv2a_pb_d3d11.c` (3B's draw and 3C's fullscreen) and the
+`fbm_present` signature (3B's layers, 3C's filter). The merge order is
+fixed:
+
+1. **3A first.** It owns the `mod.h` v2 block. It appends the
+   `action_*` and `toast` fields and reserves `menu_add` and `on_enable`
+   as later fields.
+2. **3B rebases on 3A.** It owns the `fbm_present` signature change.
+3. **3C rebases on 3B.** Its presenter edits land in the new signature.
+4. **3D last.**
+
+`recomp_env.h` rows and `enhance.c` log lines are append-only, so those
+conflicts are textual. Total for 3A to 6 with the per-phase gates is about 11
+agent-days, and 11.5 with the phase 9 checks.
+
+### R6. Follow-ups outside this change
+
+| ID | Title | Estimate | Depends on |
+|---|---|---|---|
+| F-1 | Toolkit: live `textures.pack` path swap at the flip | 0.5 | 3D |
+| F-2 | Toolkit: overlay on the CPU GDI window (Windows CPU backend) | 0.5 | 3B |
+| F-3 | SDL3 port of `host_extra` (rename table) | 0.25 | The tracker item, 3A |
+| F-4 | b3, ssx3, jsrf, spartan, kuf: check the default action chords in play and add `[input.actions]` and `[menu]` to their `config.default.toml` | 0.5 | 5A |
+| F-5 | Hor+: `display.aspect` live with an `NV2A_OPT_ASPECT` flush, or recorded as S per game | 0.5 | `enhancements-hor-plus`, 3C |
+| F-6 | Shipped Steam Input layout for the Deck (grips to F10 and F6), if the user wants one | 0.5 | 6 |
+| F-7 | `recomp_env` `LIVE` flag for trace channels that can toggle at run time, shown on the Debug page | 0.5 | 3D |
+| F-8 | Revive `spike/input-selection` on top of the filter (pad remaps before actions) | later | 3A |
+| F-9 | D3D11: present the overlay without a guest flip (walker present-only path after 100 ms) | 0.5 | 3B |
+| F-10 | D3D11: `RECOMP_WINDOW_SHOT` (back buffer after the overlay draw), for the Debug page and README shots | 0.5 | 3B |
+
 ## Risks / Trade-offs
 
 - **The hook runs on the guest's poll thread.** Menu logic must stay
@@ -881,6 +1471,8 @@ plus the per-key pins; `game.toml [golden] enhance_stock` and the CLI's
   one taken closed.
 
 ## Migration Plan
+
+*Phases 3, 4, 5, 6 and 9 are re-split in R5 (2026-10-21). The text below is the 2026-10-11 plan, kept for the other phases.*
 
 Phases, each mergeable alone (one worktree and agent at a time):
 
@@ -1043,6 +1635,34 @@ The seven open questions of the first draft, answered the same day:
    (D2b). Re-rendering baked text in the chosen face is assessed in D16
    and placed late.
 
-## Still open
+## Still open (2026-10-21, for the user)
 
-Nothing. Every question of the first and second drafts is decided above.
+1. **SDL3 first, or SDL2 now?** The tracker item has not landed.
+   - **Standing default:** the user's order of 2026-10-11 (TASKS, round
+     order) is "SDL3 before enhance-menu phase 3". 3A to 3D
+     would then wait for the tracker item and use the SDL3 names from the start.
+   - **Alternative:** start 3A on SDL2 now. The cost is F-3 (about 0.25
+     day, a rename table for the extra buttons). There is also a likely
+     rebase of the SDL backend and `fb_present_sdl.c` edits against the
+     SDL3 migration, perhaps 0.5 day across 3A to 3C. The order of
+     2026-10-11 would need a decision to override it.
+2. **Default pad chords.** `back+start` is a poor default: pressing START
+   first pauses BLiNX 2 (R3 rule 3). Candidates for BLiNX 2:
+   - `back+lthumb@400`, since lthumb has no use and BACK acts only in
+     menus;
+   - `lthumb+rthumb@400`, although rthumb drives the camera;
+   - no pad default (F-keys plus user bindings and paddles).
+
+   Only one action can take `back+lthumb`. Which should get it,
+   `menu.open` (proposed) or `camera.free.toggle`? Should the other get
+   no pad default? Should `overlay.stats` default to F12 or stay
+   unbound?
+3. **Pause while open.** Keep D7 (the guest runs and sees a neutral pad),
+   or let a title pause through `enhance_menu_on_open`? Pausing BLiNX 2
+   would need its own pause press.
+4. **D3D11 fullscreen live** (3C). Is it in scope now, or is
+   `present.fullscreen` "applies at restart" on D3D11 while SDL and
+   Metal get it live? The latter goes in TASKS under the backends-agree
+   rule.
+5. **Deck layout.** Document Steam Input grip bindings only (proposed),
+   or also ship a Steam Input layout (F-6)?

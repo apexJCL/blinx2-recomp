@@ -1,7 +1,9 @@
 # BLiNX 2 options: every key at its default. Each enhancement default is the
 # stock behaviour except present.pacing, which sleeps: the frames and pace
 # are the same as the console's spin and it frees a CPU core. The [input]
-# table turns the keyboard and mouse on for player 1. The game reads this file
+# table turns the keyboard and mouse on for player 1, with this game's
+# layout and stick feel (stick_ramp_ms, walk_key, walk_scale; the toolkit's
+# own defaults are 0, none and 1.0). The game reads this file
 # on each launch, beside its executable; it is never copied, and an update
 # replaces it, so new keys and defaults reach you. Do not edit it: put the
 # keys you change in config/config.toml (copy a line from here), which the
@@ -11,11 +13,15 @@
 
 [render]
 scale = 1                 # internal resolution factor: 1 (stock 640x480) to 4
+                          # (Metal and Direct3D 11; the software renderer
+                          # ignores it)
 aniso = 0                 # anisotropic filtering on mipmapped textures: 0 (stock,
                           # off) or 2..16; sharper ground and walls at a distance
+                          # (Metal and Direct3D 11)
 
 [display]
-aspect = "4:3"            # only 4:3 so far
+aspect = "4:3"            # "4:3" (stock) or wider, "16:9", "16:10", "21:9": Hor+ (Metal, D3D11)
+movie = "black"           # with a wide aspect: "black" (pillarbox), "fit" (stretch), "fill" (crop)
 
 [present]
 filter = "nearest"        # "nearest" (stock), "linear", "integer"
@@ -36,6 +42,19 @@ mode = "lock30"           # lock60 and free are not available for this title:
 [fx]
 glow = "on"               # "on" (stock) or "off": the game's soft glow pass
 glow_intensity = 1.0      # 0.0 .. 2.0: a scale of that layer (1.0 is stock)
+
+[camera]
+free = "off"              # "on": a free-flying camera you start and stop with
+                          # free_toggle; the pad (sticks, triggers, X/Y up and
+                          # down, White fast, Black slow) and the mouse fly it
+                          # while player 1 stands still (Metal, Direct3D 11)
+free_speed = 1.0          # 0.05 .. 20: fly speed
+free_look_sens = 1.0      # 0.05 .. 10: look speed
+free_hud = "keep"         # "keep" or "hide": the HUD when the camera starts
+free_toggle = "F6"        # start and stop the free camera
+free_hud_key = "F7"       # show or hide the HUD while flying
+free_freeze_key = "F8"    # stop and restart the world while flying
+free_reset_key = "F5"     # back to the game's camera
 
 # [textures]
 # pack = "enhance/hud.pack" # your own HUD texture pack, made from your dump by

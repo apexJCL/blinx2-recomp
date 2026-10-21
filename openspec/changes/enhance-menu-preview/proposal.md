@@ -36,8 +36,9 @@ on it. The user asked (2026-10-11) for two things:
     and v2, and each entry keeps its own size, so text can sit at 2x
     beside HUD art at 4x in one pack;
   - keys `textures.font`, `textures.text` (on/off, default on) and
-    `menu.enabled`, `menu.hotkey`, `menu.chord` (default off, `F10`,
-    `BACK+START`);
+    `menu.enabled` (default off), with the menu opened by the
+    `menu.open` action (default `F10` and `BACK+START` held; R3 of the
+    design, 2026-10-21);
   - an **overlay** module in the kernel library (`nv2a_overlay.c`): a
     CPU-rasterised RGBA panel with an embedded public-domain 8x8 font,
     blitted by the three presenters as one textured quad over the frame
@@ -83,6 +84,40 @@ on it. The user asked (2026-10-11) for two things:
   shipped default file, off in code), the `config/enhance-hud.toml`
   the preview tool writes (tracked: fonts and parameters only),
   `docs/packaging.md` and the README.
+
+## Revision 2026-10-21
+
+The user asked for three more things on 2026-10-21: live switching where
+possible, an overlay that shows more than the menu, and bindings for host
+features (the free camera first) on chords and on the extra buttons of
+the Deck and modern pads. The design adds R1 to R6:
+
+- **R1, live-switch audit.** Every toolkit, game and mod key is
+  classified as live, live with a flush, at a later game point, or
+  restart only, with the mechanism and the blocker. Of 26 rows, 21
+  switch without a restart after this change (13 live, 8 with a flush),
+  up from 4 today. `camera.free_hud` applies at the next activation.
+  `display.aspect` and the pack path become live in follow-ups.
+  `present.surface` and `fps.mode` stay restart-only.
+- **R2, the overlay.** It has three layers (menu, a stats strip, toasts)
+  with one writer each. Presenters draw them after the frame and never
+  into dumps, at the cost of one atomic load when nothing is shown.
+- **R3, host actions.** cat bypasses `xbox_InputGetState`, so the seam
+  is a title-glue filter (`xbox_enhance_pad_filter`). Both the
+  toolkit's input path and cat's pad glue call it. Named actions (`menu.open`, `overlay.stats`,
+  `camera.free.toggle`, ...) are bound in `[input.actions]` to keys,
+  pad chords with a hold time, and host-only buttons (guide, misc1,
+  paddles, touchpad). The rules mean a binding never steals a button the
+  game sees. Mods register actions through mod API v2. On the Deck under
+  Proton, Steam Input maps the back grips to keys.
+- **R4, pages.** Mods (list, toggle, per-mod items), Stats, Controls
+  (rebind any action) and Debug join Render, Pack and Game.
+- **R5, phases.** Phase 3 splits into 3A actions, 3B overlay and stats,
+  3C live switching (all three in parallel) and 3D menu. 5B moves the
+  free camera onto actions after the tracker item. The merges go in the order
+  3A, 3B, 3C, 3D, each with its own D3D11 golden on the Deck. About 11
+  agent-days through phase 6.
+- **R6, follow-ups** outside the change.
 
 ## Backends, hosts and goldens
 

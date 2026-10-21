@@ -59,6 +59,9 @@
  *   poke ADDR V                  write the 32-bit guest dword at ADDR once
  *   memdump LABEL                write the RECOMP_DEBUG=mem_dump range now,
  *                                to <prefix>_LABEL.bin (main.c)
+ *   key [-]NAME                  hold (or with -, release) a host key as the
+ *                                window would: F1..F12, a letter or a digit
+ *                                (camera.free's hotkeys in a headless run)
  *   ACTION[,ACTION...]           now
  *
  *   ACTION  BUTTON        press (analog buttons to 255)
@@ -134,6 +137,7 @@
 #include "keyboard.h"
 #include "mouse.h"
 #include "pad_slots.h"
+#include "free_camera.h"   /* free_cam_pad_neutral */
 #ifdef RECOMP_ENV_HAVE_ENHANCE_KEYS
 #include "enhance_cfg.h"
 #endif
@@ -497,7 +501,7 @@ typedef struct { double t; int button; int value; long poll; } Event;
  * that many port-0 polls later (BUTTON/Np). */
 typedef struct { int button; int value; double dur; long dpolls; } Act;
 
-enum { S_ACTS, S_WAIT_SECS, S_WAIT_UNTIL, S_WAIT_POLLS, S_WAIT_COND, S_TAP, S_POKE, S_MEMDUMP };
+enum { S_ACTS, S_WAIT_SECS, S_WAIT_UNTIL, S_WAIT_POLLS, S_WAIT_COND, S_TAP, S_POKE, S_MEMDUMP, S_KEY };
 enum { C_OPEN, C_MEM };     /* the condition of a wait / tap: open TEXT, mem ADDR OP V */
 typedef struct {
     int    kind;
@@ -531,6 +535,8 @@ static double g_t0;
 static XBOX_GAMEPAD g_script;          /* the script's current state */
 static uint32_t g_packet[4];
 static XBOX_GAMEPAD g_last[4];
+static XBOX_GAMEPAD g_port0_seen;    /* port 0 before camera.free's neutral pad */
+static int g_port0_conn;
 static XBOX_GAMEPAD g_host_last[4];    /* the host's last state, per port */
 static uint32_t g_mask_last;           /* the last connected mask logged */
 static double   g_probe_t[4];          /* last host query per slot (now_s) */
@@ -745,6 +751,30 @@ static void parse_line(char *e)
             free(s->text);
             g_nsteps--;
         }
+        return;
+    }
+    if (word(&p, "key")) {
+        /* A host key, as the window would record it: F1..F12, a letter or
+         * a digit; -NAME releases it. For hotkeys (camera.free) in a run
+         * with no window. */
+        Step *s = add_step(S_KEY, text);
+        int up = *p == '-';
+        char *k = p + up;
+        int vk = -1;
+        if ((k[0] == 'F' || k[0] == 'f') && isdigit((unsigned char)k[1])) {
+            long n = strtol(k + 1, NULL, 10);
+            if (n >= 1 && n <= 12) vk = 0x6F + (int)n;
+        } else if (isalnum((unsigned char)k[0]) && !k[1]) {
+            vk = toupper((unsigned char)k[0]);
+        }
+        if (vk < 0) {
+            g_errors++, fprintf(stderr, "[INPUT] script: bad step '%s' (key [-]F1..F12|A..Z|0..9)\n", text);
+            free(s->text);
+            g_nsteps--;
+            return;
+        }
+        s->addr = (uint32_t)vk;
+        s->val = !up;
         return;
     }
     if (word(&p, "memdump")) {
@@ -1200,6 +1230,12 @@ static void run_steps(double t)
             guest_write(s->addr, s->val);
             done = 1;
             break;
+        case S_KEY:
+            fprintf(stderr, "[INPUT] t=%.3f poll=%ld key 0x%02X %s\n", t, g_poll, s->addr,
+                    s->val ? "down" : "up");
+            xbox_InputKeySet((int)s->addr, (int)s->val);
+            done = 1;
+            break;
         case S_MEMDUMP: {
             extern void cat_mem_dump_now(const char *label);
             fprintf(stderr, "[INPUT] t=%.3f poll=%ld memdump %s\n", t, g_poll, s->match);
@@ -1385,6 +1421,19 @@ static void watch_activity(double t)
     fflush(stderr);
 }
 
+/* Port 0 as the last poll merged it, before camera.free's neutral pad;
+ * 0 when that poll found no source. */
+int cat_pad_port0_last(XBOX_GAMEPAD *out)
+{
+    int c;
+
+    LOCK();
+    *out = g_port0_seen;
+    c = g_port0_conn;
+    UNLOCK();
+    return c;
+}
+
 int cat_pad_get_state(uint32_t port, uint8_t out[18], uint32_t *packet)
 {
     XBOX_GAMEPAD g;
@@ -1453,6 +1502,15 @@ int cat_pad_get_state(uint32_t port, uint8_t out[18], uint32_t *packet)
             if (!g.sThumbRY) g.sThumbRY = h->sThumbRY;
             connected = 1;
         }
+    }
+    /* camera.free: the camera reads port 0 as merged here, and while it
+     * has the port the game reads it connected and released (free-camera
+     * D3), so nothing the player does to fly also moves Blinx. */
+    if (port == 0) {
+        g_port0_seen = g;
+        g_port0_conn = connected;
+        if (connected && free_cam_pad_neutral())
+            memset(&g, 0, sizeof g);
     }
     /* The packet number moves only when the state does, as on hardware. */
     if (memcmp(&g, &g_last[port], sizeof g)) {

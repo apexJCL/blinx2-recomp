@@ -431,9 +431,12 @@ or the Deck is the same file written under the bundle's root; it is copied
 back by hand.
 
 Recordings are game output and a person's play: `analysis/replay/<name>/`
-is under the gitignored `analysis/*`, so `export-public.sh`, which exports
-`git ls-tree`, never sees it; `scripts/test_gitignore.py` asserts it, and
-the public-push audit lists `analysis/replay` among the paths to grep for.
+is under the gitignored `analysis/*`, so it is never tracked and
+`blinx2 public export`, which exports the tracked tree, never sees it.
+`scripts/test_gitignore.py` asserts the ignore, and
+`scripts/test_public_exclude.py` that no tracked file on an ignored path
+is left out of `[public] exclude`; the public audit's private patterns
+are where a check for `analysis/replay` would go.
 Nothing about them is checked in except `config/replay.json` and the names
 in TASKS.md.
 

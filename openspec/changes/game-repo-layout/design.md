@@ -232,12 +232,17 @@ the same way. The workspace's `notes/<topic>/` and `runs/` are outside
 every repo and stay there: no game repo document cites them (the SSX 3
 finding, tasks.md 2.3).
 
-**Session names.** The orchestrator's session names (`xb-upstream`,
-`ssx3-ec`, `xb-windows`, `xbox-recomp-e7`) are private workspace detail,
-as in the toolkit's public rounds. They go in the private `rewrite` file
-(D6), so the exported openspec says "the Burnout 3 session" and so on.
-Tracker ids (`BLX-NNN`) may stay in the exported game repos. They never go
-into upstream PRs (a separate rule).
+**Session names.** The names of the orchestrator's sessions, one per
+game, are private workspace detail, as in the toolkit's public rounds. The
+private `audit-private` file lists them and the private `rewrite` file
+(D6) turns each into its game's session ("the Burnout 3 session" and so
+on), so the exported openspec never names them.
+Tracker ids (`BLX-NNN`): the shared `rewrite` file carries cat's SCRUB
+rules, which remove them, and a `!fail` check blocks any that are left, so
+in practice no exported game repo keeps them. A game that wants to keep
+them would need its own `XBR_PUBLIC_DIR` (one `rewrite` file serves every
+game that shares the directory). They never go into upstream PRs (a
+separate rule).
 
 **Excluded but not private:** game data, frames and bundles are never in
 git at all. The export refuses them rather than dropping them (D7), so a
@@ -275,16 +280,26 @@ The author is the noreply identity, which is public by design.
 four games share them. The CLI refuses an `XBR_PUBLIC_DIR` inside the
 game's work tree. The directory holds two files:
 - `audit-private`: one extended regex per line, matched case-insensitively
-  (the bench host's names, the personal email, the Windows PC's bench
-  paths, the session names). The same format as today's
-  `.git/info/audit-private`.
-- `rewrite`: ordered rules, one per line (D7 step 4 has the semantics):
-  - `regex<TAB>replacement`, in Python `re` syntax; groups are `\1`, not
-    perl's `$1`;
-  - `!fail <regex>`: a check, not a rule.
+  (the bench host's names, the personal email, the workspace path, the
+  session names). The same format as today's `.git/info/audit-private`.
+  The Windows PC's bench folder is rewritten but not a pattern: the CLI's
+  public history already names it in a commit message, so a pattern would
+  fail the CLI's own `--all` audit forever.
+- `rewrite`: ordered rules, one per line (D7 step 4 has the semantics),
+  compiled as Python `re` with `re.ASCII`:
+  - `regex<TAB>replacement`: applied per line, each line keeping its line
+    ending;
+  - `!blob regex<TAB>replacement`: applied to the whole blob, so a match
+    may span lines (cat's SCRUB perl, which slurps the file, needs this);
+  - `!fail <regex>`: a check, not a rule, matched without case;
+  - replacements take `\1`-`\9` and `\g<N>` (not perl's `$1`), `\u` to
+    upper-case the next character, and `\n`, `\t`, `\\`.
 
-  cat's perl REWRITE list and its "awkward wording" check translate one
-  to one.
+  cat's perl REWRITE list, its SCRUB script (its one `/e` rule split in
+  two) and its "awkward wording" check translate one to one; the
+  translation's output equals `export-public.sh`'s on cat's tree except
+  for the session-name and bench-folder rules added here.
+- the export's map file, `<slug>.map`, sits beside `rewrite`.
 
 **Lookup order** for the private patterns, in `public audit`,
 `public export` and doctor: `$XBR_PUBLIC_DIR/audit-private`, then
@@ -305,27 +320,29 @@ writes no large files:
 1. `git fetch <remote>`, then refuse unless `<remote>/<branch>` equals
    `git ls-remote <url> <branch>`. The new commit must be a fast-forward
    of what is really public.
-2. List `REF`'s tree (default `HEAD`). Refuse when the working tree is
-   dirty and REF is HEAD (`--allow-dirty` to override).
+2. List `REF`'s tree. REF must be `HEAD` (the default): the layout check
+   reads the working tree, so for any other commit it would judge the
+   wrong tree. Refuse when the working tree is dirty (`--allow-dirty` to
+   override).
 3. Drop the private set and `[public] exclude`. Then refuse (not drop)
    every path on the refusal list below. The fix belongs in the private
    commit.
 4. Rewrite. A text blob is one with no NUL byte in its first 8000 bytes
-   (git's own test). For each text blob that matches an `audit-private`
-   pattern:
-   - apply the `rewrite` rules in order, line by line, each line keeping
-     its line ending;
-   - write the result with `git hash-object -w`.
+   (git's own test). For every text blob (not only those that match an
+   `audit-private` pattern: cat's SCRUB triggers, tracker ids and model
+   names, are not patterns):
+   - apply the `rewrite` rules in order (D6);
+   - write a changed result with `git hash-object -w`.
 
-   Then, over every rewritten blob, refuse if an `audit-private` pattern
-   still matches or a `!fail` rule matches. `!fail` regexes are
-   case-insensitive. Tracked path names are checked against
-   `audit-private` too; a path is never rewritten.
+   Then, over every exported text blob and every path name, refuse if an
+   `audit-private` pattern or a `!fail` check matches. A path is never
+   rewritten. A text blob that is not UTF-8 is refused, since the rules
+   and checks read text as UTF-8 and would pass over it.
 5. Build the tree with a temporary index (`GIT_INDEX_FILE`,
    `update-index --index-info`, `write-tree`). Commit it with
    `commit-tree` in a clean environment (`GIT_CONFIG_NOSYSTEM=1`,
-   `GIT_CONFIG_GLOBAL=/dev/null`, and author and committer both set to
-   `[public] author`):
+   `GIT_CONFIG_GLOBAL=/dev/null`, `--no-gpg-sign`, and author and
+   committer both set to `[public] author`):
    - the first parent is `<remote>/<branch>`, or none for an empty public
      repo;
    - with `[public] upstream` set, let `U = git merge-base REF <upstream>`,
@@ -337,17 +354,20 @@ writes no large files:
      recompilation: <YYYY-MM-DD> round`, or `--message`.
 6. If the tree equals the first parent's and no second parent is added,
    stop with "nothing to publish".
-7. Point the local ref `refs/public/<branch>` at the commit. With
-   `--tag TAG`, also create the annotated tag `refs/public-tags/TAG` on
-   it, in the same clean environment, with `[public] author` as the
+7. With `--tag TAG`, create the annotated tag object for
+   `refs/public-tags/TAG` on the commit, in the same clean environment, with `[public] author` as the
    tagger and the tag's `CHANGELOG.md` section as its message. Private
    tags never share a name with a public one. The one exception is b3's
    `v2026.10.0-rc.1`, made before this change, which exists under the
    same name in both repos. Tags already on the remote are not pushed
    again, and the audit skips them.
-8. Append `<public sha> <REF sha> <date>` to `$XBR_PUBLIC_DIR/<slug>.map`.
-9. Run `public audit` (D8) on the result, and print the summary (files,
-   excluded, rewritten) and the push command:
+8. Run `public audit` (D8) on the result before any ref moves. Only when
+   it passes, point `refs/public/<branch>` (and the tag ref) at it and
+   append `<public sha> <REF sha> <date>` to `<slug>.map` (D6).
+9. Print the summary (files, excluded, rewritten, and the rules read:
+   `rewrite: <path> (N rules, M checks)` or `rewrite: none`) and the push
+   command. With `XBR_PUBLIC_DIR` set but no `rewrite` in it, refuse
+   (exit 2), so a wrong folder cannot publish an unrewritten tree:
 
    ```sh
    git push <remote> refs/public/<branch>:refs/heads/<branch> [refs/public-tags/TAG:refs/tags/TAG]
@@ -364,13 +384,17 @@ audit, and reported by doctor):
   `pdb`, `nsi`, `tar`, `ico`, `icns` (cat's bundle list);
 - `hud-pack.toml` at any depth;
 - the paths `[data] game_files`, `[pipeline] gen` (and its `gen.*`
-  siblings), `dist/`, `build*/`, `bin/`, `_local/`, `saves/`, `runs/`,
-  `bench-logs/`;
-- gitlinks (mode 160000).
+  siblings); `dist/`, `build*/` and `bin/` at the top level only (an
+  openspec change named `build-resources` is not a build tree);
+  `_local/`, `saves/`, `runs/` and `bench-logs/` at any depth, as a
+  folder or a file (a symlink included). Names match without case;
+- gitlinks (mode 160000);
+- any other binary blob (a NUL in its first 8000 bytes), with the same
+  exemptions.
 
 The data-extension rule has the same exemptions as the audit (D8):
-`docs/images/*.png`, `[public] allow`, and `[public] upstream_files`
-while they equal upstream's blob. b3's `.claude/`, `CLAUDE.md` and
+`docs/images/*.png` without text or Exif chunks, `[public] allow`, and
+`[public] upstream_files` while they equal upstream's blob. b3's `.claude/`, `CLAUDE.md` and
 `TESTING.md` refusals are not in the default list, because cat publishes
 `.claude/` (its openspec commands). They move to b3's `[public] exclude`.
 
@@ -386,8 +410,13 @@ history mode.
   commit, which may be a merge, is checked against its first parent. A
   merge shows no diff in `git log -p`, so the audit never relies on it.
   When `<remote>/<branch>` does not exist, the diff is against the empty
-  tree. In history mode, each commit in `<range> ^<upstream>` is also
-  checked against its first parent. Checked here:
+  tree. In history mode, each commit in `<range> ^<upstream>`, merges
+  included (an evil merge adds lines too), is also checked against its
+  first parent. The diff runs with `--text` and with no attributes file
+  (`core.attributesFile` nulled, the repo's own `.gitattributes`
+  overridden), so a `-diff` or `binary` attribute hides nothing; quoted
+  path names in the headers are decoded, and an added line under a
+  header the audit could not read is a hit. Checked here:
   - the added lines for home-directory paths (macOS, Linux, an immutable
     host's `/var` home, Windows), links into the assistant's web app, and
     the `audit-private` patterns;
@@ -402,8 +431,12 @@ history mode.
 - **Tags** that the push would add: each `refs/public-tags/*` tag not yet
   on the remote must have `[public] author` as tagger, and its message is
   checked as the added lines are.
-- **The tip's tree**, for the refusal list and the private set.
-- **The layout** (D12): any layout problem fails the audit.
+- **The tip's tree**, for the refusal list and the private set, in both
+  modes (an export-mode tip not made by `public export` may hold it).
+- **The layout** (D12): any layout problem fails the audit. The block
+  reads the working tree, so it counts only when the tip is HEAD or the
+  map records it as HEAD's export; otherwise, and when the block fails
+  to run, the audit exits 2 after reporting any other hits.
 - **The pins.** The tip's `[cli]` and `[toolkit]` tags must be in
   `git ls-remote <url>` of their public URLs and name the pinned commits.
   A public clone must be able to run `setup`. This is the Spartan
@@ -445,17 +478,20 @@ audit cannot check.
   refs/public/<branch>:refs/heads/<branch>`, so a bare `git push public`
   can only push the export.
 - It installs a `pre-push` hook in `<git common dir>/hooks/` (untracked).
-  The hook chains to an existing `pre-push`. In export mode, for a push
-  whose URL normalises to the public repo (any form: ssh, https, with or
-  without `.git`), it allows a ref update only when one of these holds:
+  An existing `pre-push` is kept as `pre-push.chained` and runs after the
+  guard. In export mode, for a push to the remote `[public] remote` by
+  name, or to any URL that normalises to the public repo (ssh, https,
+  with or without `.git`), it allows a ref update only when one of these
+  holds:
   - the destination is `refs/heads/<branch>`, and the pushed sha equals
     `refs/public/<branch>`;
-  - the destination is `refs/tags/*`, and the pushed sha is a
+  - the destination is `refs/tags/*`, and the pushed sha is an annotated
     `refs/public-tags/*` tag that peels to a commit reachable from
     `refs/public/<branch>`.
 
-  It refuses everything else: other refs, raw shas, deletes (the zero
-  sha), and any update to `refs/heads/<branch>` that is not a fast-forward
+  It refuses everything else: other refs, other commits (by ref or raw
+  sha; the guard compares shas, so the export's own sha passes), deletes
+  (the zero sha), and any update to `refs/heads/<branch>` that is not a fast-forward
   of the remote sha.
 
 **How each game migrates:**
@@ -516,7 +552,8 @@ is only a `[public] mode` value in b3's `game.toml`.
   - runs `uv sync --locked --group dev`, `uv run pytest scripts` and both
     ruff checks;
   - pins its Python in the template (`UV_PYTHON`, one version for every
-    game, within the games' `requires-python`) and its actions by tag;
+    game, within the games' `requires-python`) and its actions by commit
+    sha, with the tag in a comment;
   - uses no game data and no toolkit clone, so it runs on the public tree
     as exported;
   - the scaffold writes it, and `workflow --check` compares it with the
@@ -550,8 +587,13 @@ is only a `[public] mode` value in b3's `game.toml`.
   - a missing required entry;
   - in a game with `[public]`: a missing `checks.yml` or `openspec/`;
   - a baseline pattern that does not ignore its sample path
-    (`git check-ignore --no-index`);
-  - a tracked file under the refusal list;
+    (`git check-ignore --no-index`, judged in a scratch repo with no
+    global excludes, so a symlinked `bench-logs` or the user's own
+    excludes do not change the answer; `scripts/test_gitignore.py` does
+    the same);
+  - a tracked file under the refusal list (`docs/images/*.png` are
+    exempt here whatever their chunks; the audit is what requires
+    chunk-free PNGs);
   - a nested worktree or embedded repo;
   - the bootstrap or a workflow differing from its template;
   - in export mode, where a remote with `[public] url` exists: no push
@@ -578,14 +620,14 @@ own worktree under the workspace's `wt/`:
    doctor layout block, `workflow --check`, the scaffold additions, docs,
    tests (a made-up host name, never the real one), then a release. A
    CLI push round goes first so that the pin exists publicly.
-2. **SSX 3** (ssx3-ec) and **Spartan** (xb-windows): conform, pin the new
+2. **SSX 3** (the SSX 3 session) and **Spartan** (the Spartan session): conform, pin the new
    CLI, and fix the audit findings. Spartan also renames its slug to
    `spartan` (Q2). `public init` comes first of all, because their
    `origin` is the public repo (push disabled since task 0.1).
 3. **cat** (orchestrator): conform, then one round through the CLI whose
    tree must equal `export-public.sh`'s for the same commit (tasks.md
    4.3); then remove the script.
-4. **b3** (xb-upstream): conform, set `[public] mode = "export"` (Q1),
+4. **b3** (the Burnout 3 session): conform, set `[public] mode = "export"` (Q1),
    and replace the audit script.
 5. **First push round** for SSX 3 and Spartan:
    - order: the CLI, then each game;

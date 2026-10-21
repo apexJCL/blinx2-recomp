@@ -11,7 +11,7 @@
 
 **A bundle is private.** It contains your own copy of BLiNX 2 and code
 generated from it. It is for your own machines only: never share, upload or
-publish it. `dist/` is gitignored, and `scripts/export-public.sh` refuses a
+publish it. `dist/` is gitignored, and `blinx2 public export` refuses a
 commit that tracks a bundle.
 
 Saves (`hdd/`), settings (`config/`) and logs (`logs/`) live outside the
@@ -397,6 +397,21 @@ is gitignored). `golden` runs never use one.
 ## 7. Troubleshooting
 
 - **`blinx2 doctor`** names whatever is missing and how to install it.
+- **Little memory, or the build crashed or slowed the computer:** the
+  build compiles as many files at once as fit in the memory free when it
+  starts. One of the game's generated files takes about 1.2 GB to compile,
+  so with 4 GB free it compiles two at a time; on a busy computer, one.
+  `blinx2 doctor` (and the wizard's "This computer" check) shows the
+  memory, cores and disk it sees, and the `build jobs:` count a package
+  would use. Close other programs (a browser, a game) for a faster build,
+  or pass `--jobs N` to `package` or `build` to pick the count yourself;
+  the wizard's Summary page has the same choice. The output is the same
+  at any count.
+- **"refused: disk":** there is not enough free space for what the build
+  will write. The line above it names each folder's disk, how much is
+  free and how much the build needs. Free that much and run it again
+  (Retry in the wizard). `--ignore-disk-space` builds anyway, on a
+  disk that compresses or deduplicates what it stores.
 - **"no uv on PATH":** install uv with the command `setup` printed (above,
   Prerequisites), open a new terminal so `PATH` picks it up, and run setup
   again. A `.venv` that already works keeps building and packaging without

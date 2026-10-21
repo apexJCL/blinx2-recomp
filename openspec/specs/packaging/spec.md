@@ -98,15 +98,15 @@ A bundle SHALL install correctly on its target regardless of the build host's fi
 - **THEN** packaging refuses before building with a message naming both file names
 
 ### Requirement: Bundles never enter the repository or the public export
-`dist/`, `*.dmg`, `*.exe`, `*.pdb`, `*.tar`, `*.nsi`, `*.pack` and `enhance/` SHALL be gitignored. `scripts/export-public.sh` SHALL fail when the exported commit tracks any path under `dist/` or any file with those extensions. `blinx2 package` SHALL end its output with a notice that the bundle contains the user's own copy of the game and is not to be shared, and `README.txt` SHALL open with the same notice.
+`dist/`, `*.dmg`, `*.exe`, `*.pdb`, `*.tar`, `*.nsi`, `*.pack` and `enhance/` SHALL be gitignored. `blinx2 public export` SHALL fail when the exported commit tracks any path under `dist/` or any file with those extensions. `blinx2 package` SHALL end its output with a notice that the bundle contains the user's own copy of the game and is not to be shared, and `README.txt` SHALL open with the same notice.
 
 #### Scenario: Bundle staged for commit
 - **WHEN** `git status` runs after `blinx2 package`
 - **THEN** nothing under `dist/` is untracked or staged
 
 #### Scenario: Export with a tracked installer
-- **WHEN** a test commit tracks `dist/x.exe` and `export-public.sh` runs on it
-- **THEN** the export fails naming the path and writes no repository
+- **WHEN** a test commit tracks `dist/x.exe` and `blinx2 public export` runs on it
+- **THEN** the export fails naming the path and moves no ref
 
 #### Scenario: Pack dropped in the tree
 - **WHEN** a `hud.pack` is written anywhere under the checkout

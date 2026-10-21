@@ -3,7 +3,9 @@
   "auto": false,
   "sites": [
     {"va": "0x00060475", "note": "sub_0005F960 main loop: while ([0xAE7388] < [0x3FD344]), the frame counter the vblank callback sub_000604A0 bumps in the D3D vblank DPC"},
-    {"va": "0x002E7F20", "note": "D3D KickOff: while ([regs+0x100410] & 0x10000), the PFB flush bit the toolkit's ack loop clears once the walker has caught up; behind a flip hold (present-vblank-pacing) it waits up to a vblank, so it yields the guest CPU and sleeps under present.pacing=sleep"}
+    {"va": "0x002E7F20", "note": "D3D KickOff: while ([regs+0x100410] & 0x10000), the PFB flush bit the toolkit's ack loop clears once the walker has caught up; behind a flip hold (present-vblank-pacing) it waits up to a vblank, so it yields the guest CPU and sleeps under present.pacing=sleep"},
+    {"va": "0x002E7F70", "note": "D3D KickOff in sub_002E7F30 (the push-buffer kick, the hot one: 31% of Metal stage1 CPU in the profile): the same PFB flush-bit wait as 0x002E7F20, set and polled before the put pointer write; the toolkit's ack loop clears it, so it sleeps under present.pacing=sleep like its sibling"},
+    {"va": "0x002E8020", "note": "D3D KickOff in sub_002E7FE0 (the variant without the 0x2F1B10 check): the same PFB flush-bit wait as 0x002E7F20 and 0x002E7F70, cleared by the toolkit's ack loop"}
   ],
   "exclude": []
 }

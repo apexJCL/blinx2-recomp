@@ -1,48 +1,53 @@
-build/
-game_files
-# `blinx2 import` builds the dump beside it, then swaps it in.
-game_files.partial/
-game_files.old/
-# analysis/ is per-worktree scratch, except the golden-frame hashes
-# (golden.json); the reference frames in analysis/golden/frames/ are game
-# output and stay local.
-analysis/*
-!analysis/golden/
-analysis/golden/*
-!analysis/golden/golden.json
-# audio.json is thresholds; the reference WAVs in analysis/golden/audio/ are
-# game output and stay local.
-!analysis/golden/audio.json
-analysis/golden/audio/
-src/recomp/gen/
-.venv-ghidra
+# Written by `xbr new`. Game data, generated code, the toolchain and the
+# bundles never enter git. The top-level entries are anchored (/x), and the
+# ones a worktree holds as symlinks to the main checkout's are bare: a
+# trailing-slash line matches a directory only.
+
+# Your dump, and the analysis the pipeline writes beside it; `import`
+# builds the dump beside it first and keeps the old one there until the
+# new one is in place.
+/game_files
+/game_files.partial/
+/game_files.old/
+
+# Generated code and its key (`blinx2 package` regenerates when it differs).
+/src/recomp/gen/
+/src/recomp/gen.key.json
+/src/recomp/.gen-regenerating
+
+# The pipeline's intermediates. `/analysis/*` rather than `/analysis/`, so
+# the golden thresholds below can be negated back in.
+/analysis/*
+
+# Builds, and the packaging build trees (anchored: a change named
+# openspec/changes/build-*/ is not one).
+/build-win/
+/build/
 /build-*/
-third_party
-# blinx2 setup: the pinned venv, and the toolkit clone (it must not enter the
-# -dirty hash of a packaged version).
-.venv/
-external/
-# blinx2 package output: private bundles holding the game. Never commit them.
-dist/
-# blinx2 enhance hud output (dist/enhance/hud/ by default, covered above):
-# texture packs made from the game files, wherever --out puts them.
-*.pack
-hud-pack.toml
+/build-logs/
+
+# `blinx2 setup`: the pinned venvs, the toolchain, the toolkit and CLI clones.
+/.venv*
+/third_party
+/external
+/.xbr-pin
+# `blinx2 package`'s stage records in a folder outside git (in a repo
+# they live in the git directory).
+/.xbr/
+
+# `blinx2 package`: private bundles holding the game. Never commit them.
+/dist/
 *.dmg
 *.exe
 *.pdb
 *.nsi
 *.tar
-bench-logs/
-scripts/bench.env
-src/recomp/.gen-regenerating
-# What gen/ was generated from (blinx2 package regenerates when it differs).
-src/recomp/gen.key.json
-.DS_Store
-*.log
-timeline/
-__pycache__/
-# Game data and game output, anywhere in the tree: never commit these.
+
+# The bench host. Bare: a symlink to the workspace's one store.
+bench-logs
+/scripts/bench.env
+
+# Game data, captures and game output, anywhere in the tree.
 *.xbe
 *.iso
 *.xiso
@@ -54,11 +59,10 @@ __pycache__/
 *.wav
 *.bmp
 *.png
-# The app icons: the game's title image (blinx2 package, build-pkg-*/icon/).
+# Screenshots of your own build for the README are the one exception.
+!docs/images/*.png
 *.ico
 *.icns
-# README images (placeholders and screenshots), not game output
-!docs/images/*.png
 *.ppm
 *.raw
 *.sav
@@ -66,15 +70,51 @@ __pycache__/
 UDATA/
 TDATA/
 saves/
-# Local Claude Code settings
-.claude/settings.local.json
-.ruff_cache/
 
-# The pin mark blinx2.py writes in a CLI or toolkit clone (kept out of git).
-.xbr-pin
+*.pack
+hud-pack.toml
+*.xmv
+*.rws
+*.awd
+CACHE/
+
+# Work that belongs outside the repo: worktrees live in the workspace's
+# wt/ (doctor still reports one here), A/B and probe output in its runs/.
+/wt/
+_local/
+runs/
+
+# Backups: a tracked game.toml.bak-<date> is how one gets in.
+*.bak
+*.bak-*
+
+# Per-user agent settings.
+.claude/settings.local.json
+CLAUDE.local.md
+
+*.log
+__pycache__/
+.ruff_cache/
+.DS_Store
+
+# --- this game ---
+
+# analysis/ is per-worktree scratch, except the golden-frame hashes
+# (golden.json) and the audio thresholds (audio.json); the reference frames
+# in analysis/golden/frames/ and the WAVs in analysis/golden/audio/ are game
+# output and stay local.
+!analysis/golden/
+analysis/golden/*
+!analysis/golden/golden.json
+!analysis/golden/audio.json
+# The Hor+ spike notes are published documentation.
+!analysis/enhancements/
+analysis/enhancements/*
+!analysis/enhancements/hor-plus.md
+# What the timeline tool renders locally.
+timeline/
 # The developer's own options (the game reads config/config.toml from the
 # working directory over the build's config.default.toml); never committed.
 config/config.toml
-
-# Tester logs
+# Tester logs and saves: private, never committed.
 user-logs

@@ -61,6 +61,22 @@
 #include "enhance.h"
 #include "enhance_cfg.h"
 #include "glow.h"
+#include "free_camera.h"
+#if defined(__has_include)
+#  if __has_include("mod.h")   /* a toolkit with the mod API (camera.free) */
+#    include "mod.h"
+#    define CAT_HAVE_MODS 1
+#  endif
+#endif
+/* A toolkit pin from before the mod API (blinx2-v0.5.1 has none)
+ * builds without camera.free; say so at build time and in the log. */
+#ifndef CAT_HAVE_MODS
+#  if defined(__GNUC__) || defined(__clang__)
+#    warning "toolkit has no mod.h (mod API): camera.free is not built"
+#  elif defined(_MSC_VER)
+#    pragma message("toolkit has no mod.h (mod API): camera.free is not built")
+#  endif
+#endif
 #endif
 
 /*
@@ -1049,6 +1065,12 @@ static void host_stdio_setup(void)
     /* Deprecated names and bad keys found when the environment was read:
      * held until now, so they land in the log rather than a closed stderr. */
     recomp_env_flush_notes();
+    /* A packaged build's launch.env names the dump it was built from (xbr
+     * fingerprint): in the log's first lines, a crash report from a modded
+     * dump says so. Dev and golden runs leave it unset and print nothing. */
+    const char *build_xbe = recomp_env(RENV_BUILD_XBE);
+    if (build_xbe && *build_xbe)
+        printf("[BOOT] build xbe: %s\n", build_xbe);
 }
 
 static int host_main(void)
@@ -1353,6 +1375,9 @@ static BOOL load_xbe(const char *path, void **out_data, size_t *out_size)
  * mode-3 glow layer (0..2), applied by the sub_0005B7D0 wrapper in
  * recomp_manual.c. At on and 1 the wrapper never touches the guest.
  *
+ * camera.free (free_camera.c) is a mod: its table goes to the layer before
+ * xbox_enhance_init, which runs its init last and so reads its keys there.
+ *
  * All game keys are read before the unused-key report, so a file that sets
  * one is not told the key is unknown. */
 static void host_enhance_init(void)
@@ -1362,6 +1387,17 @@ static void host_enhance_init(void)
     static const char *const glow_modes[] = { "on", "off", NULL };
     int fps, glow_off;
     double glow_k;
+#ifdef CAT_HAVE_MODS
+    static const struct xbox_mod *mods[2];
+
+    mods[0] = free_cam_mod();
+    xbox_mod_register_table(mods);
+#else
+    /* The golden check reads camera.free from the [ENHANCE] line, as with
+     * the mod. */
+    fprintf(stderr, "[ENHANCE] camera.free=off\n");
+    fprintf(stderr, "[MOD] none: this toolkit has no mod API, camera.free is not built\n");
+#endif
 
     xbox_enhance_init(".", NULL);
     enhance_cfg_bind_env("fps.mode", RENV_FPS_MODE);

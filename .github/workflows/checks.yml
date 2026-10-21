@@ -1,0 +1,39 @@
+# The public tree's own checks: the scripts' tests and both ruff checks,
+# on every push and pull request to main. `xbr new` writes this file and
+# `./blinx2 workflow --check` compares it with xboxrecomp-cli's template;
+# keep it the same. It needs no game data and no toolkit clone, so it
+# runs on the tree `public export` publishes. The actions are pinned by
+# commit (the tag in the comment), as in release-wizard.yml.
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # One Python for every game, within pyproject's requires-python.
+  UV_PYTHON: "3.12"
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: false
+      - name: The tools environment, from uv.lock
+        run: uv sync --locked --group dev
+      - name: Tests
+        run: uv run pytest scripts
+      - name: Lint
+        run: uv run ruff check .
+      - name: Format
+        run: uv run ruff format --check .

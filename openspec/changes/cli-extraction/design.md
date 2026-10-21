@@ -64,7 +64,8 @@ and `_local/bench host.sh`), and the toolkit at `posix-host/portability`
 - Publishing the CLI, or any public push.
 - The Windows controlling host (toolchain-cli phase 3, still deferred).
 - Porting `export-public.sh` (private, shell, stays in cat) or
-  `xemu_capture.sh`.
+  `xemu_capture.sh`. (Later, game-repo-layout replaced the script with the
+  CLI's `public export` and removed it.)
 
 ## Decisions
 
@@ -89,7 +90,7 @@ manifest names. *Game*: stays in cat.
 | `golden.py` (the engine) | parameterisable | `GOLDEN_DIR`, `GOLDEN_JSON`, `FRAMES_DIR` 132-134 are the only game paths; the compare, anchors, masks, pace, split frames and the `running_game` warning (1634) are agnostic. `golden.json` itself is game data (hashes, thresholds, scenario env) | `golden.json`, `golden.frames`, `build.exe` (for the warning) |
 | `package` | parameterisable | 1703-2366: `NOTICE_TEXT` 1707 and `readme()` 1769 take the name from `lib.PRODUCT_NAME`; `TARGET_NAMES` 1712 is agnostic; `DATA_PATHS` 1717-1721 names `BLiNX2` folders; `stage_payload` 1859 checks `lib.TITLE_ID`, 1868 passes `-DCAT_APP_ICON`, 1898 names the payload `BLiNX2-…`; `build_launcher_exe` 1796-1819 renders `BLiNX2.rc.in` and defines `BLINX2_NAME`; `wrap_steamos` 1957 and `execs` 1961; `wrap_windows` 2010-2022; `wrap_macos` 2062-2076 (`BLiNX2.app`, `BLiNX2.in`, `BLiNX2.icns`), 2084 (`brew_prefix_lib("sdl3", "libSDL3.dylib")` as a dlopen companion); `package()` 2308-2339 copies `packaging/steamos/*` and `scripts/running_game.py` into the payload. `package_lib.py`: `PRODUCT` 33, `PRODUCT_NAME` 36, `TITLE_ID` 37, `GAME_FILES_EXCLUDE` 43, `LF_ONLY` 263 (`^BLiNX2$`), `ICON_FILES` 280, `cache_problems` 153-156 (`CAT_GEN_OPT`), `build_manifest` 355-358 (`sources: cat, toolkit`); the rest (version, tree state, gen digest, XBE title, staged checks, dylib plan, NSIS lists, private-leak check) is agnostic. `game_icon.py`: `NAME = "BLiNX2"` 26; the XPR0/DXT decode and the ICNS/ICO writers are agnostic | `package.*`, `data.*`, `xbe.title_id`, `game.name` |
 | `packaging/` templates | parameterisable (phase B) | `windows/installer.nsi.in` (`!define APP "BLiNX2"`, `$LOCALAPPDATA\Programs\BLiNX2`), `windows/launcher.c` (`BLINX2_NAME`), `windows/BLiNX2.rc.in`, `macos/BLiNX2.in`, `macos/Info.plist.in`, `steamos/install.sh`, `steamos/install_lib.py` (`PRODUCT`, `DEFAULT_ROOT = "~/Games/BLiNX2"`), `steamos/launch.sh`, `README.txt.in` are the mechanism with the name baked in. `*/README.part`, `launch.env.default.*`, `enhance.toml.default` are the game's content | `package.app`, `package.product`, `data.*` |
-| `export-public.sh` | game | private, shell, its `REWRITE` rules name the bench host; stays in cat with `test_export_public.py` (toolchain-cli decided this already) | none |
+| `export-public.sh` | game | private, shell, its `REWRITE` rules name the bench host; stays in cat with `test_export_public.py` (toolchain-cli decided this already; game-repo-layout later removed both for `blinx2 public export`) | none |
 | `running_game.py` | parameterisable (phase B) | matches `cat_recomp.exe` in command lines (its docstring and 11 mentions); runs on the bench host (`run_game.sh` 57) and ships in the steamos payload (2329) | `build.exe` (as `--exe`) |
 | `progress.py`, `pacing_stats.py`, `benchlog-retention.py`, `audio_check.py` | agnostic | no game names (`grep` count 0-1, the one being `blinx2 package` in a docstring); `audio_check.py` reads `analysis/golden/audio.json` only through its arguments | none |
 | `host_reserved_names.py` | game | a names-stage hook that reserves ISO C names in `functions.json`; its list is this game's CRT collisions. It stays in cat and the manifest names it as a hook (`pipeline.names_hooks`) | run as a `py_cmd`, as today (529) |
@@ -500,8 +501,8 @@ The public CLI follows the lean-public-repos rules, adapted:
   (`git diff origin/main..main`, and the full tree on the first push):
   host names (the bench host's name must not appear; the CLI's text says
   "the bench host" or "the Linux/Proton host"), private paths
-  (`/Users/`, `/home/`, `/var/home/`, the workspace path), the personal
-  email, claude.ai links, binaries, game data (no XBE, frame, hash of a
+  (the macOS, Linux and Fedora Atomic home roots, the workspace path), the
+  personal email, Claude chat links, binaries, game data (no XBE, frame, hash of a
   game frame, WAV or save; the tests' XBEs and frames are synthetic), and
   nothing from `tests/testdata` that came from a real run. A small
   `scripts/audit-public.sh` in the CLI runs the greps so the round is one
@@ -554,7 +555,7 @@ such an offer would not need a rewrite.
   checks it before every round.
 - **Opt-in, backends agree.** Not applicable: no runtime behaviour.
 - **Generated code.** `gen/` is untouched; G3 proves the key is stable.
-- **export-public.** Stays in cat, excluded from the export, shell.
+- **export-public.** Stays in cat, excluded from the export, shell (until game-repo-layout replaced it with `blinx2 public export`).
 
 ### D10. Workspace lines for the orchestrator
 
@@ -579,7 +580,7 @@ The new CLAUDE.md bullet under "Public pushes", to apply verbatim:
 >   the CLI's round goes before `blinx2-recomp`'s, so the sha cat's public
 >   `game.toml` pins already exists. Before each push run
 >   `scripts/audit-public.sh` over `origin/main..main` (host names, private
->   paths, the personal email, claude.ai links, binaries, game data) and
+>   paths, the personal email, Claude chat links, binaries, game data) and
 >   check `git log --format='%ae %ce' origin/main..main` shows only the
 >   noreply address.
 

@@ -2,7 +2,7 @@ Conventions: **CLI** = branch `feat/wizard-build-feedback` off `main`
 beb838f (v0.7.3) in the CLI worktree `wt/wizard-fb/xboxrecomp-cli`,
 commits authored and committed as
 `carlos <4037632+apexJCL@users.noreply.github.com>`, no tracker ids, host
-names, private paths or claude.ai links in the messages (the squash
+names, private paths or Claude chat links in the messages (the squash
 message leaves out any `Claude-Session:` line); **cat** =
 `wt/wizard-fb/cat`, branch `spec/wizard-build-feedback` (this spec, the
 `game.toml` and docs changes; the `[cli]` pin bump at merge time is the
@@ -13,7 +13,7 @@ CLI, fetches the pinned Go into `wizard/.tools/` and runs `check.sh` with
 `GOTOOLCHAIN=local`; `DEVELOPER_DIR=/Library/Developer/CommandLineTools`
 on the Mac. Design decisions are cited as D1-D10. Screenshots, logs and
 any raw run go to `<workspace>/runs/wizard-fb/`, never inside a worktree.
-The Windows PC is used under `D:\xbr` only, never `C:`; ask the user
+The Windows PC is used under `D:\bench` only, never `C:`; ask the user
 before switching the PC's boot. No sound on the Mac; no game is launched
 anywhere. Each phase ends in one or more commits with `area: what
 changed` subjects.
@@ -61,9 +61,10 @@ changed` subjects.
   `test_private_leaks` gains the positives (the Windows users-folder
   path with forward slashes in a JSON string, written split as the
   existing `"/Us" + "ers/"` case is so the public audit stays clean;
-  `'note: built at C:\\\\Users\\\\x'` mid-string; `'at /home/x'`;
-  `home=r"C:\Users\x"` against `'{"p": "C:\\\\Users\\\\x\\\\g"}'` and
-  against the same lower-cased with forward slashes) and the negatives (`'game_files/home/x'`,
+  a JSON-escaped Windows home mid-string after `note: built at`; a POSIX
+  home after `at `; a Windows `home` against its JSON-escaped form in a
+  JSON string and against the same lower-cased with forward slashes) and
+  the negatives (a relative path with a `home` segment,
   `'"C:X"'`, `home="/"` on `'/x'`).
 - [x] 1.4 `src/xboxrecomp_cli/manifest.py`: `wizard.icon` `(STR, "")`
   (optional); `wizard.py` `_file_rules`: when set, the file exists in
@@ -229,17 +230,17 @@ changed` subjects.
   differ, `icongen` writes the `.syso` itself (D8's fallback) and the
   windres route is removed; note which route shipped in the commit body
   and in `docs/wizard.md`.
-- [ ] 4.4 Native Windows run (the Windows PC, `D:\xbr` only; ask the
+- [ ] 4.4 Native Windows run (the Windows PC, `D:\bench` only; ask the
   user before switching the boot). Build the Windows asset on the Mac
   (`./blinx2 wizard build --dev --only windows` from the cat worktree)
-  and copy the exe to `D:\xbr\wizard\`. Run it as `blinx2-wizard.exe
-  --game D:\xbr\cat --root D:\xbr\wizard-root --no-update-check` with
+  and copy the exe to `D:\bench\wizard\`. Run it as `blinx2-wizard.exe
+  --game D:\bench\cat --root D:\bench\wizard-root --no-update-check` with
   the user's dump on that PC (never copied anywhere else). Check and
   record in `runs/wizard-fb/windows.md`:
   - Explorer shows the gamepad icon on the exe at the small and large
     views, in the taskbar and on the window;
   - Welcome has "Build folder" and "Output folder", the latter
-    `D:\xbr\wizard\dist`; changing it is remembered across a restart;
+    `D:\bench\wizard\dist`; changing it is remembered across a restart;
   - on the Build page the bar's sheen moves and the clocks tick every
     second through a silent stretch (watch the recomp step: the
     collapsed log line shows `recomp ... m:ss` within 20 s of the
@@ -249,14 +250,14 @@ changed` subjects.
     it; "Install now" starts the setup program (do not finish the
     install unless the user wants it; cancel it);
   - a forced failure: make a second output folder read-only (`icacls
-    D:\xbr\wizard\out-ro /deny Users:(W)`), pick it, build: the Done
+    D:\bench\wizard\out-ro /deny Users:(W)`), pick it, build: the Done
     page shows "It stopped at: Getting ready." (or the stage the CLI
     reached), the `PermissionError` traceback excerpt, the `build-logs`
     line; `wizard.log` holds the same; Retry works after the folder is
     writable again (`icacls ... /remove:d Users`);
   - Cancel mid-build shows the cancel page. No `cmd` window flashes at
     any point (the children run with `CREATE_NO_WINDOW` as before).
-  Clean up `D:\xbr\wizard-root` and the bundles afterwards (the user's
+  Clean up `D:\bench\wizard-root` and the bundles afterwards (the user's
   rule: tidy the scratch drive).
 - [ ] 4.5 Mac run: `./blinx2 wizard build --dev --only macos`; run the
   app with `--game <cat worktree> --root <runs/wizard-fb/root>

@@ -124,6 +124,7 @@ game's list from golden and replay logs and cat ships it privately.
   during the first seconds after boot (the intro movies). Measured in tasks
   4.1 and 4.3 on both hosts.
 - **Legal:** the list, the index and a log with the `shaders` trace on are
-  derived game data: never in the public repos, never in
-  `export-public.sh`'s view; `scripts/test_gitignore.py` asserts the list is
-  ignored and the audits grep for the content marker.
+  derived game data: never in the public repos, never tracked, so never
+  in `blinx2 public export`'s tree; `scripts/test_gitignore.py` asserts the
+  list is ignored, and the content marker becomes a public-audit check (in
+  the CLI or in `audit-private`).

@@ -1,4 +1,2 @@
 schema: spec-driven
 created: 2026-10-17
-# Spike only so far (spike.md); a proposal with spec deltas comes with M0.
-skip_specs: true

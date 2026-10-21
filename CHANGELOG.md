@@ -10,6 +10,33 @@ No release contains game data: you build the game from your own disc.
 
 ## [Unreleased]
 
+## [2026.10.2] - 2026-10-21
+
+Widescreen, a free camera and a friendlier build wizard. Built with
+xboxrecomp-cli v0.10.0 and the toolkit at blinx2-v0.6.0. Every new option
+is off by default, so the game looks and plays as before until you turn
+one on in `config.toml`.
+
+### Added
+- Hor+ widescreen on Metal and Direct3D 11: `[display] aspect = "16:9"`
+  (or `"16:10"`, `"21:9"`) shows more of the world at the sides instead of
+  stretching it. The HUD keeps its 4:3 layout, and `movie` chooses how
+  the cutscene movies fill the wider frame (`"black"`, `"fit"`, `"fill"`).
+- A free camera: `[camera] free = "on"`, then F6 starts and stops it. Fly
+  with the pad or the mouse while BLiNX stands still; F8 stops and
+  restarts the world, F7 shows or hides the HUD and F5 goes back to the
+  game's camera. The keys and speeds are in `config.default.toml`.
+- `[display] overscan` crops the edges of the picture, as a TV did, for
+  games that leave a border there. 0 (the default) shows the whole frame.
+- The build wizard can build for several platforms in one go, and its
+  Welcome page, Fresh and Update choices and error messages are clearer.
+
+### Fixed
+- Audio under Proton (Steam Deck, Linux) has a deeper buffer, which
+  removes the occasional crackle when the game is idle.
+- macOS: events the game sets and resets in quick succession now wake
+  every thread waiting on them, as on Windows.
+
 ## [2026.10.1] - 2026-10-17
 
 Updates are now patches: from this release on, the build wizard
@@ -148,7 +175,8 @@ blinx2-v0.3.1.
 - The game crashed once in stage 5-1 on macOS, after about 90 seconds;
   this is being investigated.
 
-[Unreleased]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.1...HEAD
+[Unreleased]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.2...HEAD
+[2026.10.2]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.1...v2026.10.2
 [2026.10.1]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.0...v2026.10.1
 [2026.10.0]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.0-rc.2...v2026.10.0
 [2026.10.0-rc.2]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.0-rc.1...v2026.10.0-rc.2

@@ -448,11 +448,14 @@ A `vs` record is the title's vertex-program microcode; `fs` records are
 register state. Under CLAUDE.md the microcode is game data, derived like
 `src/recomp/gen/` (gitignored) and the golden frames. So:
 `analysis/shaders/` is gitignored with the rest of `analysis/`;
-`scripts/test_gitignore.py` asserts it; `export-public.sh` exports
-`git ls-tree`, so it cannot see it; the public-push audits
-(`export-public.sh`'s checks and the CLI's `scripts/audit-public.sh`)
-grep for the content marker `# xbr-shaders`, which catches a list under
-any name, besides the paths `analysis/shaders` and `cache/shaders`; the
+`scripts/test_gitignore.py` asserts it; `blinx2 public export` exports
+the tracked tree, so an untracked list cannot reach it, and
+`scripts/test_public_exclude.py` fails if one is ever tracked there
+without a `[public] exclude` entry; the content marker `# xbr-shaders`,
+which catches a list under any name, and the paths `analysis/shaders` and
+`cache/shaders` become checks of the public audit, either built into the
+CLI or as `audit-private` patterns (cat's export script, which was to
+carry them, is gone since game-repo-layout); the
 bundles already carry `game_files/` and are never public, so the list
 rides with them; the per-player index is never copied anywhere. A log
 written with `RECOMP_TRACE=shaders` on holds microcode too: the trace is

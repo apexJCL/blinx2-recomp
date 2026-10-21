@@ -96,7 +96,7 @@ visible in every run log:
 ```
 [ENHANCE] config: build/config.default.toml (9 keys), config/config.toml (1 key)
 [ENHANCE] config: none (RECOMP_CONFIG)
-[ENHANCE] config: Z:/home/deck/Games/BLiNX2/current/config.default.toml (10 keys), Z:/home/deck/Games/BLiNX2/config/config.toml (0 keys)
+[ENHANCE] config: Z:<home>/Games/BLiNX2/current/config.default.toml (10 keys), Z:<home>/Games/BLiNX2/config/config.toml (0 keys)
 ```
 
 A file that does not parse is reported with its line and skipped whole,

@@ -70,7 +70,7 @@ The Windows bundle's `setup.exe` SHALL install per user without elevation, defau
 
 #### Scenario: Silent install under Proton
 - **WHEN** `setup.exe /S` runs under Proton in a scratch prefix with `game_files/` beside it
-- **THEN** `drive_c/users/steamuser/AppData/Local/Programs/BLiNX2/` holds `cat_recomp.exe`, `BLiNX2.exe`, `game_files/default.xbe` and `uninstall.exe`, and launching `BLiNX2.exe` reaches the title screen with D3D11 and writes `AppData/Local/BLiNX2/logs/game-*.log` and `AppData/Local/BLiNX2/hdd/Partition0.img`
+- **THEN** the prefix's `%LOCALAPPDATA%\Programs\BLiNX2\` holds `cat_recomp.exe`, `BLiNX2.exe`, `game_files/default.xbe` and `uninstall.exe`, and launching `BLiNX2.exe` reaches the title screen with D3D11 and writes `AppData/Local/BLiNX2/logs/game-*.log` and `AppData/Local/BLiNX2/hdd/Partition0.img`
 
 #### Scenario: Missing game files beside the installer
 - **WHEN** `setup.exe` runs from a folder without `game_files\default.xbe`

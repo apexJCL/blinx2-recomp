@@ -86,7 +86,7 @@ Today the four repos have drifted apart (design.md, Survey):
 - **A phased migration** (D13, tasks.md). The CLI goes first, after
   the tracker item merges. Then each
   game's owning session conforms its own repo: the orchestrator for cat,
-  xb-upstream for b3, ssx3-ec for SSX 3, xb-windows for Spartan. The
+  the Burnout 3 session for b3, the SSX 3 session for SSX 3, the Spartan session for Spartan. The
   first-push round for SSX 3 and Spartan comes last.
 
 ## Capabilities

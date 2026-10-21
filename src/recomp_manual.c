@@ -25,6 +25,8 @@
 #include <stddef.h>   /* ptrdiff_t: <windows.h> supplied it on Windows only */
 #include <stdint.h>
 #include "glow.h"       /* fx.glow: the sub_0005B7D0 wrapper below */
+#include "free_camera.h"  /* camera.free: the view builders, pad poll and freeze below */
+#include "nv2a_backend_common.h"  /* nv2a_host_opts: display.aspect, the sub_0003B180 wrapper */
 /* The pacer's interlocked epoch. Before recomp_types.h, whose register
  * macros (eax, esp, ...) would otherwise reach the system headers. */
 #ifdef _WIN32
@@ -447,6 +449,7 @@ void recomp_icall_not_code_log(uint32_t va)
  * RECOMP_UNIMPL_TRAP=1 aborts at the first hit, at the guest address of the
  * cause rather than wherever the damage surfaces. */
 #include <stdlib.h>
+#include <string.h>
 #include "unimpl_budget.h"
 
 /* Lines per site before only hits 10, 100, 1000 ... print. Override with
@@ -539,4 +542,405 @@ void sub_0005B7D0(void)
     RECOMP_ABI_CALL(0x0005B7D0u, sub_0005B7D0_gen);
     if (MEM32(0xADC744) == scaled)
         MEM32(0xADC744) = orig;
+}
+
+
+
+/* ── Free camera: the game camera's view builds ─────────────────────────
+ *
+ * The game camera is one struct, [0x4B271C] (0x039B4C20 in stage 1-1):
+ * position p at +0x00, angles at +0x0C..+0x1C (+0x0C pitch, +0x10 yaw,
+ * +0x14 roll), the eye written back at +0x2C, a shake offset o at +0x38.
+ * Two functions turn it into the D3D view global 0xA72380, then call
+ * SetTransform(VIEW) (sub_002E0B90 state 0) and sub_00042AE0 (projection
+ * 0xAC1870, the four side cull planes from sub_0003B180, the inverse view
+ * 0xA9C220):
+ *
+ *   sub_000292A0 (ebx = camera; from sub_0002DD40, the per-viewport pass
+ *   setup): V = T(-(p - o)) . RotY(a1c) . RotX(-a18) . RotY(a10) . RotX(-ac)
+ *   . RotZ(-a14), and it writes the eye p - o to +0x2C;
+ *
+ *   sub_0021B1F0 (from sub_00216D70, which the stage passes sub_00068E70 and
+ *   sub_000693E9 call): the same rotations without a18/a1c, from the eye at
+ *   +0x2C. It runs after the first, so its view is the one the stage's
+ *   models are drawn with: a view changed in sub_000292A0 alone does not
+ *   reach the screen (runs/free-cam-m0, fix-offset vs log).
+ *
+ * Every model's world x view (0xAAD3A0, sub_0003B5C0), the bone palettes
+ * stored from it (sub_00038B00), the c[112] light (sub_000348A0 through
+ * sub_0003FC40) and the cull's view-space centres (sub_0003B750) are taken
+ * from 0xA72380 after these calls, so a view substituted in both reaches
+ * all of them (hook 1a, openspec change free-camera D1).
+ *
+ * camera.free (free_camera.c) and RECOMP_DEBUG=cam_fix=... substitute
+ * their camera the same way: for each build of the game camera the fields
+ * are swapped in, the generated body runs, and each field is put back if it
+ * still holds what was swapped in (a field the build or a callee changed
+ * keeps the new value). The eye after sub_000292A0 is what the build
+ * writes from the game's own p and o, exactly what stock writes. A depth
+ * counter keeps a nested build from swapping twice. RECOMP_DEBUG=cam_log=n
+ * prints the camera, V, the projection and the cull planes every n-th
+ * build, and each camera other than the game's once. None of them active:
+ * the generated bodies and nothing else. */
+
+extern void sub_000292A0_gen(void);
+extern void sub_0021B1F0_gen(void);
+
+/* The camera fields a build reads or writes: +0x00..+0x1C (p, angles;
+ * +0x20 is saved with them), +0x2C..+0x34 (eye), +0x38..+0x40 (o). */
+#define CAM_NF 15
+static const uint16_t s_cam_off_of[CAM_NF] = {
+    0x00, 0x04, 0x08, 0x0C, 0x10, 0x14, 0x18, 0x1C, 0x20,
+    0x2C, 0x30, 0x34, 0x38, 0x3C, 0x40,
+};
+
+static int      s_cam_init;
+static unsigned s_cam_log_every;           /* 0: no log */
+static int      s_cam_fix;                 /* 0 off, 1 offset, 2 hold */
+static float    s_cam_off[5];              /* dx, dy, dz, dyaw (+0x10), dpitch (+0x0C) */
+static unsigned s_cam_hold_at;
+static float    s_cam_held[CAM_NF];
+static int      s_cam_have_held;
+static unsigned s_cam_calls;
+static int      s_cam_depth;               /* builds in progress (guest thread) */
+static uint32_t s_cam_other[8];            /* other cameras logged once */
+
+static void cam_debug_init(void)
+{
+    const char *e;
+
+    s_cam_init = 1;
+    e = recomp_env(RENV_CAM_LOG);
+    if (e && *e) {
+        s_cam_log_every = (unsigned)strtoul(e, NULL, 0);
+        if (s_cam_log_every == 0)
+            s_cam_log_every = 1;
+    }
+    e = recomp_env(RENV_CAM_FIX);
+    if (e && *e) {
+        if (!strncmp(e, "hold", 4)) {
+            s_cam_fix = 2;
+            s_cam_hold_at = e[4] == ':' ? (unsigned)strtoul(e + 5, NULL, 0) : 300;
+        } else {
+            int i;
+            char *end = (char *)e;
+            s_cam_fix = 1;
+            for (i = 0; i < 5 && *end; i++) {
+                s_cam_off[i] = strtof(end, &end);
+                if (*end == ':')
+                    end++;
+            }
+        }
+        fprintf(stderr, "[CAM] cam_fix mode %d (hold at %u; offset %g %g %g yaw %g pitch %g)\n",
+                s_cam_fix, s_cam_hold_at, s_cam_off[0], s_cam_off[1], s_cam_off[2],
+                s_cam_off[3], s_cam_off[4]);
+    }
+}
+
+static void cam_log_mat(const char *name, uint32_t va)
+{
+    int r;
+    for (r = 0; r < 4; r++)
+        fprintf(stderr, "[CAM]  %s r%d % .5f % .5f % .5f % .5f\n", name, r,
+                MEMF(va + r * 16), MEMF(va + r * 16 + 4), MEMF(va + r * 16 + 8),
+                MEMF(va + r * 16 + 12));
+}
+
+static void cam_log(const char *who, uint32_t cam, uint32_t ret)
+{
+    const uint32_t V = 0xA72380u;
+    float t[3], eye[3];
+    int i, j;
+
+    if (!cam)
+        return;
+    for (i = 0; i < 3; i++)
+        t[i] = MEMF(V + 0x30 + i * 4);
+    /* V = T(-eye) . R, so eye = -t . R^T. */
+    for (j = 0; j < 3; j++) {
+        eye[j] = 0.0f;
+        for (i = 0; i < 3; i++)
+            eye[j] -= t[i] * MEMF(V + j * 16 + i * 4);
+    }
+    fprintf(stderr,
+            "[CAM] %s %u cam=%08X ret=%08X p=(%.3f %.3f %.3f) ang c=%.4f 10=%.4f 14=%.4f"
+            " 18=%.4f 1c=%.4f o=(%.3f %.3f %.3f) eye+2c=(%.3f %.3f %.3f) eyeV=(%.3f %.3f %.3f)"
+            " vp=%gx%g c=(%g %g) focal=%g far=%g farcull=%u camptr=%08X\n",
+            who, s_cam_calls, cam, ret, MEMF(cam), MEMF(cam + 4), MEMF(cam + 8),
+            MEMF(cam + 0xC), MEMF(cam + 0x10), MEMF(cam + 0x14), MEMF(cam + 0x18),
+            MEMF(cam + 0x1C), MEMF(cam + 0x38), MEMF(cam + 0x3C), MEMF(cam + 0x40),
+            MEMF(cam + 0x2C), MEMF(cam + 0x30), MEMF(cam + 0x34), eye[0], eye[1], eye[2],
+            MEMF(0x888620), MEMF(0xA10C08), MEMF(0xA72438), MEMF(0xAAF440),
+            MEMF(0x885BC0), MEMF(0xA88498), MEM32(0x881080), MEM32(0x4B271C));
+    cam_log_mat("V", V);
+    cam_log_mat("P", 0xAC1870u);
+    cam_log_mat("Vinv", 0xA9C220u);
+    for (i = 0; i < 4; i++)
+        fprintf(stderr, "[CAM]  plane%d % .5f % .5f % .5f\n", i,
+                MEMF(0xA0019Cu + i * 12), MEMF(0xA0019Cu + i * 12 + 4),
+                MEMF(0xA0019Cu + i * 12 + 8));
+}
+
+/* A build of a camera other than the game's: logged once per struct under
+ * cam_log, so the cases are known; never substituted. */
+static void cam_note_other(uint32_t cam, uint32_t ret)
+{
+    unsigned i;
+
+    if (!s_cam_log_every || !cam)
+        return;
+    for (i = 0; i < sizeof s_cam_other / sizeof s_cam_other[0]; i++) {
+        if (s_cam_other[i] == cam)
+            return;
+        if (!s_cam_other[i]) {
+            s_cam_other[i] = cam;
+            fprintf(stderr, "[CAM] build292A0 of another camera %08X (game %08X) from %08X\n",
+                    cam, MEM32(0x4B271Cu), ret);
+            return;
+        }
+    }
+}
+
+/* The fields to swap in for the game camera: the free camera's when it
+ * flies (o = 0, the eye = p, roll and the extra angles 0, +0x20 the
+ * game's), else the debug camera's. 0 when neither: nothing to swap. */
+static int cam_fields(const float *saved, float *f)
+{
+    struct fc_cam fc;
+    int i;
+
+    memcpy(f, saved, CAM_NF * sizeof f[0]);
+    if (free_cam_view(&fc)) {
+        for (i = 0; i < 3; i++) {
+            f[i] = fc.p[i];
+            f[9 + i] = fc.p[i];
+            f[12 + i] = 0.0f;
+        }
+        f[3] = fc.pitch;
+        f[4] = fc.yaw;
+        f[5] = f[6] = f[7] = 0.0f;
+        return 1;
+    }
+    if (s_cam_fix == 2 && !s_cam_have_held && s_cam_calls >= s_cam_hold_at) {
+        memcpy(s_cam_held, saved, sizeof s_cam_held);
+        s_cam_have_held = 1;
+        fprintf(stderr, "[CAM] holding the camera from build %u\n", s_cam_calls);
+    }
+    if (s_cam_fix == 2 && s_cam_have_held) {
+        memcpy(f, s_cam_held, sizeof s_cam_held);
+        return 1;
+    }
+    if (s_cam_fix == 1) {
+        for (i = 0; i < 3; i++) {
+            f[i] += s_cam_off[i];
+            f[9 + i] += s_cam_off[i];          /* the eye moves with p */
+        }
+        f[4] += s_cam_off[3];
+        f[3] += s_cam_off[4];
+        return 1;
+    }
+    return 0;
+}
+
+static int cam_same(float a, float b)
+{
+    uint32_t x, y;
+    memcpy(&x, &a, 4);
+    memcpy(&y, &b, 4);
+    return x == y;
+}
+
+/* Put the game's fields back where they still hold what f swapped in.
+ * After sub_000292A0 (eye_from_p) the eye is what that build writes, f's
+ * p - o: it gets the game's own p - o, as stock writes it. */
+static void cam_swap_out(uint32_t cam, const float *saved, const float *f, int eye_from_p)
+{
+    int i;
+
+    for (i = 0; i < CAM_NF; i++) {
+        uint32_t va = cam + s_cam_off_of[i];
+        int eye = i >= 9 && i < 12;
+
+        if (eye && eye_from_p) {
+            if (cam_same(MEMF(va), f[i - 9] - f[i + 3]))
+                MEMF(va) = saved[i - 9] - saved[i + 3];
+        } else if (cam_same(MEMF(va), f[i])) {
+            MEMF(va) = saved[i];
+        }
+    }
+}
+
+/* One build of camera cam (the game's when game is set) by gen. */
+static void cam_build(uint32_t va, void (*gen)(void), const char *who, uint32_t cam,
+                      int game, int eye_from_p)
+{
+    float saved[CAM_NF], f[CAM_NF];
+    uint32_t ret;
+    int i, swap = 0;
+
+    if (!s_cam_init)
+        cam_debug_init();
+    if (!s_cam_log_every && !s_cam_fix && !free_cam_view(NULL)) {
+        RECOMP_ABI_CALL(va, gen);
+        return;
+    }
+    ret = MEM32(g_esp);
+    s_cam_calls++;
+    if (!game)
+        cam_note_other(cam, ret);
+    if (game && cam && s_cam_depth == 0) {
+        for (i = 0; i < CAM_NF; i++)
+            saved[i] = MEMF(cam + s_cam_off_of[i]);
+        swap = cam_fields(saved, f);
+        if (swap)
+            for (i = 0; i < CAM_NF; i++)
+                MEMF(cam + s_cam_off_of[i]) = f[i];
+    }
+    s_cam_depth++;
+    RECOMP_ABI_CALL(va, gen);
+    s_cam_depth--;
+    if (swap)
+        cam_swap_out(cam, saved, f, eye_from_p);
+    if (s_cam_log_every && (s_cam_calls % s_cam_log_every) == 0)
+        cam_log(who, cam, ret);
+}
+
+void sub_000292A0(void)
+{
+    uint32_t cam = g_ebx;
+    cam_build(0x000292A0u, sub_000292A0_gen, "build292A0", cam, cam == MEM32(0x4B271Cu), 1);
+}
+
+void sub_0021B1F0(void)
+{
+    cam_build(0x0021B1F0u, sub_0021B1F0_gen, "build21B1F0", MEM32(0x4B271Cu), 1, 0);
+}
+
+/* ── Free camera: the pad poll, the event system and the stage start ──────
+ *
+ * sub_0005C930 polls the pads once a frame, from the main loop (0x60375)
+ * just before the frame's update and render (sub_00062FB0 at 0x603A2): the
+ * mods' frame runs after it, so the camera reads this frame's pad and its
+ * hotkeys act before the frame builds its view (D3). The game itself reads
+ * a released port 0 while the camera has it (pad_input.c).
+ *
+ * sub_000EEB40 is the event system, called at 0x652CD in sub_000649B0;
+ * its script opcodes write 0xAF0EF4 and nothing on that path reads it
+ * (spike.md 9.6). While frozen, the game's own value goes in before it and
+ * what it leaves is read back as the value unfreeze restores, so an event
+ * that stops the world during a freeze (a write of 1) still holds after
+ * F8; then the flag is 1 again.
+ *
+ * sub_00161120 has one caller, 0x652D7 in sub_000649B0, after the event
+ * system and right before the stage update's gate on 0xAF0EF4 at 0x652DC:
+ * the freeze re-asserts the flag there too, so a write by sub_001D5FB0 or
+ * sub_00161120 does not unfreeze the world.
+ *
+ * sub_000606F0 starts a stage (sub_00062FB0's state entry, 0x63248) and
+ * writes 0 to 0xAF0EF4 itself: a freeze ends there, and the game's value
+ * is put back before the stage's own write, so a stale 1 never survives. */
+
+extern void sub_0005C930_gen(void);
+extern void sub_000EEB40_gen(void);
+extern void sub_00161120_gen(void);
+extern void sub_000606F0_gen(void);
+
+void sub_0005C930(void)
+{
+    RECOMP_ABI_CALL(0x0005C930u, sub_0005C930_gen);
+    free_cam_frame();
+}
+
+void sub_000EEB40(void)
+{
+    free_cam_events_pre();
+    RECOMP_ABI_CALL(0x000EEB40u, sub_000EEB40_gen);
+    free_cam_events_post();
+}
+
+void sub_00161120(void)
+{
+    RECOMP_ABI_CALL(0x00161120u, sub_00161120_gen);
+    free_cam_freeze_tick();
+}
+
+void sub_000606F0(void)
+{
+    free_cam_stage_start();
+    RECOMP_ABI_CALL(0x000606F0u, sub_000606F0_gen);
+}
+
+
+
+/* ── Hor+ cull: the side planes of the view frustum ──────────────────────
+ *
+ * sub_00042AE0 builds the projection (sub_0029EEF2, fov -atan(640/512),
+ * aspect 4:3) after every view build, then calls sub_0003B180(fov,
+ * -(h/w), zf) at 0x42C78, its one caller. With t = tan(fov/2) it writes
+ * the four side-plane normals at 0xA0019C + i*12: two from a horizontal
+ * half-extent t/(h/w), two from the vertical t. sub_0003B2D0 tests models
+ * against them, so under display.aspect (Hor+) everything past the 4:3
+ * edge is culled and pops in at the pads (stage 1-1's grass).
+ *
+ * With a wide aspect A the argument is scaled by (4/3)/A for the main
+ * view (h/w = 3/4): the horizontal planes open to the padded frame's
+ * width and the vertical ones stay, as does the projection, which was
+ * built before the call. Square targets keep their own aspect (design D6,
+ * openspec change free-camera). At 4:3, or without the layer (aspect
+ * 0:0), the wrapper calls the generated body and nothing else.
+ *
+ * RECOMP_DEBUG=cam_log also prints each distinct aspect argument once. */
+
+extern void sub_0003B180_gen(void);
+
+static int   s_cull_init;
+static float s_cull_scale;                 /* 0: stock */
+
+/* The game thread is the only caller, so the lazy init needs no lock; the
+ * scale is still set before the flag so a reader never sees the flag with a
+ * stale scale. */
+static void cull_init(void)
+{
+    const struct nv2a_host_opts *o = nv2a_host_opts();
+
+    /* enhance.c's own wide test: it already refuses 4:3 and narrower */
+    if (o && o->aspect_w && o->aspect_h && o->aspect_w * 3u > o->aspect_h * 4u) {
+        s_cull_scale = (float)(4.0 * o->aspect_h / (3.0 * o->aspect_w));
+        fprintf(stderr, "[HORCULL] display.aspect=%u:%u: main-view side planes x%.4f\n",
+                o->aspect_w, o->aspect_h, 1.0 / s_cull_scale);
+    }
+    s_cull_init = 1;
+}
+
+void sub_0003B180(void)
+{
+    float a;
+
+    if (!s_cull_init)
+        cull_init();
+    if (!s_cam_init)
+        cam_debug_init();
+    if (s_cam_log_every) {
+        static uint32_t seen[8];
+        static unsigned nseen;
+        uint32_t bits = MEM32(g_esp + 8);
+        unsigned i;
+        for (i = 0; i < nseen && seen[i] != bits; i++)
+            ;
+        if (i == nseen && nseen < 8) {
+            seen[nseen++] = bits;
+            fprintf(stderr, "[HORCULL] aspect arg %g (fov %g zf %g) ret=%08X\n",
+                    MEMF(g_esp + 8), MEMF(g_esp + 4), MEMF(g_esp + 12), MEM32(g_esp));
+        }
+    }
+    if (!s_cull_scale) {
+        RECOMP_ABI_CALL(0x0003B180u, sub_0003B180_gen);
+        return;
+    }
+    /* The main view only: -(480/640) within 1%, as nv2a_host_pad picks the
+     * 4:3 targets it pads. */
+    a = MEMF(g_esp + 8);
+    if (a < -0.7425f && a > -0.7575f)
+        MEMF(g_esp + 8) = a * s_cull_scale;
+    RECOMP_ABI_CALL(0x0003B180u, sub_0003B180_gen);
 }

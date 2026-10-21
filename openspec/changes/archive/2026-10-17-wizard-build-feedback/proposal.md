@@ -36,7 +36,7 @@ stops. The user's notes, in TASKS.md and this change's brief:
   set its own.
 - **One CLI hardening** found in the v0.7.3 review: `package/lib.py`'s
   `private_leaks` misses Windows paths (`home in text` never matches the
-  JSON-escaped `C:\\Users\\...`; the path pattern misses `C:/...` and a
+  JSON-escaped Windows home; the path pattern misses `C:/...` and a
   path in the middle of a string).
 
 Spec by the reviewer; the implementation and its

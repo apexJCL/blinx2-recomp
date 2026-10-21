@@ -190,7 +190,7 @@ The steamos `launch.sh` (`packaging/steamos/launch.sh.in`) additionally exports 
 | macos | `/Applications/BLiNX2.app` (game files inside) | `~/Library/Application Support/BLiNX2/{hdd,config,logs}/` |
 
 - `hdd/` is `RECOMP_HDD_DIR`: partition images, `TitleData/`, `UserData/`, `Cache/`, `SystemData/` and the UDATA/TDATA save games. It is created by the game on first launch, not by an installer. No installer, launcher or uninstaller contains a code path that writes, renames or deletes under `hdd/`; the ownership test in `test_steamos_install.py` snapshots it around every command, and the installer smoke test on Proton plants a save before an install and an uninstall.
-- **Outside every Wine prefix.** Under Proton the toolkit's default save root would be `prefix/drive_c/users/steamuser/AppData/Local/xboxrecomp`, and Steam or a Proton update can recreate a prefix. `RECOMP_HDD_DIR` points at `<root>/hdd` on the host filesystem, so the prefix holds nothing of value and `uninstall` may delete it. Steam's `compatdata` is never used: the shortcut runs `launch.sh` natively and the launcher starts Proton with its own `WINEPREFIX`.
+- **Outside every Wine prefix.** Under Proton the toolkit's default save root would be the prefix's `%LOCALAPPDATA%\xboxrecomp`, and Steam or a Proton update can recreate a prefix. `RECOMP_HDD_DIR` points at `<root>/hdd` on the host filesystem, so the prefix holds nothing of value and `uninstall` may delete it. Steam's `compatdata` is never used: the shortcut runs `launch.sh` natively and the launcher starts Proton with its own `WINEPREFIX`.
 - **steamos layout:**
 
 ```

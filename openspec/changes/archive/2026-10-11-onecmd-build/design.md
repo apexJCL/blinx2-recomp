@@ -258,7 +258,7 @@ rename; a symlink on request.**
 **D6. The marker, and what integrity means here.**
 `game_files/.xbr-dump.json`:
 ```json
-{"schema": 1, "format": "image", "source": "/Users/me/Downloads/BLiNX2.iso",
+{"schema": 1, "format": "image", "source": "/Volumes/games/BLiNX2.iso",
  "source_size": 7340032000, "source_mtime": 1760200000,
  "base": 405798912, "files": 486, "bytes": 3328000000,
  "xbe_sha256": "0c57fd72...", "cli": "0.6.0", "when": "2026-10-11T18:40:00Z"}

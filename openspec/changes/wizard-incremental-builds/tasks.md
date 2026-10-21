@@ -21,7 +21,7 @@ Phase map:
 | 5 Local source mode and manifest schema 2 | CLI | S | - |
 | 6 Wizard (Go) | CLI `wizard/` | M | 2, 4, 5 |
 | 7 Gates | CLI, toolkit, cat | S | 1-6 |
-| 8 SSX 3 and Spartan packaging | ssx3-ec, xb-windows | S | 5 |
+| 8 SSX 3 and Spartan packaging | the SSX 3 session, the Spartan session | S | 5 |
 | 9 Acceptance on the Steam Deck | Mac builds, Deck installs | M | 7, 8 |
 | 10 Merge and release | orchestrator | XS | 9 |
 
@@ -305,23 +305,23 @@ Phase map:
 
 ## 8. SSX 3 and Spartan packaging (their sessions; this spec edits nothing there)
 
-- [x] 8.1 (xb-windows) Spartan: `git init` in `spartan/tca` and a first
+- [x] 8.1 (the Spartan session) Spartan: `git init` in `spartan/tca` and a first
       commit, excluding the dump, the build trees and `tca-old/` via
       `.gitignore`, which also covers every output a package run writes
       (`build-pkg-*`, `dist/`, `analysis/`, `src/recomp/gen/`, `.venv`,
       `game_files/`, `build-logs/`).
-- [x] 8.2 (ssx3-ec, xb-windows) Each game: enable `[package]` (`app` as
+- [x] 8.2 (the SSX 3 session, the Spartan session) Each game: enable `[package]` (`app` as
       drafted: `Ssx3`, `SpartanTotalWarrior`; targets the game builds),
       `[data]` defaults, and `[wizard]` with `private = true` and no
       `repo` until the game has a public repo, an icon if one exists and
       no config options (no enhancements layer) (D15).
-- [x] 8.3 (ssx3-ec, xb-windows) `packaging/launch.env.default.windows`
+- [x] 8.3 (the SSX 3 session, the Spartan session) `packaging/launch.env.default.windows`
       (and `.macos` where macos is a target), `packaging/windows/
       README.part` (and `macos/`).
-- [x] 8.3a (ssx3-ec, xb-windows) A `LICENSE` on the same terms as cat's and
+- [x] 8.3a (the SSX 3 session, the Spartan session) A `LICENSE` on the same terms as cat's and
       b3's (the orchestrator's call, 2026-10-17); the CLI refuses to
       package without one.
-- [x] 8.4 (ssx3-ec, xb-windows) `<game> package steamos --plain` builds a
+- [x] 8.4 (the SSX 3 session, the Spartan session) `<game> package steamos --plain` builds a
       bundle on the Mac, and `<game> wizard config --json --dev` prints a
       valid config, both at the CLI pin that has phase 5. After the
       package run, `git status --porcelain` in the game tree is empty

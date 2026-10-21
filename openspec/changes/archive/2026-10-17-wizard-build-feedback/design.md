@@ -403,8 +403,8 @@ def private_leaks(text, home=None, host=None):
 `home_pattern(home)` is a compiled regex from the home path with every
 separator run (`\` or `/`) matched by `(?:\\\\|\\|/)+` (the raw
 backslash, the JSON-escaped double, or a slash) and `re.I`, so
-`C:\Users\x` matches `C:\\Users\\x`, the same lower-cased with forward
-slashes, and `C:\Users\x` mid-string. The POSIX `/` guard stays (`home != "/"`). `PATH_RE` is
+a Windows home matches its JSON-escaped form, the same lower-cased with
+forward slashes, and the home mid-string. The POSIX `/` guard stays (`home != "/"`). `PATH_RE` is
 
 ```python
 re.compile(r"(?<![A-Za-z0-9_./\\-])(?:/[U]sers/|/[h]ome/|/var/[h]ome/|[A-Za-z]:[\\/])")
@@ -413,11 +413,11 @@ re.compile(r"(?<![A-Za-z0-9_./\\-])(?:/[U]sers/|/[h]ome/|/var/[h]ome/|[A-Za-z]:[
 a path start anywhere in the text (after a quote, a space, a colon, a
 bracket or the start), still with the bracketed letters so the public
 audit's own search does not match the source. The look-behind keeps a
-relative `game_files/home/x` out (its `/home/` follows a letter) and a
+relative path out when its `home` segment follows a letter, and a
 bare `C:X` out (no separator). Tests in `test_package_lib.py`: the four
 new positives (the users-folder path with forward slashes in a JSON
-string, `built at C:\\Users\\x` mid-string, `/home/x` after a space, the JSON-escaped home on Windows
-with `home=r"C:\Users\x"`), and the two negatives.
+string, a JSON-escaped Windows home mid-string after `built at`, a POSIX home after a space, the JSON-escaped home on Windows
+with a Windows `home`), and the two negatives.
 
 **D8. The icon.**
 

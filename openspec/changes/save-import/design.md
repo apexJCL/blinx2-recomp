@@ -74,7 +74,7 @@ Default detection (the user, 2026-10-18) covers:
     `settings.ini`;
   - Linux and SteamOS: the same tree inside the default Wine prefix
     (`~/.wine`) and inside Steam's `compatdata/*/pfx` prefixes, at
-    `drive_c/users/<user>/AppData/Roaming/Cxbx-Reloaded/`;
+    the prefix's `%APPDATA%\Cxbx-Reloaded\`;
   - macOS: none (Cxbx-Reloaded runs only under Wine-based tools there), so
     `--from`.
   Task 0.3 confirms every path and the process names against Cxbx-Reloaded's

@@ -35,7 +35,7 @@ no-build = true
 [tool.ruff]
 line-length = 100
 target-version = "py39"
-extend-exclude = ["src/recomp/gen", "external", "third_party", ".venv*", "analysis", "build*", "dist"]
+extend-exclude = ["src/recomp/gen", "external", "third_party", ".venv*", "analysis", "build*", "dist", "_local"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]

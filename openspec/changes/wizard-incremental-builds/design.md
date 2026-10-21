@@ -960,8 +960,8 @@ section.
 
 ### D15. SSX 3 and Spartan packaging
 
-This is done by the games' own sessions (ssx3-ec for `ssx3/recomp`,
-xb-windows for `spartan/tca`). This spec reads those trees and does not
+This is done by the games' own sessions (the SSX 3 session for `ssx3/recomp`,
+the Spartan session for `spartan/tca`). This spec reads those trees and does not
 edit them. Per game:
 
 - **`[package]`:** `app` (`Ssx3` and `SpartanTotalWarrior`, as already

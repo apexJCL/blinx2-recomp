@@ -236,7 +236,7 @@ disable the cull test once its function is found.
 | M0c | **`.edt` presets** (about half a day): find the reader of `edit_char/*.edt` (search the `mdl_param_list_tg` string's xrefs) and map the 108 bytes to MODEL_EDIT parts and colours | a byte map in this change | 0.1 |
 | M1 | The mod-layer slice (section 6.3) with `camera.free` as its first module; the `sub_0005C930` wrapper with `on_frame` and input capture; fly controls | `enhance_stock` golden unchanged; a `scripts/test_*.py` case for the keys | 1.5-2 |
 | M2 | HUD hide in `nv2a_backend_common` (hash + state), a ctest for the filter, a list of the batches it matches | Metal golden + `blinx2 bench golden` under Proton | 0.5-1 |
-| M3 | Freeze (if the flag exists), reset, the cutscene check, docs, a review | full gates | 0.5-1 |
+| M3 | Freeze (`0xAF0EF4`, 9.6), reset, the cutscene check, a Deck audio check under freeze, docs, a review | full gates | 0.5-1 |
 
 Total: **3.5-5 pw (guess)**.
 
@@ -360,3 +360,246 @@ The user decided on 2026-10-17 that textures plus the free camera are enough for
 7. Where are the stage object, spawn, collision and trigger tables? Is `GIMCOM`/`G*` the gimmick
    (time-control object) data?
 8. Which code reads `edit_char/*.edt`, and what do its 108 bytes mean? (M0c)
+
+## 9. M0 results (2026-10-18)
+
+Mac, Metal, headless and silent, under the run lock. Branch `spike/free-camera-m0`. The runs are in
+`xbox-recomp/runs/free-cam-m0/` (private). The debug hooks are `RECOMP_DEBUG=cam_log=n` and
+`cam_fix=...` (`src/recomp_manual.c`, the "Free camera M0" block; rows in `docs/env.md`). With
+neither key set the wrappers call the generated bodies and nothing else, and the stock Metal golden
+passes (attract, stage1 and story; `runs/free-cam-m0/golden.log`).
+
+### 9.1 M0a: `V_game` (open question 1)
+
+The first draft looked for the view at the bottom of the composition. It is earlier and simpler: the
+game keeps one camera struct and builds an ordinary D3D view matrix from it.
+
+- **The camera struct** is `[0x4B271C]` (0x039B4C20 in stage 1-1).
+  - `+0x00` position p.
+  - `+0x0C` pitch, `+0x10` yaw, `+0x14` roll, `+0x18`/`+0x1C` two extra angles.
+  - `+0x2C` the eye (written back by the first builder).
+  - `+0x38` a shake offset o.
+
+  Stage 1-1 at rest: p = (360, -35.48, -1302.29), pitch -0.262, yaw 0, o = 0.
+- **The view global** is `0xA72380` (row-vector D3D layout). Two builders write it, and each then
+  calls `sub_002E0B90` (SetTransform, state 0 = view) and `sub_00042AE0` (projection, cull planes,
+  inverse view).
+  - **`sub_000292A0`** (ebx = camera), called from `sub_0002DD40`, the per-viewport pass setup:
+    `V = T(-(p - o))·RotY(a1c)·RotX(-a18)·RotY(a10)·RotX(-ac)·RotZ(-a14)`. It writes the eye
+    `p - o` to `+0x2C`.
+  - **`sub_0021B1F0`** (camera from `[0x4B271C]`), called from `sub_00216D70`, which the stage
+    passes `sub_00068E70`, `sub_000693E9` and `sub_000E58D0` call. It pushes the matrix stack and
+    builds V from the eye at `+0x2C` and the angles `+0x0C/+0x10/+0x14` (RotZ, RotX, RotY, then
+    translate by -eye). It runs after the first builder, so it decides the stage image.
+  - About 5.4 view builds per flip in stage 1; one in six are `sub_0021B1F0`.
+- **Everything downstream reads `0xA72380`.** Each model's world×view (`0xAAD3A0`,
+  `sub_0003B5C0`), the bone palettes stored from it (`sub_00038B00`, so `c[0..47]`), the `c[112]`
+  light (`sub_000348A0` through `sub_0003FC40`), the cull's view-space centres (`sub_0003B750`) and
+  the inverse view `0xA9C220` are all taken from it after these calls. So yes, `c[0..47]` and
+  `c[112]` carry the view.
+- **Proof** (stage 1, same script, `cam_log=30`):
+  - `runs/free-cam-m0/log`: stock with the log on; the eye derived from V matches `+0x2C`.
+  - `fix-offset` and `fix-hold` (the substitution in `sub_000292A0` only): frame 044 shows the
+    same view as stock. That is how the second builder was found.
+  - `fix-offset2`, `cam_fix=0:60:0:0.6:0.15`, both builders: a clearly different view (lower and
+    yawed). Characters, skinned models, lighting and the world all follow; the HUD is normal; the
+    radar shows a view cone; the script completes.
+  - `fix-hold2`, `cam_fix=hold:3000`: the camera stays on the intro close-up of Stick while play
+    goes on (the timer runs); the script completes.
+  - PNGs of the compared frames are in `runs/free-cam-m0/cmp/`.
+
+**Hook decision: 1a**, by substituting the camera struct around both builders. The wrapper
+swaps the fields the build reads, runs `_gen`, and puts them back (the eye word gets the value the
+game's own inputs give). The game's own maths then produces V, the projection, the cull frustum
+and the inverse view, and the game's camera state stays stock for its logic. Hook 1b (per-model
+correction in `sub_0003F940`) is not needed.
+
+Things the substitution reaches that a photo mode may not want, checked in M1:
+
+- the cull and distance tests use the substituted eye (`sub_0003B750`). That is what a free camera
+  wants for drawing;
+- the radar's view cone turns with the substituted camera (`fix-offset2`). The user wants the radar
+  to follow the free camera (2026-10-18), so it needs no hook. What exactly it reads (the view
+  global or a struct field during a build) is pinned in M1 (task 5.6).
+
+### 9.2 M0b: the pause flag (open question 2)
+
+*Corrected in 9.6: every polarity in this section is reversed.
+- `0xAE73B4` is 1 while the pause menu is open and 0 in play.
+- `0x449F40` is 1 in play and 0 in the menu.
+- The menu opens on a write of 1, not 0.
+- The gate is what `0xAE73B4 != 0` skips.*
+
+- **`0xAE73B4` is the in-play state**: 1 during play, 0 in the pause menu and the stage intro.
+  `sub_000649B0` (the pause and menu handler) reads it at `0x64B57` and writes it at `0x651F4`.
+  `0x449F40` is 1 outside play: `sub_0016AA90` sets it and frees the handle list at `0xEC5050`
+  (count `0xEC5058`) when `0xAE73B4` is 0, and `sub_0016A870` clears it.
+- **Poke test** (`runs/free-cam-m0/poke`, script `scripts/poke.txt`): `poke 0xae73b4 0` during play
+  opens the full GAME PAUSED menu at the next frame (dumps 032 onward; sheet
+  `runs/free-cam-m0/cmp/poke/sheet.png`). The world freezes, but it is drawn as a framed inset under
+  the menu. Writing 1 back does not close it: the menu then owns the state.
+- **Verdict.** The pause flag exists and is safe to set from a hook, but it is the menu, not a
+  clean time-stop: the world is shown as an inset. It is not usable for a free-camera freeze as-is.
+  A freeze needs either the world-update gate that the menu state sets (inside `sub_00062FB0`'s
+  update, found by tracing what `0xAE73B4 == 0` skips) or the in-game Pause time control. That is a
+  task of its own (tasks 3.x); the free camera ships without freeze if neither is clean.
+
+### 9.3 Projection and cull (open questions 3 and 4, for the tracker item's Hor+ edge pop)
+
+- **Projection: `sub_00042AE0`** (17 callers, after every view build). It calls
+  `sub_0029EEF2(0xAC1870, fov, aspect, 1, [0x9FD95C])`, a perspective builder, with
+  `fov = -atan(640.0 [0x3DF648, a double] / 512 [0x885BC0])` = -0.896 rad and `aspect = -(640/480)`.
+  The logged P: P00 = 1.5605, P11 = -2.0806 (y flipped), P22 = 1.0003, P32 = -1.0003. That is a
+  vertical half-tan of 0.4806 (51.3°) and a horizontal half-tan of 0.641 at 4:3. It then calls
+  SetTransform(projection), writes `c[0x80]` from the transposed P and computes the inverse view
+  into `0xA9C220`. The draft's candidates (`sub_00293B30`, `sub_0035E600`) are not it.
+- **Cull frustum: `sub_0003B180(fov, aspect = -(h/w), zf)`**, called once, from
+  `sub_00042AE0` at `0x42C78`. With t = tan(fov/2) it sets four side-plane normals at
+  `0xA0019C + i*12`: the two horizontal planes are (±0.84195, 0, 0.53955) and the two vertical
+  planes are (0, ±0.90130, 0.43319). These match P exactly at 4:3. The test is `sub_0003B2D0`
+  (2 direct call sites): near `z + r > 0`, an optional far, then each plane's dot against -r.
+- **The cull fix for Hor+.** Wrap `sub_0003B180` and scale its aspect argument by
+  `(4/3) / display_aspect` when Hor+ is on. Only the two horizontal planes widen (half-tan
+  0.641·A/(4/3); 1.12 at 21:9); the projection, the picture and the vertical planes are unchanged.
+  Stock is untouched (the wrapper is a pass-through at 4:3). `sub_00042AE0` runs after all 17 view
+  builds, including square reflection targets (h/w = 1), so the factor applies only to the main
+  view's aspect (design D6). The Hor+ cull fix is now its own item, the tracker item. Risks: other distance or activity
+  culls (enemy AI wake-up, LOD) still use the 4:3 view, and more batches cost speed at 21:9.
+- **Free camera.** The cull follows the substituted camera already (9.1), so the free camera
+  needs no cull change at stock aspect.
+
+### 9.4 M0c: `.edt` (open question 8)
+
+The `.edt` files are **not** camera presets. They are the character editor's model parameter lists:
+`%sedit_char\mdl_param_list_tg%03d.edt` (Tom-Tom Gang) and `..._ts%03d.edt` (Time Sweepers), strings
+at `0x3DC3B0` and `0x3DC3D8`, with `edit_model` variants from `0x3DD438`.
+
+- The loader (around `0x1E7B6`) formats the name with index 1, reads the file through
+  `sub_001B8830`, checks the size is 0x6C (108) and caches it at `0xE95F38`. The current Tom-Tom
+  copy is at `0xE95EC4` and the Time Sweepers copy at `0xE95E58`.
+- `sub_001F3E60` copies the bytes into a character descriptor at `eax+0x3C..+0x6C`, and byte 0x4B
+  to `[arg+0x3E]`.
+- Layout: `0x00..0x2B` part ids and signed slider values; `0x2C..0x4B` colours (0x37 repeated in
+  the shipped files); zero padding after that.
+
+So a preset editor would only remix the shipped parts and colours. It stays exploration only.
+
+### 9.5 Answers
+
+1. **Q1:** the view is built in two places, `sub_000292A0` and `sub_0021B1F0`, from one camera
+   struct `[0x4B271C]`, into `0xA72380`. Everything downstream, `c[0..47]` and `c[112]` included,
+   is derived from it. Hook 1a, by struct substitution around both builders, is proven on Metal.
+2. **Q2:** `0xAE73B4` is the in-play/pause-menu state, settable from a hook, but it brings up the
+   menu with the world as an inset. A clean freeze needs the world-update gate behind it or the
+   in-game Pause time control (tasks 3.x). **Answered in 9.6:** `0xAF0EF4 = 1` is that gate.
+3. **Q3:** `sub_00042AE0` → `sub_0029EEF2`, fov from 640/512, aspect 4/3.
+4. **Q4:** `sub_0003B180` builds the side planes; `sub_0003B2D0` tests them. Hor+ fix: scale the
+   aspect argument.
+5. **Q8:** character-editor part and colour lists, 108 bytes, not camera data.
+
+### 9.6 Freeze: the world-update gate (2026-10-18)
+
+**Verdict: `0xAF0EF4` is a clean world-update gate.** Writing 1 freezes the world and the stage
+timer, the stage stays drawn full-screen with no menu, and writing 0 resumes cleanly. D5's accept
+test passes, so `camera.free_freeze_key` stays.
+
+**9.2 polarity correction.**
+- `0xAE73B4` is 1 while the pause menu is open and 0 in play, not the reverse.
+  - `sub_000649B0` tests it at `0x64B57`. On START (pad `+0x48` bit `0x10`) it sets it to 1 at
+    `0x64C59`.
+  - Resume clears it at `0x651F4`.
+- The M0 pause run shows the same polarity: `run1`/`run2` are 0, `pause1-3` are 1, and `run3`/`run4` are 0.
+- So in the M0 poke run, `poke 0xae73b4 0` was a no-op. The menu came from the later
+  `poke 0xae73b4 1`. That run logs only the first frame dump, so the dump-to-step mapping was
+  approximate.
+- `0x449F40` is the opposite: 1 in play and 0 in the menu.
+
+**The gate chain (static, from `sub_00062FB0` → stage frame `sub_00064850`).**
+- **The stage frame** calls `sub_00055220`, then `sub_00071230`, then the render `sub_00067E60`,
+  then `sub_000649B0` (pause handling plus the world update). `sub_00071230` returns early only
+  while `0xAE73B4` is set, so it still runs under an `0xAF0EF4` freeze.
+- **`0xAF5C94` is the derived "world frozen" flag.** `sub_000649B0` computes it at `0x652DC` as
+  `0xAE73B4 != 0 || 0xAF0EF4 != 0`. While it is set:
+  - at `0x654E6` the world update is skipped (jump to `0x67CA7`);
+  - the top of `sub_000649B0` skips `sub_0005C3F0`;
+  - `sub_00064850` calls `sub_0005E060` per player instead of the pad-bit masking;
+  - the animation and particle functions that read it also stop.
+- **`0xAF0EF4` is the second input**, the event/script world-stop flag. Unlike `0xAE73B4`, nothing
+  ties it to the menu:
+  - The pause menu draw at `0x68E2D` (`sub_00017130` / `sub_00171750` / `sub_00171120`) runs only
+    when `0xAE73B4` is set.
+  - The fade overlay in `sub_00044090` is skipped only while paused.
+  - The camera follow in `sub_00067E60` at `0x67E91` (`sub_0002E340` / `sub_0002E3B0` on
+    `0x4B2718`) is also tested on `0xAE73B4` only. So under `0xAF0EF4` the game camera keeps
+    easing toward its target.
+- **Event scripts are not frozen.**
+  - Just before the gate, `sub_000649B0` calls `sub_000EEB40` (the event system) at `0x652CD`,
+    then `sub_001D5FB0` and `sub_00161120`.
+  - That block is skipped only when `0xAE46EC` bit `0x800` is set. Nothing on that path tests
+    `0xAF0EF4`, so event scripts keep stepping during the freeze.
+  - The script opcodes in `0xF01A7`-`0x1026FB` write `0xAF0EF4` (about 25 sites). They can write 0
+    between our re-assert and the gate at `0x652DC`.
+- **`0xAE73BC`** increments at `0x66706` and `0x66CB1` only when both flags are 0. It is not the
+  displayed timer: it stayed 0 in the dumps.
+- **Task 3.2** (the Pause time control by memory diff) was not needed.
+
+**Evidence (Metal).**
+- **Run:** `runs/free-cam/af0ef4`, script `runs/free-cam/scripts/af0ef4.txt`:
+  1. stage 1-1 play;
+  2. `poke 0xaf0ef4 1` (flip 1572);
+  3. an A press during the freeze;
+  4. `poke 0xaf0ef4 0` (flip 1768).
+- **Contact sheet:** `runs/free-cam/cmp/af0ef4-sheet.png`, frames 024-035. A dump is requested
+  every 60 flips, but only the first is logged, so the frame-to-flip mapping is approximate.
+- **Memory dumps:** `0xAF0EF4 = 0xAF5C94 = 1` in `frz1-3` and 0 in `run1-2` and `res1-2`.
+  `0xAE73B4` stays 0 throughout, so the menu never opened.
+- **Frames 030-032 (frozen):**
+  - The HUD timer holds at 0'04"80 and Stick's pose is fixed.
+  - The stage is full-screen, the HUD is normal, and there is no menu or inset.
+- **Resume:** frame 033 shows 04"86, then 05"83 and 07"83. The timer runs at its normal rate.
+- **Residual pixel change while frozen:**
+  - 030 vs 031: 68k pixels across the frame, which is the follow camera still easing (see above).
+  - 031 vs 032: 13,439 pixels, of which 13,432 differ by less than 8 of 255. That is glow or
+    filtering shimmer, not motion.
+
+**Caveats.**
+- **Entry guard (the main protection).** Allow the freeze only when all of these hold:
+  - `0x449F40 == 1`;
+  - `0xAE73B4 == 0`;
+  - `0xAF0EF4 == 0`.
+
+  This keeps the freeze out of in-stage events that already hold the flag (dialog, boss intros).
+  Starting a freeze inside one would risk a deadlock or a desync when the camera hands the flag
+  back. Save and restore does not cover that risk: only this guard does.
+- **Save, re-assert, restore.**
+  - On freeze, save the old value (0, given the guard) and write 1.
+  - Each frame, re-assert 1 after `sub_000EEB40`/`sub_00161120` and before `0x652DC`. One way is a
+    wrapper on `sub_00161120` that writes after `_gen` while frozen.
+  - The M0 `on_frame` site (the input poll `sub_0005C930`) has not been shown to run in that window,
+    so use it only once its order relative to `sub_000649B0` is verified.
+  - Before re-asserting, read the flag. If it reads 0, the game cleared it, so record 0 as the
+    restore value. Log every game write seen during a freeze.
+  - On unfreeze, write back the restore value.
+  - Limit: an event that starts during the freeze and writes 1 cannot be told apart from our 1, so
+    restoring 0 could cut its stop short. The log is how a test would notice this.
+- **The game camera keeps easing under the freeze.** This does not matter when the free camera
+  replaces the view. Seed `V_free` before freezing, or the seed drifts.
+- **Pad input.**
+  - While frozen, `sub_0005E060` handles the pad and the world does not consume it. An A pressed
+    during the freeze showed a changed pose right after resume (frame 035). That could be the
+    buffered input or the idle animation.
+  - The free camera's input capture (neutral pad) avoids this.
+  - START still opens the game's own menu, because `0xAE73B4` is separate. Capture blocks that
+    too.
+- **Stage changes.** Other code also writes the flag:
+  - `sub_00076030` restores a snapshot that includes it (`0x761B4`).
+  - `sub_000606F0`, `sub_00062BF0` and `sub_00062FB0` write it, along with `0xAE73B4`, at stage
+    start, retry and reset.
+
+  So the tracker item drops the freeze, without restoring, on any stage change, retry or reset.
+- **Scope of the test.**
+  - Only stage 1-1 play was tested, with an idle Stick and the timer. Enemies, projectiles and the
+    time effects were not checked.
+  - Audio was the dummy driver, so whether sound pauses is unknown. M3 adds a Deck audio check.
+  - The intro, results and cutscenes are untested. The entry guard keeps the freeze out of them.
+
