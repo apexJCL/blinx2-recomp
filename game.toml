@@ -104,8 +104,8 @@ sha256 = [
 # The CLI and the toolkit, each at a release tag. The commit locks the tag:
 # a tag that names another commit (moved, re-pushed) is refused.
 [cli]
-tag = "v0.10.0"
-commit = "5dc46ba514279e7c16df42a5d641ec9e69e96628"
+tag = "v0.10.1"
+commit = "0a7f6a57204571b7ab739131d04ec593ba5b10ee"
 url = "https://github.com/apexJCL/xboxrecomp-cli.git"
 
 [toolkit]

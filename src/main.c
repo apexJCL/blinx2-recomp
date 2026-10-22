@@ -8,7 +8,7 @@
  * 2. Load the original XBE file from disk
  * 3. Initialize the Xbox memory layout (map data sections to original VAs)
  * 4. Start the emulated APU (only with RECOMP_AC97_READY, on hosts that can
- *    service its MMIO faults: x86-64 Windows/Proton, POSIX arm64)
+ *    service its MMIO faults: x86-64 Windows/Proton, POSIX arm64, x86-64 Linux)
  * 5. Initialize the Xbox kernel replacement layer
  * 6. Set up game file paths for I/O redirection
  * 7. Initialize the kernel bridge (thunk table in Xbox memory)
@@ -141,14 +141,16 @@ extern int recomp_dispatch_init(void);
 /* ── Host capabilities ─────────────────────────────────────── */
 
 /* Whether this host can service hardware-register (MMIO) faults: decode the
- * faulting instruction, emulate the access and step over it. The toolkit's
- * decoder (apu_hook_handle_mmio, mmio_decode.h) understands x86-64 host code
- * only, so on arm64 the faulting instruction is A64 and nothing can resume it. */
+ * faulting instruction, emulate the access and step over it. The toolkit has
+ * an x86-64 decoder (mmio_decode.h, over a Win32 CONTEXT or a Linux
+ * ucontext) and an A64 one (mmio_decode_a64.h); x86-64 macOS has neither
+ * wired to its signal context, so nothing there can resume the access. */
 #if defined(_WIN32) && (defined(_M_X64) || defined(__x86_64__))
 #define HOST_CAN_SERVICE_MMIO 1
-#elif !defined(_WIN32) && defined(__aarch64__)
-/* POSIX arm64: SIGBUS/SIGSEGV + ucontext, with the toolkit's A64 decoder
- * (apu_hook_handle_mmio_posix, mmio_decode_a64.h). */
+#elif !defined(_WIN32) && (defined(__aarch64__) || \
+                           (defined(__linux__) && defined(__x86_64__)))
+/* POSIX arm64 and x86-64 Linux: SIGBUS/SIGSEGV + ucontext, serviced by the
+ * toolkit's xbox_PosixMmioFault. */
 #define HOST_CAN_SERVICE_MMIO 1
 #define HOST_MMIO_POSIX 1
 #else
@@ -660,6 +662,8 @@ static void *host_fault_pc(void *ucv)
     return (void *)(uintptr_t)uc->uc_mcontext->__ss.__rip;
 #elif defined(__linux__) && defined(__aarch64__)
     return (void *)(uintptr_t)uc->uc_mcontext.pc;
+#elif defined(__linux__) && defined(__x86_64__)
+    return (void *)(uintptr_t)uc->uc_mcontext.gregs[REG_RIP];
 #else
     (void)uc;
     return NULL;
@@ -670,7 +674,11 @@ static void *host_fault_pc(void *ucv)
  *
  * arm64 Darwin: the ESR's WnR bit (6) means "write", but only for a data
  * abort (exception class 0x24 from a lower EL, 0x25 from the same EL). For any
- * other class the bit means something else, so say unknown. */
+ * other class the bit means something else, so say unknown.
+ *
+ * x86-64 Linux: the page-fault error code the kernel saves in REG_ERR; bit 1
+ * is "write". It is only a page fault's code for SIGSEGV (trap 14); a
+ * general-protection SIGSEGV or a SIGBUS carries something else. */
 static int host_fault_access(void *ucv)
 {
 #if defined(__APPLE__) && defined(__aarch64__)
@@ -680,6 +688,12 @@ static int host_fault_access(void *ucv)
 
     if (ec == 0x24 || ec == 0x25)
         return (esr >> 6) & 1 ? FAULT_WRITE : FAULT_READ;
+    return FAULT_UNKNOWN;
+#elif defined(__linux__) && defined(__x86_64__)
+    ucontext_t *uc = (ucontext_t *)ucv;
+
+    if (uc->uc_mcontext.gregs[REG_TRAPNO] == 14)
+        return (uc->uc_mcontext.gregs[REG_ERR] & 2) ? FAULT_WRITE : FAULT_READ;
     return FAULT_UNKNOWN;
 #else
     (void)ucv;

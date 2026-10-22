@@ -10,6 +10,50 @@ No release contains game data: you build the game from your own disc.
 
 ## [Unreleased]
 
+## [2026.10.3] - 2026-10-21
+
+**Updating works again.** If v2026.10.2 failed to build when you updated an
+older install, run this release's wizard and choose Update.
+
+- **Updates that build.** The wizard now moves the toolkit to this
+  release's version before it builds, so an update no longer compiles
+  against old code.
+- **Clearer build errors.** When a build fails, the wizard shows the
+  compiler's error lines first, not just the end of the log.
+- **Widescreen and free camera, documented.** The README now has sections
+  and screenshots for `[display] aspect` (Hor+ 16:9, 16:10, 21:9) and the
+  free camera (F6), plus the new options in the settings table.
+
+### For developers
+
+- **Pins:** xboxrecomp-cli v0.10.1 and toolkit blinx2-v0.6.0 (unchanged),
+  so the game runs the same code as v2026.10.2.
+- **Why updates broke:** setup only checked that a toolkit clone existed.
+  An update moved the `[toolkit]` pin but kept the clone at the first
+  setup's tag. The CLI now marks the clones it makes and moves a marked
+  clone to the pin (a developer's own checkout is left alone), and
+  `doctor` reports a clone that is off its pin.
+- **New release gate:** `scripts/release_build_check.py` builds a clone of
+  the previous release, updates it in place and packages it, the path
+  that broke. It reproduces the v2026.10.1 → v2026.10.2 failure, and
+  `docs/packaging.md` runs it before every tag.
+- **Coming next, already merged in my toolkit:**
+  - **Audio stub fix.** The stub that stands in for the audio DSP re-armed
+    its interrupt on every recovery, so the game ran its audio recovery
+    about 23 times a second. It now runs once per boot. It ships in the
+    next toolkit release.
+  - **An emulated audio DSP**, opt-in at build time and at run time. The
+    stub has no DSP, so games lose reverb and 3D effects, surround is
+    folded to stereo, and Burnout 3's menu music is silent. The real
+    programs now run on the MCPX's two DSPs through the MIT-licensed
+    dsp56300 JIT. It stays opt-in until the goldens and the Deck and
+    Windows numbers show it costs no frame rate. Licence rule: permissive
+    or LGPL code only, no GPL, so the glue is written from hardware facts,
+    not from xemu's GPL files.
+  - **Groundwork for a native Linux build** (x86-64 MMIO handling). The
+    plan: native by default on SteamOS with Proton as the opt-in, after
+    the move to SDL3.
+
 ## [2026.10.2] - 2026-10-21
 
 Widescreen, a free camera and a friendlier build wizard. Built with
@@ -175,7 +219,8 @@ blinx2-v0.3.1.
 - The game crashed once in stage 5-1 on macOS, after about 90 seconds;
   this is being investigated.
 
-[Unreleased]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.2...HEAD
+[Unreleased]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.3...HEAD
+[2026.10.3]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.2...v2026.10.3
 [2026.10.2]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.1...v2026.10.2
 [2026.10.1]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.0...v2026.10.1
 [2026.10.0]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.0-rc.2...v2026.10.0

@@ -374,7 +374,7 @@ Gate hosts after the Linux/Proton host → Deck move (2026-10-16):
 | Mac | Build, ctests, Metal goldens (cat, and b3's `race_gate.py`), windowed checks, hot-plug by hand, packaging and DMG smoke for cat and b3, CLI, cat and wizard checks; one sound run only after asking | the implementing agent |
 | Deck | `blinx2 bench golden` (D3D11) on the integration build: identical frames and pace, because the Windows build has no SDL; b3's Proton smoke on the same build | orchestrator slot (`flock`, `notes/benches.md`) |
 | Native Windows | **Nothing planned**: the Windows build has no SDL and the Deck covers it. A run there needs the user's yes and a reboot | — |
-| Linux native | The distrobox gate (kept by the user, 2026-10-11): Fedora box with `SDL3-devel libepoxy-devel openssl-devel`, native cat build, POSIX ctests, a windowed attract run with sound, a `vpad.py` pad before and after launch. On the Linux/Proton host every run is wrapped in `flock -w 3600 ~/.recomp-run.lock`. Time-boxed to 2 h: a Linux failure that is not SDL's (GL, epoxy, a distro quirk) becomes a TASKS follow-up, not a blocker | Open Question 1, which gates the merge |
+| Linux native | The Linux-native gate (kept by the user, 2026-10-11; host decided 2026-10-21 as Open Question 1 option (d): Mac-built in the sniper image, run on the Deck, later the re-provisioned PC): native cat build, POSIX ctests, a windowed attract run with sound, a `vpad.py` pad before and after launch. On the Linux/Proton host every run is wrapped in `flock -w 3600 ~/.recomp-run.lock`. Time-boxed to 2 h: a Linux failure that is not SDL's (GL, epoxy, a distro quirk) becomes a TASKS follow-up, not a blocker | Open Question 1, which gates the merge |
 
 ## Gates (CLAUDE.md as of 2026-10-21, in order)
 
@@ -389,7 +389,7 @@ Gate hosts after the Linux/Proton host → Deck move (2026-10-16):
 5. **Burnout 3 on the Mac,** Metal, headless: `b3/scripts/race_gate.py` against the toolkit worktree, pass.
 6. **Performance:** `RECOMP_PRESENT_STATS=1` flips/s and the `metal_prof` present time, before and after, in layer and readback modes. Flag a 25% drop in flips/s or a 1.5x rise in frame ms.
 7. **The Deck** (orchestrator): `blinx2 bench golden` (D3D11) on the integration build, with every scenario's frame hashes and pace identical to the previous stamp, and `strings cat_recomp.exe | grep -c SDL_` 0. Then b3's Proton smoke.
-8. **Linux native** (Open Question 1): the distrobox run in D17.
+8. **Linux native** (Open Question 1, option (d)): the run in D17, as `linux-native-vulkan` Phase 0.
 9. **Sound on the Mac:** `audio_check.py` with real sound. **The agent asks the user right before; it never plays unasked.** One run serves this change, `fps-pacing` 8.10 and the tracker item.
 10. **CLI and games:**
     - CLI: `uv run pytest tests`, ruff, and `wizard/check.sh`;
@@ -441,14 +441,11 @@ Branches named `feat/sdl3-migration`, in their own worktrees under `wt/sdl3/`. O
 
 ## Open Questions
 
-Only the user can settle these; this spec does not decide them.
+Only the user can settle these; this spec does not decide them. Question 1 is settled (2026-10-21).
 
-1. **Where the Linux-native gate runs.** The Deck replaced the Linux/Proton host for Proton, and the standing rule is "builds on the Mac, never on the Deck".
-   - (a) **Recommended:** the PC booted into the Linux/Proton host, in a Fedora distrobox. This needs the user to boot it, since only one OS is up at a time.
-   - (b) A one-off exception for a native build in the Deck's `xbr-build` box.
-   - (c) A Linux VM on the Mac. It has no GPU path, and the run is the CPU window anyway, but it cannot show a real pad.
+1. **Where the Linux-native gate runs. Decided (the user, 2026-10-21): option (d)** from `linux-native-vulkan` design D6. Builds happen on the Mac in the pinned Steam Runtime sniper image and run natively on the Deck, until the Linux/Proton host PC is re-provisioned with a proper Linux install; the gate then moves to that PC. No build happens on the Deck. Gate 8 runs as `linux-native-vulkan` Phase 0 (tasks 1.5-1.8), which is a prerequisite of this change's merge. Options (a) to (c) are superseded.
 
-   The gate stays either way (user, 2026-10-11), and the toolkit merge waits for it.
+   The gate stays (user, 2026-10-11), and the toolkit merge waits for it.
 2. **The public tag.** Recommended: ship SDL3 in the next batched public push round with its own `blinx2-v0.x` tag; the round waits for the user's go. The alternative is a push round just for this, if a game needs SDL3 sooner, for instance the overlay on a release build.
 
 Settled:

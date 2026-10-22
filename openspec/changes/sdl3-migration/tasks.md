@@ -242,7 +242,7 @@ Slice map (hours from design, Migration Plan):
   - b3's Proton smoke.
 
   Verify: both stamps in the task note.
-- [ ] 10.2 Gate 8, on the host Open Question 1 settles; the toolkit merge waits for it. Time-boxed to 2 h: a failure that is not SDL's (GL, epoxy, a distro quirk) becomes a TASKS follow-up. On the Linux/Proton host every command runs under `flock -w 3600 ~/.recomp-run.lock`. In the Fedora distrobox with `SDL3-devel libepoxy-devel openssl-devel`:
+- [ ] 10.2 Gate 8, on the host Open Question 1 settled (option (d), 2026-10-21): built on the Mac in the sniper image (`linux-native-vulkan` tasks 1.5-1.7), run natively on the Deck (later the re-provisioned PC) as `linux-native-vulkan` task 1.8. The toolkit merge waits for it. Time-boxed to 2 h: a failure that is not SDL's (GL, epoxy, a distro quirk) becomes a TASKS follow-up. Deck runs take its flock through the orchestrator's slot:
   - a native cat build (CPU path) and the POSIX ctests;
   - a 30 s windowed `@attract` (`RECOMP_WINDOW_QUIT_AFTER=30`) logging `SDL <driver> renderer` and `[SDL3] audio initialized: driver <pipewire|pulseaudio>`;
   - a `scripts/vpad.py` pad present at launch, and one created after launch (`host pad added`).

@@ -540,10 +540,18 @@ Releasing (tags `vYEAR.MONTH.N`, `-rc.N` for a release candidate):
    with its compare link at the bottom: what changed for players (the
    wizard, the build, renderer and game fixes) and the CLI and toolkit
    releases pinned. Export and push that commit as usual.
-2. Tag the public export commit and push the tag
+2. Before tagging, build it as players will, with your dump, in a new
+   directory outside the repository: `uv run python
+   scripts/release_build_check.py --dump PATH --work DIR --from <previous
+   tag>` (the update path: a clone of the previous release, set up, then
+   moved in place to `main`), and the same without `--from` for a fresh
+   clone. Each must build the bundle on the CLI and toolkit `game.toml`
+   pins; run them on the Windows target at least. Delete DIR afterwards
+   (it holds your dump's code).
+3. Tag the public export commit and push the tag
    (`git tag -a v2026.10.0-rc.2 -m v2026.10.0-rc.2`, then
    `git push origin v2026.10.0-rc.2` in the public repository's clone).
-3. The workflow's first job takes that section as the release notes and
+4. The workflow's first job takes that section as the release notes and
    stops the run, before any build, when the tag has none. The release job
    creates the release as a draft, attaches the three archives and
    `SHA256SUMS`, then publishes it, so it is never public with files

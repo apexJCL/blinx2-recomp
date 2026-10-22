@@ -59,6 +59,85 @@ So the claim is **unverified**. It is a host-side guess that a real GP
 would make unnecessary or would confirm. Task 4 re-checks it with the
 DSP on.
 
+JSRF with the GP emulated confirms the recovery reading: the
+handler resets the GP and EP and reloads them from the scratch image.
+That reload loses the effect init once an effect commit has run.
+
+**The model.** What the hardware compares against SSL cannot
+be known: xemu never raises the bit and no public source names the
+compare. The title code gives these facts:
+
+- DirectSound's only response to the bit is recovery: it restarts the
+  GP and EP, stalls 10 ms and reprograms the sequencer block (JSRF
+  `sub_001A1F5D`, through the DPC worker `sub_001A23CD`).
+- SSL is a constant 0x800, written only in that block with XGSCNT = 0
+  and 0x2010–0x2028 (`sub_001A5CD7`). The title never reads XGSCNT.
+  Nothing on the CPU side moves the limit or the counter while the
+  sequencer runs.
+
+So on hardware the DSPs keep the bit down while they keep pace, and the
+one thing an emulated GP can lose is pace. The toolkit therefore keeps
+a GP lag:
+
+- One APU frame is `MCPX_APU_GP_FRAME_CYCLES` (106,667) cycles of a
+  160 MHz GP.
+- A GP frame that takes longer adds its excess to the lag. A shorter
+  frame pays the lag back with its slack, since a late GP starts the
+  next frame at once.
+- The bit is raised when the lag reaches SSL samples. That clears the
+  lag, and so does a GP reset.
+- The lag belongs to the current sequencer run. It clears while the
+  counter is off or SSL is 0, and at every sequencer start. B3 and SSX 3
+  switch the counter off and on in one restart, and the late frames
+  before it must not fire the new run at once.
+- The lag counts DSP cycles, not host time, so the JIT warm-up adds
+  none.
+- A frame stopped at the cycle cap adds none. A GP that never halts is
+  waiting on something the model lacks, so its cycles say nothing about
+  the program's pace. Counting them would raise the bit every 64 frames
+  and run the title's GP restart because of a gap in the model. The cap
+  hit is counted (`capped=`) and logged instead.
+
+`gp_emulated` now only selects the model, the lag or the stub's tick.
+The stub keeps its once-per-start tick, which is a concession because
+nothing keeps pace there.
+
+### The stub's re-arm
+
+The stub's tick used to re-arm on every SECTL write with the counter off.
+That turned a title's recovery into a loop. The recovery re-arms the tick,
+the tick fires again once the sample count passes SSL, and the cycle
+repeats. B3 and SSX 3 restarted 23 times a second.
+
+The traces (`runs/apu-dsp/h2-b3-stock-trace`, `h4-ssx3-stock-trace`,
+`runs/jsrf-mix/blx-apu`, `runs/jsrf-fps/mac-aputrace`) separate a real
+start from a recovery.
+
+DirectSound's init has the same shape in every title traced:
+
+- SECTL 0, the sequencer stopped whole;
+- program SSL and XGSCNT;
+- SECTL 0x7, then 0xF.
+
+The recovery differs by title:
+
+- JSRF writes no SECTL at all, only IEN.
+- B3, SSX 3 and BLiNX 2 go 0xF, 0x7, 0xF: only the counter mode
+  changes.
+
+So only a SECTL write of 0 re-arms the stub's tick now. Every write with
+the counter off still ends the run, which is what the emulated GP's lag
+counts from (`ssl_starts`). The new count is `ssl_resets`.
+
+The reset state counts as armed, so the first interrupt comes whether or
+not the init's SECTL 0 is seen. Black needs that interrupt to finish its
+init, and Black was not traced. Each title now runs its recovery once per
+boot.
+
+JSRF's path does not change. BLiNX 2 has B3's shape, so its stock
+behaviour changes: about 23 recoveries a second before, one per boot
+after. Its goldens and audio captures are the check.
+
 ## Measurements (Mac, Apple Silicon, Metal, JSRF, 150 s, `SDL_AUDIODRIVER=dummy`)
 
 Probe build on toolkit `spike/apu-dsp` `7fc03472`, JSRF gen regenerated
@@ -238,6 +317,20 @@ MIT and LGPL-2.1+ are allowed. The device model port follows the
 existing `NOTICE` precedent for the xemu APU files. The two GPL rows
 are excluded and need a new user decision.
 
+**Glue that only GPL files hold.** dsp56300 emulates only the chip
+(instructions, memory, the JIT); it knows nothing of the MCPX. xemu
+keeps the rest of the Xbox glue in its GPL files, not in the LGPL
+`gp_ep.c`/`dsp_dma.c`: the peripheral register decode in `dsp.c`, and
+the GP/EP boot and the memory map (the X:0x1400 → X:0xC00 mixbuf alias)
+in `dsp_jit.c`. We write that glue in our own structure from the
+hardware facts alone: addresses, bit meanings, aliases and reset
+behaviour. We never port or adapt code from those files, and their
+debug conventions (such as the `0xababa` read of an unmapped
+register) stay out. Facts are not copyrightable, but code is. The
+The tracker item review found a first draft that tracked `dsp.c` and
+`dsp_jit.c` too closely, and it was rewritten. A reviewer of later
+slices checks new device code against those two files.
+
 The prebuilt dsp56300 archive also bundles the Rust std (MIT OR
 Apache-2.0) and the crates of `dsp56300-emu`. The archive's
 `THIRDPARTY-emu` file, made by cargo-about from `Cargo.lock` at v1.0.0
@@ -363,4 +456,7 @@ Task 1.4 re-checks this and carries the texts.
   write 6 channels? This decides the surround path (task 3). xemu
   reads the GP's output buffers, so we start there.
 - Does the title need ISTS bit 3 once a real GP runs (task 4)?
+  *No for JSRF, B3 and SSX 3: with the GP on, each starts the
+  sequencer once and never sees the bit. Black is unchecked (no dump
+  here).*
 - What is DMA buffer 0xD (task 2)?

@@ -16,7 +16,7 @@ game; everything built from it stays on your own machines.
 <!-- TODO(link): demo video -->
 
 **Contents:** [For players](#for-players) (what you need, platforms, install,
-options, HUD texture pack, known issues, screenshots, help) |
+options, widescreen, free camera, HUD texture pack, known issues, screenshots, help) |
 [For developers](#for-developers) (architecture, build from source, the
 toolchain, testing, environment variables, docs, contributing, legal).
 
@@ -37,17 +37,18 @@ toolchain, testing, environment variables, docs, contributing, legal).
 
 | You play on | Bundle | Graphics | Audio | Input | Status |
 |---|---|---|---|---|---|
-| Steam Deck (stock SteamOS), or a Linux gaming PC | `steamos` (the Windows build, run under Proton through `umu-run`) | Direct3D 11 (DXVK) | XAudio2 (FAudio) | Controller (XInput) and keyboard | Plays with sound and saves. The Deck is the regular manual test machine. The game is 4:3 only (widescreen is not done yet): on the Deck set the Steam entry's Game Resolution to Native (1280x800) so Steam does not rescale it, then set `scale = 2`, or leave it at 1 and rely on FSR. |
+| Steam Deck (stock SteamOS), or a Linux gaming PC | `steamos` (the Windows build, run under Proton through `umu-run`) | Direct3D 11 (DXVK) | XAudio2 (FAudio) | Controller (XInput) and keyboard | Plays with sound and saves. The Deck is the regular manual test machine. Set the Steam entry's Game Resolution to Native (1280x800) so Steam does not rescale the game, then set `scale = 2`, or leave it at 1 and rely on FSR; `aspect = "16:10"` fills the Deck's screen. |
 | Linux desktop with Proton | `steamos`, or the bare build under `umu-run` | Direct3D 11 (DXVK) | XAudio2 (FAudio) | Controller and keyboard | Plays; this is the tested Linux route (GE-Proton 11). Window resize does not reach the game there; fullscreen does. |
 | macOS (Apple silicon) | `macos` (`.dmg`) | Metal | SDL2 (CoreAudio) | Controller (SDL GameController) and keyboard | Plays with sound and saves. |
 | Windows x86-64 | `windows` (a setup program) | Direct3D 11 | XAudio2 | Controller (XInput) and keyboard | Builds and installs, but **untested on native Windows**: the setup program and the game have only been run under Proton. |
 
-The game runs at 30 frames per second and 4:3, as on the Xbox. A 60 fps mode
-is not planned (the stage logic steps a fixed 1/30 s, so a faster loop plays
-at double speed), and widescreen (Hor+) is not implemented yet: a wide window
-or screen is pillarboxed, never stretched. External frame-generation tools
-(Lossless Scaling, lsfg-vk, AMD AFMF, NVIDIA Smooth Motion) can show it at
-60; they are unsupported, see [docs/frame-generation.md](docs/frame-generation.md).
+The game runs at 30 frames per second and 4:3, as on the Xbox. Widescreen
+is opt-in (Hor+, see [Options](#options)); at 4:3 a wide window or screen is
+pillarboxed, never stretched. A 60 fps mode is not planned (the stage logic
+steps a fixed 1/30 s, so a faster loop plays at double speed). External
+frame-generation tools (Lossless Scaling, lsfg-vk, AMD AFMF, NVIDIA Smooth
+Motion) can show it at 60; they are unsupported, see
+[docs/frame-generation.md](docs/frame-generation.md).
 
 Every stage and boss has been reached in scripted runs; the title, attract
 mode, stage 1 and the story route to the hub are checked frame by frame
@@ -116,6 +117,11 @@ program files and survive every update, rollback and uninstall.
 [docs/packaging.md](docs/packaging.md) has the long version: every installer
 option, updating, uninstalling, moving saves and a troubleshooting list.
 
+**Updating to a new release.** Run the new release's wizard on the same
+build folder, or by hand `git pull` and then `./blinx2` in this folder.
+Either way the toolchain moves to the new release's pins before the build;
+then install the new bundle as above.
+
 **A bundle is private.** It contains your copy of the game and code generated
 from it. Keep it on your own machines; never share, upload or publish it.
 
@@ -153,14 +159,18 @@ takes `KEY=value` lines for any `RECOMP_*` variable.
 | Option | `config.toml` key | Environment variable | Values (default first) | What it does |
 |---|---|---|---|---|
 | Render scale | `render.scale` | `RECOMP_RENDER_SCALE` | `1`, `2`, `3`, `4` | Draws the 3D at a multiple of the stock 640x480. Metal and Direct3D 11; the CPU renderer ignores it. |
+| Anisotropic filtering | `render.aniso` | `RECOMP_RENDER_ANISO` | `0` (off), `2` to `16` | Sharper ground and walls seen at a slant. A small change in this game, most visible at render scale 1. Metal and Direct3D 11. |
+| Aspect | `display.aspect` | `RECOMP_DISPLAY_ASPECT` | `"4:3"`, `"16:9"`, `"16:10"`, `"21:9"` or another wider `"W:H"` | Hor+ widescreen: a wider aspect shows more of the world at the sides instead of stretching it, see [below](#widescreen). The HUD keeps its 4:3 layout. Metal and Direct3D 11. |
+| Movies in widescreen | `display.movie` | `RECOMP_DISPLAY_MOVIE` | `"black"`, `"fit"`, `"fill"` | With a wide aspect, how the cutscene movies fill the frame: pillarboxed, stretched to the width, or scaled to cover it (top and bottom cropped). |
+| Overscan | `display.overscan` | `RECOMP_DISPLAY_OVERSCAN` | `0` to `64` | Crops this many pixels of the 640-wide frame from the left and right edges (top and bottom in proportion, so it stays 4:3) and zooms the rest. BLiNX 2 needs none; ignored with a wide aspect. Metal and Direct3D 11. |
 | Fullscreen | `present.fullscreen` | `RECOMP_PRESENT_FULLSCREEN` | `false`, `true` | Opens the window borderless fullscreen (no mode change). |
 | Scaling filter | `present.filter` | `RECOMP_PRESENT_FILTER` | `"nearest"`, `"linear"`, `"integer"` | How the 4:3 frame fills the window: letterboxed nearest, letterboxed bilinear, or the largest whole multiple that fits, centred. |
 | Frame pacing | `present.pacing` | `RECOMP_PRESENT_PACING` | `"sleep"`, `"spin"` | `sleep` lets the game's frame wait sleep until the next vblank: less heat and battery on a laptop or a Deck, the same frames. `spin` is the console-original timing, where the wait holds a CPU core as it did on the Xbox. |
+| Present surface | `present.surface` | `RECOMP_PRESENT_SURFACE` | `"auto"`, `"window"`, `"internal"` | `internal` hands the compositor the frame at its own size to scale (gamescope's FSR on a Deck needs it, at `scale = 1`); `window` draws at the window's size. `auto` picks `internal` under the SteamOS launcher in gamescope, `window` elsewhere. |
 | HUD texture pack | `textures.pack` | `RECOMP_TEXTURES_PACK` | none, a path | Your own 4x HUD and font pack, see [below](#hud-texture-pack). A relative path is taken from the executable's folder. |
 | Glow | `fx.glow`, `fx.glow_intensity` | `RECOMP_GLOW`, `RECOMP_GLOW_INTENSITY` | `"on"`/`"off"`; `1.0` (0.0 to 2.0) | Turns the game's screen glow pass off, or scales it. |
-| Free camera | `camera.free` and `camera.free_*` | `RECOMP_CAMERA_FREE` and `RECOMP_CAMERA_FREE_*` | `"off"`, `"on"` | F6 starts and stops a camera you fly anywhere in the stage while Blinx stands still: left stick moves, right stick or mouse looks, RT/X up, LT/Y down, White fast, Black slow. F7 hides the HUD, F8 stops the world, F5 goes back to the game's camera. Keys, speed and look rate are in `config.default.toml`. Metal and Direct3D 11. |
+| Free camera | `camera.free` and `camera.free_*` | `RECOMP_CAMERA_FREE` and `RECOMP_CAMERA_FREE_*` | `"off"`, `"on"` | F6 starts and stops a camera you fly anywhere in the stage while Blinx stands still: left stick moves, right stick or mouse looks, RT/X up, LT/Y down, White fast, Black slow. F7 hides the HUD, F8 stops the world, F5 goes back to the game's camera. Keys, speed and look rate are in `config.default.toml`. Metal and Direct3D 11; see [below](#free-camera). |
 | Window size | (none) | `RECOMP_WINDOW_SCALE` | `2` | Initial window size, 640x480 times this (the SDL window on macOS). |
-| Aspect | `display.aspect` | `RECOMP_DISPLAY_ASPECT` | `"4:3"` only | Other values are reported as not implemented and 4:3 is used. |
 | Frame rate | `fps.mode` | `RECOMP_FPS_MODE` | `"lock30"` only | `lock60` and `free` are reported as not available (see [Platforms](#platforms)); for a 60 fps look, see [external frame generation](docs/frame-generation.md). |
 
 ```toml
@@ -181,6 +191,30 @@ window at twice the stock size; stock behaviour and the automated checks stay
 at 1x):
 
 ![The same detail of stage 1 rendered at 1x, 2x and 3x](docs/images/render-scale.png)
+
+### Widescreen
+
+`aspect = "16:9"` (or `"16:10"`, `"21:9"`) widens the view instead of
+stretching it: the game keeps its vertical field of view and draws more of
+the stage at the sides (Hor+). The HUD keeps its 4:3 layout in the middle,
+and the movies follow `display.movie`. The pair is the same moment of stage
+1 at 4:3 and at 16:9 (Metal, render scale 2; the timers differ because they
+are two runs):
+
+![Stage 1 at 4:3 and at 16:9 Hor+, where the wider view shows more of the beach at both sides](docs/images/aspect.png)
+
+```toml
+[display]
+aspect = "16:9"
+```
+
+### Free camera
+
+With `camera.free = "on"`, F6 detaches the camera from Blinx and lets you
+fly it anywhere in the stage; F8 stops the world and F7 hides the HUD, for a
+clean shot. Controls are in the [table above](#options).
+
+![Stage 1 from the game's camera, and the same stage from the free camera high above the cliffs with the world stopped and the HUD hidden](docs/images/free-camera.png)
 
 ## HUD texture pack
 
@@ -230,8 +264,7 @@ checks never use one. `./blinx2 enhance hud --help` lists the options
 |---|---|---|
 | The game can crash in stage 5-1 after about 90 s (seen once, in a scripted run) | macOS | Being investigated. |
 | Resizing the window by hand does not reach the game | Linux/Proton (GE-Proton 11, KWin) | Fullscreen and render scale work; use them instead. |
-| Bump-environment mapping (the stage 1 ocean, the Boss 3 ripple) draws as a plain texture | All | Not implemented yet. |
-| User clip planes are only honoured by the CPU renderer | Metal, Direct3D 11 | Not implemented yet on the GPU backends. |
+| Bump-environment mapping (the stage 1 ocean, the Boss 3 ripple) draws as a plain texture | CPU renderer | Metal and Direct3D 11 draw it. |
 | A few boss-stage artefacts: sky wedges in Boss 1, shadow shapes in two later bosses | All backends alike | Still being checked against the original hardware; they may be the game's own. |
 | Movies: audio-to-video drift has not been measured | All | The game's own Sofdec decoder plays them. |
 | Native Windows | Windows | The build is tested under Proton only. |
