@@ -56,7 +56,7 @@ proposal summarises it, this file keeps the evidence.
 **What works, verified:** Metal and D3D11 goldens unchanged with the layer
 on and no key set (both hosts, 2026-10-10); `@stage1` with the PT Sans pack
 at 2x on both backends, every fitted glyph in place, 0 present mismatches
-(`runs/hudpack/`); the pack is byte-reproducible across job counts and
+(`runs/hudpack/`, game-file copies removed 2026-10-28); the pack is byte-reproducible across job counts and
 hosts (sha 54fb5c0f); a bundle with `--hud-pack` runs under Proton with the
 pack line in its log; the Deck build 20261011.0607 carries the pack.
 
