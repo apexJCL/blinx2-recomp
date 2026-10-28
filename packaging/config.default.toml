@@ -1,6 +1,8 @@
 # BLiNX 2 options: every key at its default. Each enhancement default is the
-# stock behaviour except present.pacing, which sleeps: the frames and pace
-# are the same as the console's spin and it frees a CPU core. The [input]
+# stock behaviour except two: present.pacing sleeps (the frames and pace
+# are the same as the console's spin and it frees a CPU core), and the
+# in-game menu is on (closed, it changes no frame; the game loses only the
+# presses of the chords that open it, Guide+A and Back+L3). The [input]
 # table turns the keyboard and mouse on for player 1, with this game's
 # layout and stick feel (stick_ramp_ms, walk_key, walk_scale; the toolkit's
 # own defaults are 0, none and 1.0). The game reads this file
@@ -35,6 +37,24 @@ surface = "auto"          # "auto": the frame-sized surface goes to gamescope fo
                           # there (Steam's FSR needs scale = 1 on a Deck);
                           # "window" (the old behaviour) or "internal"
 
+[menu]
+enabled = true            # the in-game menu over the game: F10, Guide+A or
+                          # Back+L3 held 0.4 s opens and closes it, and on
+                          # macOS an Elite's P1 too (XInput has no paddles).
+                          # Steam Deck: SteamOS keeps Guide+A for itself, so
+                          # use Back+L3, or bind R4 to F10 once in Steam
+                          # Input (the game's controller settings > Back Grip
+                          # Buttons > R4 > Keyboard > F10). The game keeps
+                          # running behind it and gets no input. Save writes
+                          # only what you changed to config/config.toml.
+                          # false: no menu; with the strip off too, no
+                          # binding under [input.actions] is read
+
+[overlay]
+stats = false             # the stats strip in the window's top right corner (fps,
+                          # frame ms, pacing, scale, backend); F3 or the
+                          # menu's Stats page toggles it while you play
+
 [fps]
 mode = "lock30"           # lock60 and free are not available for this title:
                           # the stage logic steps a fixed 1/30 s per frame
@@ -55,6 +75,13 @@ free_toggle = "F6"        # start and stop the free camera
 free_hud_key = "F7"       # show or hide the HUD while flying
 free_freeze_key = "F8"    # stop and restart the world while flying
 free_reset_key = "F5"     # back to the game's camera
+
+# [mods]
+# "lod.enable" = "off"      # "on": characters keep their detailed models as far
+#                           # away at 2x and 3x as at 480p (more draws); also on
+#                           # the menu's Mods page
+# "lod.follow_scale" = true # divide the detail distances by the render scale
+# "lod.distance" = 1.0      # 0.5 .. 4: how far detail holds, on top of that
 
 # [textures]
 # pack = "enhance/hud.pack" # your own HUD texture pack, made from your dump by
@@ -92,27 +119,39 @@ walk_scale = 0.5            # 0.41 .. 1.0
 # change one, put the control under [input.bindings] in config/config.toml:
 # it replaces this line whole, and an input you bind there leaves the
 # controls below. Names: docs/input.md (RECOMP_TRACE=key prints them).
-lstick_up = ["W", "KP8"]    # move
-lstick_down = ["S", "KP2"]
-lstick_left = ["A", "KP4"]
-lstick_right = ["D", "KP6"]
-rstick_up = "I"             # camera (the mouse too, through mouse_look)
-rstick_down = "K"
-rstick_left = "J"
-rstick_right = "L"
+left_stick_up = ["W", "Numpad8"]  # move
+left_stick_down = ["S", "Numpad2"]
+left_stick_left = ["A", "Numpad4"]
+left_stick_right = ["D", "Numpad6"]
+right_stick_up = "I"        # camera (the mouse too, through mouse_look)
+right_stick_down = "K"
+right_stick_left = "J"
+right_stick_right = "L"
 dpad_up = "Up"              # menus and selection
 dpad_down = "Down"
 dpad_left = "Left"
 dpad_right = "Right"
 a = "Space"                 # jump; confirm
-b = ["MouseRight", "F"]     # action; back in menus
+b = ["mouse2", "F"]         # action; back in menus
 x = "E"                     # time control
 y = "Q"
 white = "C"
 black = "Z"
-ltrigger = "LShift"
-rtrigger = ["MouseLeft", "R"] # sweep and shoot
-lthumb = "Tab"
-rthumb = "MouseMiddle"      # camera
-start = ["Return", "Escape"] # pause; "press start"
+left_trigger = "LShift"
+right_trigger = ["mouse1", "R"] # sweep and shoot
+left_thumb = "Tab"
+right_thumb = "mouse3"      # camera
+start = ["Enter", "Escape"] # pause; "press start"
 back = "Backspace"
+
+[input.actions]
+# Host actions: what the host does, not the game. To change one, put it
+# under [input.actions] in config/config.toml: it replaces this line whole.
+# Reference: the toolkit's docs/runtime/config.md, "Host actions".
+menu.open = ["F10", "guide+a", "paddle1", "back+left_thumb@400"]
+                            # the toolkit's three, plus Back+L3 held 0.4 s for
+                            # hosts that never pass Guide on (the Xbox Game Bar
+                            # on Windows, Steam under Proton). The game ignores
+                            # a lone Back or L3 press in play (Back acts only
+                            # in menus)
+overlay.stats = "F3"        # toggles the stats strip; no key of the game's

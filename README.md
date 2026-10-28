@@ -170,6 +170,8 @@ takes `KEY=value` lines for any `RECOMP_*` variable.
 | HUD texture pack | `textures.pack` | `RECOMP_TEXTURES_PACK` | none, a path | Your own 4x HUD and font pack, see [below](#hud-texture-pack). A relative path is taken from the executable's folder. |
 | Glow | `fx.glow`, `fx.glow_intensity` | `RECOMP_GLOW`, `RECOMP_GLOW_INTENSITY` | `"on"`/`"off"`; `1.0` (0.0 to 2.0) | Turns the game's screen glow pass off, or scales it. |
 | Free camera | `camera.free` and `camera.free_*` | `RECOMP_CAMERA_FREE` and `RECOMP_CAMERA_FREE_*` | `"off"`, `"on"` | F6 starts and stops a camera you fly anywhere in the stage while Blinx stands still: left stick moves, right stick or mouse looks, RT/X up, LT/Y down, White fast, Black slow. F7 hides the HUD, F8 stops the world, F5 goes back to the game's camera. Keys, speed and look rate are in `config.default.toml`. Metal and Direct3D 11; see [below](#free-camera). |
+| In-game menu | `menu.enabled` | `RECOMP_MENU` | `true`, `false` | On by default. F10 (or Guide+A, an Elite's P1, or Back+L3 held 0.4 s) opens a menu over the game to change these options while it runs, rebind the host actions and turn mods on or off; Save keeps only what you changed in `config/config.toml`. The game keeps running behind it and sees no input. |
+| Stats strip | `overlay.stats` | `RECOMP_OVERLAY_STATS` | `false`, `true` | fps, frame time, pacing, scale and backend in the window's corner; F3 (while the menu is on) or the menu's Stats page toggles it while you play. |
 | Window size | (none) | `RECOMP_WINDOW_SCALE` | `2` | Initial window size, 640x480 times this (the SDL window on macOS). |
 | Frame rate | `fps.mode` | `RECOMP_FPS_MODE` | `"lock30"` only | `lock60` and `free` are reported as not available (see [Platforms](#platforms)); for a 60 fps look, see [external frame generation](docs/frame-generation.md). |
 
@@ -455,7 +457,7 @@ reports what is in use and whether it is the pin.
 | Component | Pinned at | Where | Notes |
 |---|---|---|---|
 | xboxrecomp-cli (`xbr`) | tag `v0.10.0`, commit `5dc46ba` | `game.toml` `[cli]` | The commit locks the tag: a tag moved to another commit is refused. |
-| xboxrecomp toolkit (fork) | tag `blinx2-v0.6.0`, commit `1c434a0`, branch `blinx2/portability` | `game.toml` `[toolkit]` | Cloned into `external/xboxrecomp` by `setup`. |
+| xboxrecomp toolkit (fork) | tag `blinx2-v0.7.0`, commit `178657a`, branch `blinx2/portability` | `game.toml` `[toolkit]` | Cloned into `external/xboxrecomp` by `setup`. |
 | llvm-mingw | `20260922` (clang 23.1.2) | `game.toml` `[toolchain]`, hashes in `config/setup-pins.json` | Cross-compiles the Windows build on every host. |
 | NSIS | `3.13` | `game.toml` `[toolchain]` | Fetched on Windows; Homebrew or the distribution elsewhere. |
 | umu-launcher | `1.4.4` | the CLI | What the SteamOS installer offers to download on a stock Deck. |
@@ -524,7 +526,7 @@ behaviour). The ones you meet first:
 | `RECOMP_KEYBOARD` | `input.keyboard`: on in `config.default.toml`, off with `RECOMP_CONFIG=none` and in scripted runs | the keyboard as pad 1 |
 | `RECOMP_MOUSE` | `input.mouse`: as `RECOMP_KEYBOARD` | the mouse as pad 1 (motion is the right stick) |
 | `RECOMP_AC97_READY` | on (x86-64 Windows/Proton; arm64 macOS and Linux); off on native x86-64 Linux | audio; `=0` turns it off |
-| `RECOMP_INPUT_SCRIPT` | `@attract`, `@stage1`, `@stage1-enemies`, `@story-hub`, `@story-load`, `@story-idle`, a file | a scripted pad for reproducible runs |
+| `RECOMP_INPUT_SCRIPT` | `@attract`, `@stage1`, `@stage1-enemies`, `@stage1-2`, `@stage1-2-barricade`, `@story-hub`, `@story-load`, `@story-idle`, a file | a scripted pad for reproducible runs |
 | `RECOMP_HEADLESS` | `0`, `1` | no window, and silent (it sets `SDL_AUDIODRIVER=dummy` unless set) |
 | `RECOMP_CONFIG` | `config/config.toml` (over `config.default.toml` beside the executable), a path, `none` | the player's config file; `none` reads no file, not even the defaults (the old name `RECOMP_ENHANCE_CONFIG` still works) |
 

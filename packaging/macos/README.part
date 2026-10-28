@@ -29,3 +29,11 @@ config/config.toml in the data folder, for example
   a = ["Space", "J"]
 (config.default.toml beside the game lists every control and key);
 keyboard = false or mouse = false under [input] there turns either off.
+
+
+In-game menu
+------------
+F10 (or Guide+A, an Elite controller's P1, or Back+L3 held for a moment)
+opens the in-game menu to change the options while you play; while the
+menu is on, F3 shows the frame-rate strip. "enabled = false" under
+"[menu]" in config/config.toml turns the menu (and F3) off.

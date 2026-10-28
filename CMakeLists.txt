@@ -49,6 +49,32 @@ endif()
 set(XBOXRECOMP_ENHANCE ON CACHE BOOL
     "Build the enhancements layer (config.toml, RECOMP_RENDER_SCALE, ...)")
 
+# The MCPX APU DSP (the GP and EP on the dsp56300 JIT), compiled in so that a
+# launch.env asking for it with RECOMP_APU_DSP=1 gets it: a build without it
+# keeps the stub, and the Deck's test builds did so for days unnoticed. It
+# stays opt-in at run time (the stub until RECOMP_APU_DSP=1). Not FORCE, so
+# -DXBOXRECOMP_APU_DSP=OFF builds a stub-only binary; a target without a
+# prebuilt archive (universal macOS) builds as OFF with a configure warning.
+# The first configure with a fresh tree downloads the pinned dsp56300
+# archive; XBOXRECOMP_DSP56300_ARCHIVE points it at a local copy instead.
+#
+# A tree configured before this default holds the toolkit's option() OFF in
+# its cache, which a plain CACHE set never replaces, so build-win/ would stay
+# stub-only. Once per tree, an OFF carrying the toolkit's help string (what
+# option() leaves behind) becomes ON. A -DXBOXRECOMP_APU_DSP=OFF on the
+# command line has CMake's own help string and is kept, and any OFF given
+# after this one-time step wins as usual.
+set(_cat_apu_dsp_help "Build the opt-in MCPX APU DSP emulation (dsp56300 JIT)")
+if(NOT CAT_APU_DSP_MIGRATED)
+    get_property(_cat_apu_dsp_was CACHE XBOXRECOMP_APU_DSP PROPERTY HELPSTRING)
+    if(_cat_apu_dsp_was STREQUAL _cat_apu_dsp_help)
+        set(XBOXRECOMP_APU_DSP ON CACHE BOOL "${_cat_apu_dsp_help}" FORCE)
+    endif()
+    set(CAT_APU_DSP_MIGRATED ON CACHE INTERNAL
+        "XBOXRECOMP_APU_DSP's cached toolkit default was turned ON once")
+endif()
+set(XBOXRECOMP_APU_DSP ON CACHE BOOL "${_cat_apu_dsp_help}")
+
 # Add xboxrecomp as a subdirectory -- this builds all 6 runtime libraries
 # and provides the 'xboxrecomp' umbrella target to link against.
 add_subdirectory(${XBOXRECOMP_DIR} ${CMAKE_BINARY_DIR}/xboxrecomp)
@@ -79,6 +105,8 @@ set(GAME_SOURCES
     src/glow.c
     src/free_cam_fly.c
     src/free_camera.c
+    src/lod_table.c
+    src/lod_scale.c
     # Add game-specific sources here, e.g.:
     # src/asset_loader.c
     # src/custom_renderer.c

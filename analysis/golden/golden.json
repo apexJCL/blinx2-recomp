@@ -17,6 +17,8 @@
     "RECOMP_MOUSE": "0",
     "RECOMP_INPUT_STRICT": "1",
     "RECOMP_CONFIG": "none",
+    "RECOMP_MENU": "0",
+    "RECOMP_OVERLAY_STATS": "0",
     "RECOMP_RENDER_SCALE": "1",
     "RECOMP_PRESENT_PACING": "spin",
     "RECOMP_PRESENT_SURFACE": "window",
@@ -212,7 +214,7 @@
       "seconds": 100,
       "min_flips": 4480,
       "min_flips_note": "about 95% of the clean minimum: 3 runs of 100 s gave 4714-4719 flips (20261003-005419, -005602, -005745); the hub dump (72) needs 4321",
-      "about": "The front door from an empty save (RECOMP_SAVE_DIR=@run: bench-logs/<stamp>/save/): title, R0_opening skipped, team editor (AUTO SELECT), Story Mode / SAVE GAME, slot 1, 1P, NOW SAVING, then the Sweepers hub's CHALLENGE drill. A skips R0_opening at a varying time (tsedit opens at t=13-18 s), so @story-hub waits until t=24 and holds AUTO SELECT 8 s and the slot list 7 s: the 3 runs above put tsedit's A, state 0xD and the hub load within 0.2 dumps of each other (dumps 23.5-23.6, 53.9-54.0, 65.6-65.8). Reference: 20261003-005602 (team Steel Paw; AUTO SELECT picks the team at random, so no frame shows it)",
+      "about": "The front door from an empty save (RECOMP_SAVE_DIR=@run: bench-logs/<stamp>/save/): title, R0_opening skipped, team editor (AUTO SELECT), Story Mode / SAVE GAME, slot 1, 1P, NOW SAVING, then the Sweepers hub's CHALLENGE drill. A skips R0_opening at a varying time (tsedit opens at t=13-18 s), so @story-hub waits until t=24 and holds AUTO SELECT 476 polls (~8 s) and the slot list 416 (~7 s), its menu holds and taps counted in polls (one a flip there) since the tracker item, so a present stall cannot move them in flips: the 3 runs above put tsedit's A, state 0xD and the hub load within 0.2 dumps of each other (dumps 23.5-23.6, 53.9-54.0, 65.6-65.8). Reference: 20261003-005602 (team Steel Paw; AUTO SELECT picks the team at random, so no frame shows it)",
       "frames": [
         {
           "name": "story-tsedit",
@@ -401,7 +403,7 @@
         "slot-list": {
           "after": "tsedit",
           "max_batches": 60,
-          "why": "573 -> 43 batches, the Story Mode slot list opening; nothing between the locker room and it drops to 60 (at least 90). Flip 3226-3249 in D3D11 runs; Mac Metal runs give two modes, 3207-3304 and, under host load, 2902-3197 (CPU 2833-2867), because @story-hub's presses wait on wall time and a slower run reaches them at a lower flip. Chained to tsedit, not after_flip 3200: a menu below 3200 made the next crossing, NOW SAVING (130 -> 1, ~350 flips on), the anchor, ~350-600 flips late (8 of 113 Mac story logs, 2026-10-10..12; no D3D11 log)"
+          "why": "573 -> 43 batches, the Story Mode slot list opening; nothing between the locker room and it drops to 60 (at least 90). Flip 3226-3249 in D3D11 runs; Mac Metal runs give two modes, 3207-3304 and, under host load, 2902-3197 (CPU 2833-2867), because @story-hub's presses waited on wall time and a slower run reached them at a lower flip (before the tracker item; they count polls since, and the Linux/Proton host D3D11 runs 20261026-140054 and 20261026-141323 give 3244 and 3269). Chained to tsedit, not after_flip 3200: a menu below 3200 made the next crossing, NOW SAVING (130 -> 1, ~350 flips on), the anchor, ~350-600 flips late (8 of 113 Mac story logs, 2026-10-10..12; no D3D11 log)"
         },
         "hub": {
           "after": "slot-list",
@@ -415,7 +417,7 @@
         }
       },
       "dump_slack": 100,
-      "dump_slack_why": "Metal's story anchors sit off the references' by more than the other scenarios' (the menus' wall-time A taps against a different flip rate). Over 74-76 Metal story runs in runs/ (2026-10-02..09) the anchor's distance from the nearest reference's was p50 15-20, p90 29 (tsedit), 63 (slot-list), 45 (hub), max 81 / 63 / 112 leaving out the runs that took another menu path; 40 left 19 of 76 menu and 13 of 74 hub frames undumped (INCOMPLETE), 100 leaves one hub frame. The cost is disk until the prune: each flip of slack is one more dumped BMP (about 0.9 MB) per anchored frame, so a story run now writes up to ~600 flip dumps, ~0.55-0.7 GB (the first golden run gate: 495 dumps, 456 MB, pruned to 20 MB on its pass); a run that does not pass keeps them all",
+      "dump_slack_why": "Metal's story anchors sit off the references' by more than the other scenarios' (the menus' wall-time A taps against a different flip rate; the taps count polls since the tracker item, which should narrow this). Over 74-76 Metal story runs in runs/ (2026-10-02..09) the anchor's distance from the nearest reference's was p50 15-20, p90 29 (tsedit), 63 (slot-list), 45 (hub), max 81 / 63 / 112 leaving out the runs that took another menu path; 40 left 19 of 76 menu and 13 of 74 hub frames undumped (INCOMPLETE), 100 leaves one hub frame. The cost is disk until the prune: each flip of slack is one more dumped BMP (about 0.9 MB) per anchored frame, so a story run now writes up to ~600 flip dumps, ~0.55-0.7 GB (the first golden run gate: 495 dumps, 456 MB, pruned to 20 MB on its pass); a run that does not pass keeps them all",
       "skip_backends": [
         "cpu"
       ],

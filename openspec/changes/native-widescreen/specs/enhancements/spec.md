@@ -51,17 +51,6 @@ Under a wide `display.aspect`, a menu backdrop that the `aspect` trace shows as 
 - **WHEN** the b3 menus run at 16:9 on Metal and D3D11
 - **THEN** the grid backdrop has no strip at the old 4:3 edges, and the menu text stays in its 4:3 columns
 
-### Requirement: Hor+ placement overrides
-A game's shipped `config.default.toml` MAY force a placement class (`stretch`, `centre`, `picture` or `rt`) with `[aspect.program]`, keyed by the program hash the `aspect` trace prints, and `[aspect.texture]`, keyed by the texture's address (masked to its low 27 bits, so a cached and an uncached alias match), format and size as that trace prints them. The overrides SHALL be read only under a wide `display.aspect`, SHALL apply after the generic rules, and SHALL log a trace line per hit. An unknown class or a malformed key SHALL be reported once and skipped.
-
-#### Scenario: An override wins over the generic rule
-- **WHEN** `[aspect.texture]` maps `0x80A98000 fmt 12 320x240` to `rt`, and that texture is sampled at 16:9
-- **THEN** the batch is placed as over a padded render target, and the trace logs the override
-
-#### Scenario: Stock ignores overrides
-- **WHEN** the same file runs at `display.aspect = "4:3"`
-- **THEN** no override is read and no trace line is logged
-
 ## MODIFIED Requirements
 
 ### Requirement: Enhancements default to stock

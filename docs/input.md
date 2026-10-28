@@ -57,7 +57,7 @@ a = "G"
 
 The rules:
 
-- Your line replaces the default for that control whole: `start = "Return"`
+- Your line replaces the default for that control whole: `start = "Enter"`
   drops `Escape` from START. `a = []` unbinds A.
 - An input you bind in `config.toml` is taken away from every control that
   had it by default, so you never press two controls with one key by
@@ -72,9 +72,13 @@ The rules:
   (config.default.toml) +3 (config/config.toml)` says how many controls each
   file decided.
 
-The controls are `a b x y white black ltrigger rtrigger start back lthumb
-rthumb dpad_up dpad_down dpad_left dpad_right lstick_up lstick_down
-lstick_left lstick_right rstick_up rstick_down rstick_left rstick_right`.
+The controls are `dpad_up dpad_down dpad_left dpad_right start back
+left_thumb right_thumb a b x y black white left_trigger right_trigger
+left_stick_up left_stick_down left_stick_left left_stick_right
+right_stick_up right_stick_down right_stick_left right_stick_right`: the
+toolkit's names, which upstream xboxrecomp uses too. The names before the
+2026-10 release (`lthumb`, `ltrigger`, `lstick_up`, `KP8`, `MouseLeft` ...)
+are no longer read: see "Old names" below.
 
 ## Names
 
@@ -82,25 +86,62 @@ Names are case-insensitive and follow the label on the key (on an AZERTY
 keyboard, `Z` is the key labelled Z):
 
 - letters `A` to `Z`, digits `0` to `9`, `F1` to `F12`;
-- `Space`, `Return` (or `Enter`), `Escape` (or `Esc`), `Backspace`, `Tab`;
-- `LShift` `RShift` (`Shift`: either), `LCtrl` `RCtrl` (`Ctrl`), `LAlt`
-  `RAlt` (`Alt`);
+- `Space`, `Enter` (or `Return`), `Escape` (or `Esc`), `Backspace`, `Tab`,
+  `Pause`, `CapsLock`;
+- `LShift` `RShift` (`Shift`: either), `LCtrl` `RCtrl` (`Ctrl` or
+  `Control`), `LAlt` `RAlt` (`Alt`);
 - `Up` `Down` `Left` `Right`, `Insert` `Delete` `Home` `End` `PageUp`
   `PageDown`;
-- the numpad: `KP0` to `KP9`, `KPEnter` `KPPlus` `KPMinus` `KPMultiply`
-  `KPDivide` `KPPeriod`;
-- punctuation: `Comma` `Period` `Slash` `Semicolon` `Quote` `LBracket`
-  `RBracket` `Backslash` `Minus` `Equals` `Grave`;
-- the mouse: `MouseLeft` `MouseRight` `MouseMiddle` `Mouse4` `Mouse5`
-  `WheelUp` `WheelDown`.
+- the numpad: `Numpad0` to `Numpad9`, `NumpadEnter` `NumpadAdd`
+  `NumpadSubtract` `NumpadMultiply` `NumpadDivide` `NumpadDecimal`;
+- punctuation: `Comma` `Period` `Slash` `Semicolon` `Quote` `LeftBracket`
+  `RightBracket` `Backslash` `Minus` `Equals` `Grave`;
+- the mouse: `Mouse1` (left) `Mouse2` (right) `Mouse3` (middle) `Mouse4`
+  `Mouse5`, `WheelUp` `WheelDown`.
 
 The Windows key and Cmd belong to the system and cannot be bound. `F10`
 opens the enhancements menu and `F11` is kept for fullscreen; binding them
 works but logs a warning, as does binding `F9`, which frees the cursor.
+On a pad the menu opens with Guide+A, with R4 (`paddle1`) on the Deck, and
+with Back+L3 held 0.4 s where Guide is not seen; the shipped
+`[input.actions]` table lists them, and the toolkit's docs/runtime/config.md,
+"Host actions", has the rules.
 
 To find a key's name, run with `RECOMP_TRACE=key` (in `config/launch.env`,
 or in front of the command) and press it: the log prints `[KEY] down
-Semicolon`, and that name goes in the file.
+semicolon`, and that name goes in the file.
+
+### Old names
+
+Builds before the 2026-10 release used their own names. They are not read
+any more, and each one logs an `unknown control`, `unknown input` or
+`unknown name` line:
+
+- an old control name (`ltrigger = ...`) is ignored, and that control keeps
+  its default;
+- an old key name is skipped but the rest of the line still applies, so a
+  line left with no valid entries unbinds that control (`start = "KPEnter"`
+  leaves Start with no key);
+- an action line such as `menu.open` keeps only its valid entries.
+
+Rewrite any `[input.bindings]` or `[input.actions]` line of yours that uses
+one:
+
+| Old | New |
+|---|---|
+| `ltrigger` `rtrigger` | `left_trigger` `right_trigger` |
+| `lthumb` `rthumb` | `left_thumb` `right_thumb` |
+| `lstick_up` .. `lstick_right` | `left_stick_up` .. `left_stick_right` |
+| `rstick_up` .. `rstick_right` | `right_stick_up` .. `right_stick_right` |
+| `back+lthumb@400` (a chord) | `back+left_thumb@400` |
+| `KP0` .. `KP9` | `Numpad0` .. `Numpad9` |
+| `KPEnter` `KPPlus` `KPMinus` | `NumpadEnter` `NumpadAdd` `NumpadSubtract` |
+| `KPMultiply` `KPDivide` `KPPeriod` | `NumpadMultiply` `NumpadDivide` `NumpadDecimal` |
+| `LBracket` `RBracket` | `LeftBracket` `RightBracket` |
+| `MouseLeft` `MouseRight` `MouseMiddle` | `Mouse1` `Mouse2` `Mouse3` |
+
+`Return`, `Esc`, `Mouse4`, `Mouse5`, `WheelUp`, `WheelDown` and every other
+name keep working.
 
 ## The mouse
 

@@ -90,24 +90,27 @@ Worktrees: `wt/<name>/xboxrecomp` (a branch off `posix-host/portability`), `wt/<
 
 ## 6. Hor+ frame copies (the speed-blur seam)
 
-- [ ] 6.1 Probe:
-  - run the b3 race route at 16:9 with `RECOMP_TRACE=aspect` and the texture trace;
-  - name the speed-blur and glow pass, the 320x240 texture at 0x80A98000, how it is written (pushbuffer blit, draw or CPU), and its source target;
-  - record the findings here.
-- [ ] 6.2 The rule that the probe calls for (design D6): blit provenance in `rt_texture()`, or the CPU-copy match. Use the same lookup in Metal and D3D11.
-- [ ] 6.3 Tests: a provenance entry makes a texture bind as a padded target, and the placement is a stretch read whole. A non-matching texture keeps `guest_tex`.
+Superseded by `hor-plus-fullscreen-fx`. The probe found the 320x240 texture at 0x80A98000 is an R5G6B5 render target the game draws into, which Metal decoded from guest memory (no 16-bit `rt_texture`). One shared rule, `nv2a_rt_tex_reads()`, binds it on both backends, so no blit provenance or CPU-copy match is needed for Burnout 3.
+
+- [x] 6.1 Probe: see `hor-plus-fullscreen-fx/proposal.md`.
+- [x] 6.2 The rule: `nv2a_rt_tex_reads()` in `rt_texture()` on Metal and D3D11.
+- [x] 6.3 Tests: `render_scale` ctest.
 
 ## 7. Menu grid strip
 
-- [ ] 7.1 Probe: open the b3 menus at 16:9 with `RECOMP_TRACE=aspect`, and classify the backdrop as (a), (b) or (c) of design D7.
-- [ ] 7.2 The rule for (a) or (b), in both backends, with tests (the HUD's centred placement unchanged). For (c), record it under the frustum limit in TASKS.md.
+- [x] 7.1 Probe: open the b3 menus at 16:9 with `RECOMP_TRACE=aspect`, and classify the backdrop as (a), (b) or (c) of design D7.
+  the tracker item (`runs/b3-hor-seams/trace1`..`trace7`): none of the three. It is case (d), added to D7: program `1B73FAD1` draws the grid (x 0..656) and the selection lines (x -271..911) at w 0.1 with the depth test off, classed 3D, so their overhang reached the pads through the 3D scissor.
+- [x] 7.2 The rule for (a) or (b), in both backends, with tests (the HUD's centred placement unchanged). For (c), record it under the frustum limit in TASKS.md.
+  For (d): toolkit `fix/b3-hor-seams` (`nv2a_aspect_flat`, Metal and D3D11, ctests in `tests/render_scale`). The flat layer keeps its centred place and takes the 2D scissor. Evidence: see the tracker item.
 
-## 8. Overrides (fallback)
+## 8. Overrides (fallback; moved)
+
+Moved to mod-connectivity-layer tasks section 3, which builds the overrides as the first stage of the placement order (overrides first, not after the generic rules). The items below are kept for their details and are done there.
 
 - [ ] 8.1 `[aspect.program]` (program hash, as the trace prints it) and `[aspect.texture]` (address, format, size):
   - in `config.default.toml`;
   - read only under a wide aspect;
-  - applied after the generic rules;
+  - consulted before the generic rules (mod-connectivity-layer D5);
   - a trace line per hit.
   - Each entry is commented with its scene and trace line. It is checked to keep its address across two boots, and in a second scene to make sure no pooled reuse of that address (same format and size) takes it.
   - Address keys are masked to the low 27 bits, as `rt_texture` does.

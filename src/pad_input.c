@@ -138,6 +138,16 @@
 #include "mouse.h"
 #include "pad_slots.h"
 #include "free_camera.h"   /* free_cam_pad_neutral */
+#include "pad_pack.h"
+/* The host actions' pad filter (toolkit mod.h, host_pad.h): a toolkit pin
+ * from before it builds without, as the title did. */
+#if defined(RECOMP_ENV_HAVE_ENHANCE_KEYS) && defined(__has_include)
+#  if __has_include("host_pad.h")
+#    include "host_pad.h"
+#    include "mod.h"
+#    define CAT_HAVE_PAD_FILTER 1
+#  endif
+#endif
 #ifdef RECOMP_ENV_HAVE_ENHANCE_KEYS
 #include "enhance_cfg.h"
 #endif
@@ -335,9 +345,9 @@ extern void (*xbox_FileOpenHook)(const char *guest_path, uint32_t status);
  * The editor has no file open or known address between its screens, so A is
  * tapped through all of them, on defaults only, until the title state comes
  * back as 0xD; AUTO SELECT picks the team, so the team name and members vary
- * from run to run. The taps are in seconds (1.5 s: the editor's screens fade
- * in slowly), not in polls. The script ends as the hub loads, before the
- * CHALLENGE drill's "Press the A Button", with nothing held. With a save
+ * from run to run. The taps are every 90 polls (1.5 s at the menus' 60: the
+ * editor's screens fade in slowly). The script ends as the hub loads, before
+ * the CHALLENGE drill's "Press the A Button", with nothing held. With a save
  * present the title goes to LOAD GAME instead and this preset does not
  * apply: run it from an empty RECOMP_SAVE_DIR.
  *
@@ -345,21 +355,26 @@ extern void (*xbox_FileOpenHook)(const char *guest_path, uint32_t status);
  * (Proton, 9 runs; presses before that are ignored), so tsedit opens at
  * t=13-18. "wait until 24" puts the editor back on the clock: the host's
  * first line is up by then, one A brings AUTO SELECT / CUSTOM SELECT, which
- * is held for 8 s, and the SAVE GAME slot list is held for 7 s, so each
- * screen spans several frame dumps. If tsedit opens after t=24 the wait is
- * a no-op. macOS (CPU walker) opened it at t=20.8 and reached the hub at
- * t=187 with the same opens and `script done`. */
+ * is held for 476 polls (8 s), and the SAVE GAME slot list for 416 (7 s),
+ * so each screen spans several frame dumps. If tsedit opens after t=24 the
+ * wait is a no-op. From there on every hold and tap counts polls, which are
+ * one a flip in the menus, because the golden frames are found by flip
+ * count from their anchors: in seconds, a flip stall (D3D11 under Proton on
+ * a slow disk stalls 1-3 s while it dumps) moved the taps against
+ * the flips and the slot list and hub up to ~165 flips off the references.
+ * macOS (CPU walker) opened tsedit at t=20.8 and reached the hub at t=187
+ * with the same opens and `script done`. */
 #define STORY_HUB SKIP_INTRO ";" \
                   "wait mem 0x5eb5f4 == 0x5eb620;"        /* the title state block is up */ \
                   "wait mem 0x5eb620 == 0;"               /* "press start" */ \
                   "tap START every 1 until open R0_opening.sfd;" \
                   "tap A every 1 until open tsedit;"      /* skip the story opening */ \
                   "wait until 24;"                        /* back on the clock */ \
-                  "A/0.5;"                                /* the host's line -> AUTO SELECT */ \
-                  "wait 8;" \
-                  "tap A every 1.5 until mem 0x5eb620 == 0xd;" /* LOCKER ROOM on defaults */ \
-                  "wait 7;"                               /* the SAVE GAME slot list */ \
-                  "tap A every 1.5 until open blinx2data.bin;" /* SAVE GAME, slot 1, 1P */ \
+                  "A/30p;"                                /* the host's line -> AUTO SELECT */ \
+                  "wait polls 476;" \
+                  "tap A every 90p until mem 0x5eb620 == 0xd;" /* LOCKER ROOM on defaults */ \
+                  "wait polls 416;"                       /* the SAVE GAME slot list */ \
+                  "tap A every 90p until open blinx2data.bin;" /* SAVE GAME, slot 1, 1P */ \
                   "wait open song_HUBsw"
 
 /* @story-load: the LOAD GAME door, from a seeded save to the hub, with no
@@ -421,6 +436,36 @@ extern void (*xbox_FileOpenHook)(const char *guest_path, uint32_t status);
                    "wait open jingle_stagestart;" \
                    "tap A every 3 until mem 0xae73fc == 1"
 
+/* @stage1-2: mission 1-2 (the same stg0101, ST1-1&2 SWEEPER) without
+ * playing 1-1. From the 1-1 checkpoint it runs the end of 1-1's
+ * goal sequence (sub_000F8400, state [0xB8BD50]): state 6 puts the players
+ * at the goal, (280, -12, -945), and state 7 bumps the stage's phase
+ * [0xB8BB60] from 1 to 2. Phase 2 (sub_000FA2C0) calls the mission switch
+ * sub_000E42D0(2), which sets the mission [0xB871B0] and runs its init
+ * sub_000E3B50, as the real clear does. The Operator's 1-2 briefing ("We
+ * detected a Big Crystal signal ...") is tapped through until phase 3, play.
+ * Skipped: 1-1's goal-door event and its bombs and barricade (the door
+ * barricade wants three bombs); the 1-2 start is the game's own.
+ *
+ * @stage1-2-barricade then walks Stick north into the 1-2 barricade, whose
+ * cutscene breaks it and lets the monsters in ("Use bombs to defeat several
+ * monsters at once!"), and taps A through that. Stick stands still from
+ * there, so the monsters kill him after about 20 s and the retry comes. The
+ * scene draws about 10000 batches a flip, against 2000-4000 in 1-1. */
+#define STAGE1_2 STAGE1 ";" \
+                 "poke 0xb8bd50 6;"                 /* 1-1 goal: last two states */ \
+                 "wait mem 0xb871b0 == 2;"          /* mission 1-2 */ \
+                 "tap A every 3 until mem 0xb8bb60 == 3"
+#define BARRICADE_1_2 \
+    "wait polls 60;" \
+    "LY=32767;" \
+    "wait polls 150;" \
+    "LY=0;" \
+    "wait polls 30;" \
+    "A/3p;" "wait polls 60;" "A/3p;" "wait polls 60;" \
+    "A/3p;" "wait polls 60;" "A/3p;" "wait polls 60;" \
+    "A/3p;" "wait polls 60;" "A/3p;" "wait polls 60;"
+
 static const struct { const char *name, *script; } PRESETS[] = {
     { "skip-intro", SKIP_INTRO },               /* ends idle on the title */
     { "attract",    SKIP_INTRO },               /* the same; the demo is the title's timer */
@@ -433,6 +478,8 @@ static const struct { const char *name, *script; } PRESETS[] = {
     { "story-idle", STORY_IDLE },               /* seeded save -> Story Mode menu, idle */
     { "hub-stage1", HUB_STAGE1 },               /* story-hub, then poked into stage 1-1 */
     { "stage1-enemies", STAGE1 ";" WALK_TO_ENEMIES },
+    { "stage1-2",   STAGE1_2 },                 /* debug select, 1-1 goal poked, 1-2 play */
+    { "stage1-2-barricade", STAGE1_2 ";" BARRICADE_1_2 },
 };
 
 /* ── clock ─────────────────────────────────────────────────────────────── */
@@ -1439,6 +1486,9 @@ int cat_pad_get_state(uint32_t port, uint8_t out[18], uint32_t *packet)
     XBOX_GAMEPAD g;
     double t;
     int connected = 0, slot, kbm;
+#ifdef CAT_HAVE_PAD_FILTER
+    struct xbox_host_pad host;
+#endif
 
     init_once();
     if (port > 3) return 0;
@@ -1471,12 +1521,30 @@ int cat_pad_get_state(uint32_t port, uint8_t out[18], uint32_t *packet)
     if (port == 0 || !(g_mask_last & 1)) watch_activity(t);
     slot = g_host_on ? pad_slots_slot_of(&g_slots, port) : -1;
     kbm = port == 0 && keyboard_on();
+#ifdef CAT_HAVE_PAD_FILTER
+    /* The host actions read the host pad alone: never the script's (a
+     * scripted pad fires nothing) nor the keys (the filter reads those). */
+    memset(&host, 0, sizeof host);
+    host.slot = slot;
+#endif
     if (slot >= 0 || kbm) {
         XBOX_INPUT_STATE hs, kb;
         int have = 0;
         if (slot >= 0) {
             g_probe_t[slot] = now_s();
             have = xbox_InputGetPadState((DWORD)slot, &hs) == 0;
+#ifdef CAT_HAVE_PAD_FILTER
+            if (have) {
+                host.pad = hs;
+                host.extra = xbox_InputHostExtra((DWORD)slot);
+#ifdef XBOX_HOST_PAD_RAW
+                /* The host actions bind host sources (gamepad-input-ux D6),
+                 * so they read the pad before [input.pad] maps it. */
+                xbox_InputHostRaw((DWORD)slot, &host.raw);
+#endif
+                host.connected = 1;
+            }
+#endif
         }
         if (kbm && xbox_InputKbmPoll(&kb)) {
             if (have) xbox_InputMergeKbm(&hs, &kb);
@@ -1503,6 +1571,18 @@ int cat_pad_get_state(uint32_t port, uint8_t out[18], uint32_t *packet)
             connected = 1;
         }
     }
+#ifdef CAT_HAVE_PAD_FILTER
+    /* Every poll, an empty one too, so a chord let go while its pad was
+     * away is seen released. A consumed chord's buttons leave g here,
+     * before camera.free and the packet number see it. */
+    {
+        XBOX_INPUT_STATE st;
+        st.dwPacketNumber = g_packet[port];
+        st.Gamepad = g;
+        xbox_enhance_pad_filter(port, &host, &st);
+        g = st.Gamepad;
+    }
+#endif
     /* camera.free: the camera reads port 0 as merged here, and while it
      * has the port the game reads it connected and released (free-camera
      * D3), so nothing the player does to fly also moves Blinx. */
@@ -1520,17 +1600,7 @@ int cat_pad_get_state(uint32_t port, uint8_t out[18], uint32_t *packet)
     *packet = g_packet[port];
     UNLOCK();
 
-    /* XINPUT_GAMEPAD, packed little-endian: wButtons, bAnalogButtons[8],
-     * sThumbLX, sThumbLY, sThumbRX, sThumbRY. */
-    out[0] = (uint8_t)g.wButtons; out[1] = (uint8_t)(g.wButtons >> 8);
-    memcpy(out + 2, g.bAnalogButtons, 8);
-    {
-        SHORT ax[4] = { g.sThumbLX, g.sThumbLY, g.sThumbRX, g.sThumbRY };
-        for (int i = 0; i < 4; i++) {
-            out[10 + 2 * i] = (uint8_t)ax[i];
-            out[11 + 2 * i] = (uint8_t)((uint16_t)ax[i] >> 8);
-        }
-    }
+    cat_pad_pack(&g, out);
     return connected;
 }
 

@@ -48,7 +48,7 @@ The facts below were checked against these commits:
 
 | Item | cat | b3 | SSX 3 | Spartan |
 |---|---|---|---|---|
-| `.gitignore` | its own (80 lines); gen, game data, `dist/`, `timeline/`, `user-logs` | its own (upstream's plus scaffold lines) | scaffold's | scaffold's plus `build-pkg-*/`, `tca-old/` |
+| `.gitignore` | its own (80 lines); gen, game data, `dist/`, `user-logs` | its own (upstream's plus scaffold lines) | scaffold's | scaffold's plus `build-pkg-*/`, `tca-old/` |
 | `.git/info/exclude` | `src/recomp/gen`, `/bench-logs`, `/.venv` | `/Burnout 3 Takedown`, `TESTING.md`, `runs/`, `analysis/`, `build-*/`, `gen/`, `/.venv`, `/third_party` | empty | empty |
 | Nested worktrees | `wt/upstream-sync/` (an empty leftover directory, not ignored) | **`wt/apulife/b3`**, a live worktree at detached 56574b4; not ignored (`?? wt/`) | none | none |
 | Remotes | none: the export goes to a separate clone | `origin` = sp00nznet (push disabled); `public` = apexJCL/burnout3-recomp, live | **`origin` = apexJCL/ssx3-recomp** (public, empty; push disabled since 2026-10-17, task 0.1) | **`origin` = apexJCL/spartan-recomp** (public, empty; push disabled since 2026-10-17) |

@@ -944,3 +944,52 @@ void sub_0003B180(void)
         MEMF(g_esp + 8) = a * s_cull_scale;
     RECOMP_ABI_CALL(0x0003B180u, sub_0003B180_gen);
 }
+
+/* ── Hor+: the far sea's view fan ─────────────────────────────
+ *
+ * sub_00215A40 (eax: the sea object) builds the far sea once per stage: a
+ * vertex buffer (+0x4C) of rows of 29 vertices (+0x50 holds the count) in
+ * the camera's yaw frame, x across and z ahead, y 0. Each row spans the
+ * 4:3 view's half-width at its depth plus a small margin, so a wedge just
+ * wider than the stock frame; the draw (vertex program 0xBCAF4F3A) turns
+ * it with the camera, carries the reflection and the sea colour, and
+ * leaves the flat base sea outside the wedge. The Hor+ frame reaches past
+ * the wedge's sides: in stage 1-1 at 16:9 the reflective sea stops on two
+ * slanted lines at guest x -72 and 708.
+ *
+ * With a wide aspect A every vertex's x is scaled by A/(4/3) after the
+ * build, which opens the wedge's tangent by the same factor as the frame
+ * (and keeps the stock margin). The texture coordinates come from the
+ * world and screen positions in the vertex program, so they follow. At
+ * 4:3, or without the layer, the wrapper calls the generated body and
+ * nothing else. */
+
+extern void sub_00215A40_gen(void);
+
+static int s_fan_logged;   /* the [HORCULL] line, once per run */
+
+void sub_00215A40(void)
+{
+    uint32_t obj = g_eax, vb, data, n, i;
+
+    if (!s_cull_init)
+        cull_init();
+    RECOMP_ABI_CALL(0x00215A40u, sub_00215A40_gen);
+    /* A failed create returns a negative HRESULT and leaves no buffer. */
+    if (!s_cull_scale || (int32_t)g_eax < 0 || !(vb = MEM32(obj + 0x4C)))
+        return;
+    /* D3DResource.Data is physical; ORed with 0x80000000 it is the same
+     * address the build's Lock (sub_002E5B10) returned and wrote through. */
+    data = MEM32(vb + 4) | 0x80000000u;
+    n = MEM32(obj + 0x50);
+    /* Never past the 0x3918-byte buffer the build created. */
+    if (n > 0x3918u / 12u)
+        n = 0x3918u / 12u;
+    if (!s_fan_logged) {
+        s_fan_logged = 1;
+        fprintf(stderr, "[HORCULL] far sea fan: %u vertices at %08X, x%.4f\n", n, data,
+                1.0 / s_cull_scale);
+    }
+    for (i = 0; i < n; i++)
+        MEMF(data + i * 12u) /= s_cull_scale;
+}

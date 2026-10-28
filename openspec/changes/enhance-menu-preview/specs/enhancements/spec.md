@@ -90,26 +90,57 @@ The enhancements layer SHALL change `render.scale`, `present.filter`, `present.f
 - **WHEN** `tests/host_opts_live` queues a scale request from a second thread while a fake flip loop runs `nv2a_host_opts_apply()`
 - **THEN** exactly one apply returns the `SCALE` mask, `nv2a_host_opts()` reads the new value only after that apply, and the generation moved once
 
-### Requirement: Overlay panel on the present path
-The kernel library SHALL provide an overlay panel (`nv2a_overlay.h`): a CPU-rasterised RGBA8 buffer with rectangles and 8x8 bitmap text at an integer scale, in three layers (menu, stats, toasts), each with one writer thread, triple-buffered and published with one atomic exchange, and drawn through a canvas handle so no two writers share state. The overlay SHALL compile only under `XBOXRECOMP_ENHANCE`. Each presenter (the SDL renderer, the CAMetalLayer pass, the D3D11 flip) SHALL, when the overlay's `visible` mask is non-zero, upload each visible layer as one texture when its generation changes and draw it alpha-blended as one quad inside the frame's placement rectangle, after the frame (on D3D11 after `dump_frame()`); when the mask is zero nothing beyond that one load SHALL run. Frame dumps (`RECOMP_FB_DUMP`, `fb_dump_at`, `d3d11_dump`) SHALL never contain the panel. The Win32 GDI window of the CPU backend draws no panel (recorded).
+### Requirement: Overlay on the present path
+The kernel library SHALL provide an overlay (`nv2a_overlay.h`) with four layers (menu, stats, toasts, cursor). Each layer SHALL have one writer at a time, be triple-buffered and be published with one atomic exchange. A layer's slot SHALL hold a draw list of textured, coloured triangles with scissor commands, built from vendored microui (MIT) commands by one shared converter, with text from a font atlas baked by vendored stb_truetype from an embedded SIL OFL 1.1 face (Atkinson Hyperlegible Regular and Bold, under 0.7 MB embedded). The atlas SHALL never be baked on the guest's poll thread or a presenting thread. The overlay and the vendored code SHALL compile only under `XBOXRECOMP_ENHANCE`, each vendored file with its licence in `LICENSES/` and a `NOTICE` entry.
 
-#### Scenario: Panel drawn on three presenters
+Each presenter (the SDL3 renderer, the CAMetalLayer pass, the D3D11 flip) SHALL draw the visible layers' draw lists with one renderer of its own, inside the frame's placement rectangle and after the frame (on D3D11 after `dump_frame()`). It SHALL upload a list's buffers only when its generation changes. The SDL3 renderer SHALL blend with `SDL_BLENDMODE_BLEND_PREMULTIPLIED`. On D3D11, a present that copied no guest frame SHALL clear the back buffer before drawing the overlay. When the `visible` mask is zero, nothing beyond that one load SHALL run. A golden run (`RECOMP_CONFIG=none`) SHALL never arm the overlay, create a UI context or bake an atlas.
+
+Frame dumps (`RECOMP_FB_DUMP`, `fb_dump_at`, `d3d11_dump`, the Metal dump) SHALL never contain a layer. A CPU reference rasteriser of the same draw list SHALL back the `overlay` ctest. The Win32 GDI window of the CPU backend draws no overlay (recorded).
+
+#### Scenario: Same picture on three presenters
 - **WHEN** the menu is open over `@stage1` on Metal (layer window), on the CPU backend (SDL renderer) and on D3D11 under Proton
-- **THEN** a window shot of each shows the same panel at the same place relative to the frame (on D3D11 a host screenshot, since `RECOMP_WINDOW_SHOT` has no D3D11 implementation yet), and a frame dump of the same flip shows no panel
+- **THEN** the Metal and SDL window shots each match the CPU reference raster of the same draw list within the stated tolerance, the D3D11 host screenshot shows the same panel at the same place relative to the frame, and a frame dump of the same flip shows no panel
 
-#### Scenario: Hidden panel costs nothing
-- **WHEN** the menu is closed
-- **THEN** no overlay texture is bound or drawn by any presenter and the presenter's per-frame work equals a build without the layer
+#### Scenario: Hidden overlay costs nothing
+- **WHEN** the menu, the stats strip and every toast are hidden
+- **THEN** no overlay buffer is bound or drawn by any presenter, and the presenter's per-frame work equals a build without the layer apart from one atomic load
+
+#### Scenario: Atlas baked off the poll thread
+- **WHEN** the window is resized with the menu open so that the body text size changes
+- **THEN** the atlas is rebaked on the overlay's worker thread, the old atlas is drawn scaled until the new one is published, and the guest's poll and flip times show no stall
+
+#### Scenario: Golden run never arms the overlay
+- **WHEN** `@stage1` runs with `RECOMP_CONFIG=none`
+- **THEN** the log has no `[OVERLAY] atlas` line and no UI context or draw-list storage is allocated
+
+### Requirement: Overlay theme and scale
+The overlay SHALL size everything from theme tokens defined at 1080 output lines, multiplied by `clamp(out_h / 1080, 0.5, 3.0) * overlay.ui_scale`, where `out_h` is the placement rectangle's height in output pixels and `overlay.ui_scale` (default 1.0, 0.75 to 2.0) applies live. It SHALL NOT depend on `render.scale`. Every token (colours, radius, padding, gap, row height, font sizes, shadow) and the UI font files SHALL be settable in `[overlay.theme]`, from a game's `config.default.toml` and from the player's `config.toml`. A bad value SHALL be refused with one warning and the default kept. A font file that fails to parse SHALL leave the embedded face in use. A theme SHALL hold values and open-licensed fonts only. Labels SHALL be UTF-8 within the supported range (Latin-1, Latin Extended-A, general punctuation and arrows), and other code points SHALL draw a box.
+
+#### Scenario: Same layout at any render scale
+- **WHEN** the menu is open at 1080 output lines and `render.scale` steps from 1 to 3
+- **THEN** the menu's draw list is unchanged
+
+#### Scenario: Larger output, larger panel
+- **WHEN** the same page is built at 720 and at 2160 output lines
+- **THEN** every size in the 2160-line list is three times the 720-line size, rounded to whole pixels
+
+#### Scenario: Game theme under the player's file
+- **WHEN** a game's `config.default.toml` sets `[overlay.theme] accent = "#FF8800"` and the player's `config.toml` sets `accent = "#00FF00"`
+- **THEN** the selection bar is drawn in `#00FF00`
 
 ### Requirement: In-game enhancements menu
-With `menu.enabled` (env `RECOMP_MENU`, default off), the layer SHALL open and close the menu on the `menu.open` host action (default `F10` plus the pad chord the shipped `config.default.toml` names; see "Host actions"). While open the title SHALL receive a neutral pad (no buttons, triggers or stick deflection, packet number unchanged) and the menu SHALL navigate from the physical pad and keyboard (D-pad or left stick and arrows; A or Enter; B or Esc; left and right to step a value; Y to save). The guest SHALL keep running. The menu SHALL show pages Render (`render.scale`, `present.filter`, `present.fullscreen`, `present.pacing`), Pack (`textures.pack` on/off, `textures.font`, `textures.text`, entries per kind, scales, hits, misses and the first four missed candidates with size and format, the CPU path's "ignored"), Game (items a title registers with `enhance_menu_add`), Mods (each registered mod, its state, a toggle through the mod's `on_enable` and its own items), Stats (flips/s, frame ms, backend, scale in force, the stats-strip toggle), Controls (every action's bindings, with capture and clear, live at once and persisted by Save), Debug, Save and Reset to stock; an item that cannot change live SHALL say "applies at restart". It SHALL log `[ENHANCE] menu.enabled=off` or `[ENHANCE] menu.enabled=on open=<bindings>` at startup. A scripted pad (`RECOMP_INPUT_SCRIPT`) SHALL never open the menu.
+With `menu.enabled` (env `RECOMP_MENU`, default off), the layer SHALL open and close the menu on the `menu.open` host action (default `F10` and `guide+a`; a game's `config.default.toml` may add a fallback chord for hosts where Guide does not reach the process; see "Host actions"). While open the title SHALL receive a neutral pad (no buttons, triggers or stick deflection, packet number unchanged) and the menu SHALL navigate from the physical pad and keyboard (D-pad or left stick and arrows; A or Enter; B or Esc; left and right to step a value; Y to save). The guest SHALL keep running; the menu SHALL NOT pause the title. The menu SHALL also take the mouse (see "Mouse in the menu"). It SHALL be drawn with microui on the overlay's menu layer. The menu SHALL show pages Render (`render.scale`, `present.filter`, `present.fullscreen`, `present.pacing`), Pack (`textures.pack` on/off, `textures.font`, `textures.text`, entries per kind, scales, hits, misses and the first four missed candidates with size and format, the CPU path's "ignored"), Game (items a title registers with `enhance_menu_add`), Mods (each registered mod, its state, a toggle through the mod's `on_enable` and its own items), Stats (flips/s, frame ms, backend, scale in force, the stats-strip toggle), Controls (every action's bindings, with capture and clear, live at once and persisted by Save, plus the mouse capture state), Save states (see "Save states page"), Debug, Save and Reset to stock; an item that cannot change live SHALL say "applies at restart". It SHALL log `[ENHANCE] menu.enabled=off` or `[ENHANCE] menu.enabled=on open=<bindings>` at startup. A scripted pad (`RECOMP_INPUT_SCRIPT`) SHALL never open the menu.
 
 #### Scenario: Open, change, close
 - **WHEN** F10 is pressed over `@stage1` with the menu enabled, the Render page's `render.scale` is stepped to 2, and F10 is pressed again
 - **THEN** the panel appears within one flip, the frame renders at 1280x960 within two flips, the character has not moved while the panel was open, and the panel disappears with the game's input restored
 
-#### Scenario: Chord consumed in BLiNX 2
-- **WHEN** `menu.open` is bound to `back+lthumb@400` in BLiNX 2, and BACK then LTHUMB are held together for 400 ms on a real pad during play
+#### Scenario: Guide+A opens the menu
+- **WHEN** Guide is held and A is pressed on a real pad on macOS during play with the menu enabled
+- **THEN** the menu opens on the next flip, the title's pad poll never reports A down for that press, and the title keeps running behind the panel
+
+#### Scenario: Fallback chord consumed in BLiNX 2
+- **WHEN** BLiNX 2's shipped `menu.open` fallback `back+lthumb@400` is used: BACK then LTHUMB are held together for 400 ms on a real pad during play
 - **THEN** the menu opens, and from the moment both are down the title's pad poll (through `cat_pad_get_state`) reports neither button; a START alone still pauses the game
 
 #### Scenario: Game item
@@ -145,7 +176,7 @@ The enhancements layer SHALL provide named host actions with a registry that the
 - a pad chord of two or more buttons with an optional hold `@<ms>`;
 - a single host-only button (`guide`, `misc1`, `paddle1`..`paddle4`, `touchpad`).
 
-Actions SHALL be evaluated by one title-glue filter, `xbox_enhance_pad_filter(port, host, st)`. The toolkit's `xbox_InputGetState` and a title's own pad glue (cat's `cat_pad_get_state`) SHALL both call it after their merge. It reads the host pad and its host-only buttons apart from any script.
+Actions SHALL be evaluated by one title-glue filter, `xbox_enhance_pad_filter(port, host, st)`. The toolkit's `xbox_InputGetState` and a title's own pad glue (cat's `cat_pad_get_state`) SHALL both call it after their merge. It reads the host pad and its host-only buttons apart from any script. A modifier chord SHALL also be evaluated once per guest flip by a tick that makes its own host read (`xbox_input_backend_read_host`), so the menu opens even when the title has stopped polling the pad; with no pad open the tick SHALL clear its snapshot.
 
 The layer SHALL refuse, with a warning:
 - a single guest-pad button;
@@ -154,13 +185,25 @@ The layer SHALL refuse, with a warning:
 
 A fired chord's buttons SHALL be reported released to the title from the moment all are down until each is physically released. A scripted pad (`RECOMP_INPUT_SCRIPT`) SHALL never fire an action. Keys injected by a kbm script fire key-bound actions like real keys. Actions SHALL never remap the title's pad.
 
-The SDL2 backend SHALL report the host-only buttons. The XInput backend SHALL report `guide` through `XInputGetStateEx` when available.
+A binding MAY be a modifier chord: a host-only button plus guest buttons (`guide+a`). It SHALL fire when the guest buttons are pressed while the host-only button is already down, with no hold. A guest button pressed before the host-only button SHALL NOT fire it. The guest buttons of a fired modifier chord SHALL be reported released to the title until each is physically released, and the button that closes the menu SHALL stay masked after closing until released. The guest-button-chord minimum hold does not apply to a modifier chord.
+
+The SDL3 backend SHALL report the host-only buttons. The XInput backend SHALL report `guide` through `XInputGetStateEx` when available. Where a host takes Guide before the process (Steam Input on the Deck, the Windows Game Bar), the documented per-host table SHALL name the fallback binding, and F10 SHALL stay bound by default on every host.
+
+One input SHALL fire one action. Two bindings take the same input when they are the same key with the same modifiers (an either-side modifier matching either side), or the same pad buttons on the same port whatever their holds. `menu.open`'s bindings SHALL never give way to another action's. Of any other two such bindings the one written in a file or the menu SHALL win over a default, and otherwise the action registered first SHALL keep it; the other SHALL be dropped at table build with one line, and no line SHALL report a binding as winning that is then dropped. The menu's capture SHALL refuse a binding another action owns, with a status line and a toast naming the owner and its binding. A pad binding whose buttons all belong to a longer binding on the same port SHALL fire on its release after its hold, and only if no longer binding was held whole while it was held, whether or not the longer one fired (a longer chord let go before its hold fires neither); it SHALL never read as held. No action SHALL fire while the menu captures a binding nor on port 0's next step after the capture ends (where keys are read; pad ports need no such step), and the inputs held during a capture SHALL stay spent until released.
 
 The filter SHALL be armed only by a feature key (`menu.enabled`, `overlay.stats`, or a mod's enable key such as `camera.free`), never by registration alone. The layer SHALL log `[ENHANCE] actions hook=off` or `[ENHANCE] actions hook=on (<keys>)` at startup. Each fire SHALL log `[ACTION] <name> via <binding>`, limited to 10 lines a second.
 
 #### Scenario: Chord fires and is consumed
-- **WHEN** `menu.open` is bound to `back+start@400` and BACK and START are held together for 400 ms on a real pad
+- **WHEN** `menu.open` is bound to `back+lthumb@400` and BACK and LTHUMB are held together for 400 ms on a real pad
 - **THEN** `menu.open` fires once and the title's poll reports neither button down from the moment both were down until each is released
+
+#### Scenario: Modifier chord hides its guest button
+- **WHEN** `menu.open` is bound to `guide+a`, Guide is held, A is pressed, and A is held after Guide is released
+- **THEN** `menu.open` fires once on the A press, and the title's poll reports A released until A is physically released
+
+#### Scenario: Guest button first does not fire
+- **WHEN** A is held first and Guide is pressed after it
+- **THEN** `menu.open` does not fire and the title sees A down
 
 #### Scenario: Single guest button refused
 - **WHEN** `[input.actions]` binds `"camera.free.toggle" = ["a"]`
@@ -174,9 +217,82 @@ The filter SHALL be armed only by a feature key (`menu.enabled`, `overlay.stats`
 - **WHEN** `@stage1` runs with `RECOMP_CONFIG=none` on a build that includes the free-camera mod
 - **THEN** the log reads `[ENHANCE] actions hook=off`, no `[ACTION]` line appears, and the filter returns at its first test on every poll
 
+#### Scenario: Guide+A while the title does not poll
+- **WHEN** the title polls no pad (a loading screen) and Guide then A are pressed
+- **THEN** the flip tick fires `menu.open` once from its own host read, and the title's next poll reports A released until A is physically released
+
 #### Scenario: Deck grip through Steam Input
 - **WHEN** under Proton on the Deck a back grip is bound in Steam Input to F10 and pressed
 - **THEN** `menu.open` fires through the key binding
+
+#### Scenario: Capture of an owned key refused
+- **WHEN** the player captures a binding for `overlay.stats` on the Controls page and presses F10 (or the Deck grip Steam Input sends as F10)
+- **THEN** the capture ends with `F10 refused: Open the menu has it (F10); clear it there first` as status and toast, `overlay.stats` gains no binding, and the menu stays open
+
+#### Scenario: The menu keeps its input
+- **WHEN** `[input.actions]` holds `overlay.stats = "F10"` (the binding the Deck capture saved) and F10 is pressed
+- **THEN** the log has `overlay.stats: 'F10' refused: menu.open has it ('F10')`, the menu opens, and the stats strip does not toggle
+
+#### Scenario: Written binding takes a default's input
+- **WHEN** two mods register `zoom.toggle` (first) and `camera.toggle` with the default F6, `[input.actions]` holds `camera.toggle = "F6"`, and F6 is pressed
+- **THEN** the log has `zoom.toggle (default): 'F6' gives way to camera.toggle ('F6')`, and only `camera.toggle` fires
+
+#### Scenario: Longest match
+- **WHEN** `menu.open` is bound to `guide+a` and `overlay.stats` to `guide`, and Guide is held, A pressed, and both released
+- **THEN** only `menu.open` fires; Guide pressed and released alone fires `overlay.stats` once, on its release
+
+#### Scenario: Longer chord let go before its hold
+- **WHEN** `menu.open` is bound to `back+start+left_thumb@400` and `overlay.stats` to `back+start@400`, and Back+Start is held 400 ms, Left Thumb added for 200 ms, and all released
+- **THEN** neither action fires
+
+### Requirement: Mouse in the menu
+While the menu is open the layer SHALL release the game's mouse capture (`xbox_InputMouseSuspend(1)`), so mouse-look and mouse buttons never reach the title, and on close SHALL restore the capture by mode: under `input.mouse_capture = "focus"` the capture returns, and under `"click"` the cursor stays free until the next click in the window. While the capture is suspended, and after a resume until each button has been released once, `mouse.c` SHALL drop mouse button and wheel edges, so the click that closes the menu never reaches the title.
+
+`input.mouse_capture` SHALL accept `focus`, `click` and `never` (code default `focus`). cat's shipped file SHALL set `click` (the user, 2026-10-22). `input.mouse_free_keys` (a list of key names, code default `[]`, cat ships `["Escape"]`) SHALL free the capture when pressed without consuming the key, SHALL never grab, and SHALL be exempt from the key-map clash rule. These are file-only keys with no environment variable. The OS cursor SHALL be hidden over the window while the menu is open and the overlay's cursor drawn instead. `input.cursor_hide` (`never`, `idle`, `always`; code default `never`, shipped default `idle` after `input.cursor_idle_ms`, default 2000) SHALL govern the OS cursor while the menu is closed.
+
+The window threads (SDL3 and Win32) SHALL publish the pointer as one atomic snapshot (position in output pixels, buttons, wheel, a sequence bumped last) before the game's mouse gate, and the menu SHALL read it on its own step. The menu SHALL support hover highlighting, left click to activate, the wheel to scroll a list or step a value under the pointer, and right click as back. A pad or key press SHALL hide the overlay cursor until the mouse moves again.
+
+#### Scenario: Click a toggle
+- **WHEN** the menu is open on macOS and the player clicks the stats-strip toggle on the Stats page with a trackpad
+- **THEN** the strip toggles at the next flip and the game camera has not turned
+
+#### Scenario: Capture restored
+- **WHEN** the game had captured the mouse, the menu is opened and then closed
+- **THEN** while the menu is open the OS cursor is hidden and the overlay cursor is drawn, and after closing the capture is back and mouse-look works
+
+#### Scenario: Capture on click
+- **WHEN** `input.mouse_capture = "click"` and `mouse_free_keys = ["Escape"]`, the game starts, the player clicks in the window, then presses Esc
+- **THEN** the cursor is free until the click, which captures it and does not reach the title; Esc frees it and also reaches the title's bindings
+
+#### Scenario: Click mode after the menu
+- **WHEN** under `"click"` the mouse is captured, the menu is opened and then closed with a mouse click
+- **THEN** the cursor stays free after closing, the closing click drives nothing in the title, and the next click captures the mouse again
+
+#### Scenario: Idle hide
+- **WHEN** `input.cursor_hide = "idle"` and the mouse rests for 2 seconds with the menu closed
+- **THEN** the OS cursor is hidden and shows again on the next motion
+
+### Requirement: Overlay cursor
+The overlay SHALL draw its cursor on the cursor layer while the menu is open, in the style `[overlay.cursor] style` names (`arrow` default, `dot`, `image`). `image` SHALL take a PNG of at most 128x128 with a hotspot and a size, loaded through vendored stb_image built for PNG only. A file that is missing, too large or not PNG SHALL be refused with one warning and the arrow kept. A cursor image SHALL be the player's own file, never a distributed game asset. On D3D11 the cursor SHALL move at the guest flip rate (recorded).
+
+#### Scenario: Owner cursor image
+- **WHEN** `[overlay.cursor]` sets `style = "image"` and a 64x64 PNG with hotspot `[4, 4]`
+- **THEN** the image is drawn with its hotspot at the pointer while the menu is open
+
+#### Scenario: Oversized image refused
+- **WHEN** the image is 256x256
+- **THEN** one warning is logged and the arrow is drawn
+
+### Requirement: Save states page
+The menu SHALL have a Save states page over the save-states slot store: the slots with thumbnails and times, load, save to a new slot, rearrange, delete with a confirm row, export to `[states] export_dir` (default `<save dir>/exports/<game>/`, beside the saves; the user, 2026-10-22) and through the SDL3 save dialog where the host supports it, an Open folder row that opens the export folder in the host's file manager, and import with the save-states header refusals. It SHALL be shown only when save states are enabled, and SHALL say why an action is unavailable.
+
+#### Scenario: Delete with confirm
+- **WHEN** the player chooses Delete on slot 3 and confirms
+- **THEN** slot 3 is removed from the store and the list shows the remaining slots in order
+
+#### Scenario: Foreign file refused
+- **WHEN** the player imports a state written by another game or build
+- **THEN** the import is refused with the header's reason and no slot changes
 
 ### Requirement: Stats strip
 With `overlay.stats` (env `RECOMP_OVERLAY_STATS`, default off) or the `overlay.stats` action, the overlay's STATS layer SHALL show fps, frame ms (average and worst of the last second), flips/s, the pacing mode, the scale in force and the backend, refreshed at 2 Hz. The counters behind it SHALL be bumped only while the strip, the menu's Stats page or `RECOMP_TITLE_STATS` is shown (one relaxed flag test per site otherwise). It SHALL be drawn by the three presenters like the menu and never appear in a frame dump. With the strip on, flips/s SHALL stay within 5% of the strip off on Metal and D3D11. The layer SHALL log `[ENHANCE] overlay.stats=off` or `=on` at startup, and the golden harness SHALL fail a run whose log shows `on` unless `--allow-enhance` names it.

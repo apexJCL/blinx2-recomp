@@ -10,6 +10,63 @@ No release contains game data: you build the game from your own disc.
 
 ## [Unreleased]
 
+### Added
+- **An in-game menu, on by default.** F10, Guide+A or Back+L3 held for a
+  moment (and an Elite's P1 on macOS) opens it over the game to change
+  the options while you play, rebind the host actions and turn mods on or
+  off. Save keeps only what you changed. Closed, it changes nothing on
+  screen; the game only loses the presses of Guide+A and Back+L3 together.
+  On a Steam Deck, SteamOS keeps Guide+A for itself: use Back+L3, or bind
+  R4 to F10 once in Steam Input. `enabled = false` under `[menu]` in
+  `config/config.toml` turns it off.
+- **A stats strip**: while the menu is on, F3 shows fps, frame time,
+  pacing, scale and backend in the window's corner; off until you press
+  it.
+
+### Changed
+- **Breaking: new names for controls and keys.** The game now uses the
+  names of upstream xboxrecomp in `[input.bindings]` and `[input.actions]`,
+  so every game on the toolkit reads the same file the same way. The old
+  names are not read any more: if your `config/config.toml` has your own
+  `[input.bindings]` or `[input.actions]` lines, rewrite them with the
+  table below. `config.default.toml` is updated for you. What an old
+  name does until you rewrite it (each one logs an `unknown control`,
+  `unknown input` or `unknown name` line):
+  - an old control name (`ltrigger = ...`) is ignored, and that control
+    keeps its default;
+  - an old key name is skipped but the rest of the line still applies, so
+    a line left with no valid entries unbinds that control
+    (`start = "KPEnter"` leaves Start with no key);
+  - an action line such as `menu.open` keeps only its valid entries.
+
+  | Old | New |
+  |---|---|
+  | `ltrigger` `rtrigger` | `left_trigger` `right_trigger` |
+  | `lthumb` `rthumb` | `left_thumb` `right_thumb` |
+  | `lstick_up` `lstick_down` `lstick_left` `lstick_right` | `left_stick_up` `left_stick_down` `left_stick_left` `left_stick_right` |
+  | `rstick_up` `rstick_down` `rstick_left` `rstick_right` | `right_stick_up` `right_stick_down` `right_stick_left` `right_stick_right` |
+  | `back+lthumb@400` (the menu chord) | `back+left_thumb@400` |
+  | `KP0` .. `KP9` | `Numpad0` .. `Numpad9` |
+  | `KPEnter` `KPPlus` `KPMinus` | `NumpadEnter` `NumpadAdd` `NumpadSubtract` |
+  | `KPMultiply` `KPDivide` `KPPeriod` | `NumpadMultiply` `NumpadDivide` `NumpadDecimal` |
+  | `LBracket` `RBracket` | `LeftBracket` `RightBracket` |
+  | `MouseLeft` `MouseRight` `MouseMiddle` | `Mouse1` `Mouse2` `Mouse3` |
+
+  Every other name works as before (`Return`, `Esc`, `Mouse4`, `WheelUp`
+  ...), and `Pause`, `CapsLock` and `Control` are new. `RECOMP_TRACE=key`
+  prints each key by its new name (`[KEY] down enter`). The full list is in
+  `docs/input.md`.
+- On macOS and Linux, Nintendo-layout pads (Switch Pro, GameCube) now map
+  buttons by position, like an Xbox pad: the right face button is B
+  whatever its label says. Before, the button labelled A was A. Windows is
+  unchanged.
+
+### For developers
+
+- The game sets `RECOMP_CPUID_NO_SIMD=1` by default again. The v0.16
+  toolkit reports MMX and SSE in cpuid, and the game's MMX JPEG decoder
+  has not been checked lifted yet; `RECOMP_CPUID_NO_SIMD=0` reports them.
+
 ## [2026.10.3] - 2026-10-21
 
 **Updating works again.** If v2026.10.2 failed to build when you updated an

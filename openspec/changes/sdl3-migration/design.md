@@ -251,6 +251,8 @@ Risk: SDL3 may not honour the sample-frames hint on some backend. The granted va
 | `SDL_GameControllerName` | `SDL_GetGamepadName` |
 | `_Static_assert`s on `SDL_CONTROLLER_BUTTON_A/START/LEFTSHOULDER/DPAD_RIGHT`, `SDL_CONTROLLER_AXIS_LEFTX/RIGHTY/TRIGGERRIGHT` | `SDL_GAMEPAD_BUTTON_SOUTH/START/LEFT_SHOULDER/DPAD_RIGHT`, `SDL_GAMEPAD_AXIS_LEFTX/RIGHTY/RIGHT_TRIGGER` |
 
+Nintendo-layout pads (Switch Pro, GameCube) change behaviour on macOS and Linux. SDL2 and sdl2-compat defaulted `SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS` to 1, so the button labelled A, in the east position, read as A. SDL3 is always positional, so that button now reads as Xbox B, and A/B and X/Y swap for those players. This is kept on purpose: the game was made for the Xbox layout, and positions match it. The player changelog says so. Windows reads pads through XInput and is unchanged.
+
 What stays:
 - the slot table and `g_slot_lock`, taken before SDL's joystick lock;
 - the GUID stickiness and "ports never shift";
@@ -311,7 +313,7 @@ Live docs and scripts move to the SDL3 names, in the toolkit, the CLI and every 
 
 **D11. Order and delivery: toolkit, public tag, CLI tag, games.** This deviates from the standing push order (CLI, then `blinx2-recomp`, then the toolkit fork) for one reason: every game pins the **public** toolkit tag, so the toolkit fork's tag must exist before any game can move its pin. The CLI still goes before any game's push.
 1. **The toolkit branch** builds and passes its Mac gates against Homebrew `sdl3`, with cat's `XBOXRECOMP_DIR` pointing at the worktree and cat `main` unchanged. cat's `CMakeLists.txt` needs nothing: the toolkit's targets carry SDL3 publicly. It merges to `posix-host/portability` after the Deck golden.
-2. **A public push of `blinx2/portability`** and a new tag (the next `blinx2-v0.x`) follows the toolkit scrub-and-mailmap procedure (`notes/public-toolkit-map/`), audited for host names, private paths, the personal email, assistant chat links, binaries and game data, fast-forward only. Which round carries it is Open Question 2, and the round waits for the user's go on it.
+2. **A public push of `blinx2/portability`** and a new tag (the next `blinx2-v0.x`) follows the toolkit scrub-and-mailmap procedure (`notes/public-toolkit-map/`), audited for host names, private paths, the personal email, assistant chat links, binaries and game data, fast-forward only. It goes in the next batched round, which the orchestrator runs (Open Question 2, decided 2026-10-21).
 3. **The CLI branch** can land first or alongside, because it is independent of the toolkit. It changes doctor, pins, manifest, both env names and the fixtures, and needs a release tag because games pin the CLI by tag. Its squash merge sets `--author` and `GIT_COMMITTER_NAME/EMAIL` to `carlos <4037632+apexJCL@users.noreply.github.com>`; before the push, `scripts/audit-public.sh` runs over `origin/main..main` and `git log --format='%ae %ce' origin/main..main` shows only that address. The CLI's push goes before any game's.
 4. **Each game** then makes one branch: `brew`, the companion, `[toolchain] sdl3`, the regenerated pins, the `[cli]` and `[toolkit]` pins at the new tags, and docs and scripts:
    - cat first, then b3;
@@ -441,12 +443,12 @@ Branches named `feat/sdl3-migration`, in their own worktrees under `wt/sdl3/`. O
 
 ## Open Questions
 
-Only the user can settle these; this spec does not decide them. Question 1 is settled (2026-10-21).
+Only the user can settle these; this spec does not decide them. Both are settled (2026-10-21).
 
 1. **Where the Linux-native gate runs. Decided (the user, 2026-10-21): option (d)** from `linux-native-vulkan` design D6. Builds happen on the Mac in the pinned Steam Runtime sniper image and run natively on the Deck, until the Linux/Proton host PC is re-provisioned with a proper Linux install; the gate then moves to that PC. No build happens on the Deck. Gate 8 runs as `linux-native-vulkan` Phase 0 (tasks 1.5-1.8), which is a prerequisite of this change's merge. Options (a) to (c) are superseded.
 
    The gate stays (user, 2026-10-11), and the toolkit merge waits for it.
-2. **The public tag.** Recommended: ship SDL3 in the next batched public push round with its own `blinx2-v0.x` tag; the round waits for the user's go. The alternative is a push round just for this, if a game needs SDL3 sooner, for instance the overlay on a release build.
+2. **The public tag. Decided (the user, 2026-10-21): "Next batched round".** SDL3 ships in the next batched public push round with its own `blinx2-v0.x` tag, and the orchestrator runs that round. Slices 1 to 10 go ahead as planned; only task 11.2 and slice 12 wait for the round. The alternative, a push round just for this, is superseded.
 
 Settled:
 - rename `apu_sdl2.c` to `apu_sdl.c` (D6);

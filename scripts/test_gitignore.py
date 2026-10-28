@@ -175,7 +175,7 @@ def test_the_golden_frames_and_audio_are_not():
 
 def test_local_files_are_ignored():
     # The bench-logs symlink, tester logs and the developer's own options.
-    want = ["bench-logs", "user-logs/x/log.txt", "config/config.toml", "timeline/x"]
+    want = ["bench-logs", "user-logs/x/log.txt", "config/config.toml"]
     missing = [p for p in want if p not in ignored(want)]
     assert not missing, "not ignored: %s" % ", ".join(missing)
 

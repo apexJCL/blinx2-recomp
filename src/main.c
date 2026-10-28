@@ -62,6 +62,7 @@
 #include "enhance_cfg.h"
 #include "glow.h"
 #include "free_camera.h"
+#include "lod_scale.h"
 #if defined(__has_include)
 #  if __has_include("mod.h")   /* a toolkit with the mod API (camera.free) */
 #    include "mod.h"
@@ -1186,9 +1187,12 @@ static int host_main(void)
      * 0xAE7388 to move. Only the callback the title registers through
      * D3DDevice_SetVerticalBlankCallback (sub_000604A0) moves it, and D3D's
      * vblank DPC calls that callback. Without the interrupt the loop spins
-     * forever. An explicit RECOMP_VBLANK in the environment still wins. */
+     * forever. `paced` is the 60 Hz schedule with the KickOff ack watch;
+     * since v0.16 "1" means the plain tick (upstream's), which turns into the
+     * schedule only beside the gate or flip pacing. An explicit RECOMP_VBLANK
+     * in the environment still wins. */
     if (!recomp_env(RENV_VBLANK))
-        recomp_env_set(RENV_VBLANK, "1");
+        recomp_env_set(RENV_VBLANK, "paced");
 
     /* D3D8 builds the KEVENT its vblank DPC sets inline, without
      * KeInitializeEvent. The toolkit gives such an event a host event only on
@@ -1389,8 +1393,9 @@ static BOOL load_xbe(const char *path, void **out_data, size_t *out_size)
  * mode-3 glow layer (0..2), applied by the sub_0005B7D0 wrapper in
  * recomp_manual.c. At on and 1 the wrapper never touches the guest.
  *
- * camera.free (free_camera.c) is a mod: its table goes to the layer before
- * xbox_enhance_init, which runs its init last and so reads its keys there.
+ * camera.free (free_camera.c) and lod (lod_scale.c) are mods: their table
+ * goes to the layer before xbox_enhance_init, which runs their inits last
+ * and so reads their keys there.
  *
  * All game keys are read before the unused-key report, so a file that sets
  * one is not told the key is unknown. */
@@ -1402,9 +1407,15 @@ static void host_enhance_init(void)
     int fps, glow_off;
     double glow_k;
 #ifdef CAT_HAVE_MODS
-    static const struct xbox_mod *mods[2];
+    static const struct xbox_mod *mods[3];
+    int nm = 0;
 
-    mods[0] = free_cam_mod();
+    /* A NULL entry ends the table, so each mod is added only when built
+     * (lod_mod is NULL before mod API v3). */
+    if (free_cam_mod())
+        mods[nm++] = free_cam_mod();
+    if (lod_mod())
+        mods[nm++] = lod_mod();
     xbox_mod_register_table(mods);
 #else
     /* The golden check reads camera.free from the [ENHANCE] line, as with

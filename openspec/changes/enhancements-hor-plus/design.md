@@ -103,12 +103,16 @@ A batch's bounds aren't enough. BLiNX 2 draws its four blue corner triangles as 
 | 2D, full width, padded render targets or no texture | STRETCH | fades and post passes: their source is padded too, or they are flat |
 | 2D, full width, an unpadded render target (a 512x256 buffer: neither 4:3 nor square) | CENTRE | stretching would widen its 4:3 picture (`flat_rt`, the merge review) |
 | 2D, full width, guest texture | `display.movie` | a movie or still keeps its shape by default |
+| perspective program quad: at most 6 vertices at one positive finite `w`, one triangle spanning the width, x within `[-2, w + 2]`, sampling only padded render targets | STRETCH | a pass laid over the frame from a program that also draws the world (JSRF's Can boost lays its blurred 512 and 128 squares over the frame at `w` 0.836 and 1.413); H3's whole-`w` test and the gate miss it, so it stayed in the 4:3 centre |
 
-`guest_tex` means that a stage enabled in the combiner samples a guest texture (not a render target) that is a picture: `nv2a_aspect_picture(tex_w, w)`, which is wider than a quarter of the frame.
+The quad row (`nv2a_aspect_screen_quad`, gated by `nv2a_aspect_quad_ok` and `nv2a_aspect_quad_span`) is a narrow form of the screen layer in mod-connectivity-layer D5: it sets `two_d` only together with `full_w`, and guards on padded render targets instead of depth-off. A world sprite or flare shares one `w` too but is not full width; a camera-facing world quad (a haze plane) that overhangs both edges fails the span bound, so neither moves.
+
+`guest_tex` means that a stage enabled in the combiner samples a guest texture (not a render target) that is a picture: `nv2a_aspect_picture(tex_w, w, bump_src)`, which is wider than a quarter of the frame and not a bump offset map.
 - A smaller texture over the whole screen is magnified 4x or more, so it is a flat colour or a gradient, and the batch is a fade.
 - BLiNX 2 fades through a 16x16 white texture, and draws that quad on every frame of a stage. Without the test such a fade leaves the pads unfaded (trace4).
 - Fades are therefore stretched like untextured ones.
 - The movie frame (1024 wide) and the menu backdrops (256 and up) are pictures.
+- A bump stage's offset map (`nv2a_bump_sources`) is never a picture, whatever its size: it warps the source it is paired with and is not shown. JSRF's Can boost tint warps the 128 square through a 256-wide one, which counted as a picture and kept the pass centred.
 
 The scissor comes from `nv2a_aspect_box(box, w, h, pad, n, place, two_d)`, starting from the guest surface-clip box (`nv2a_draw_box`):
 - **Centred 2D** keeps to the guest columns. A HUD piece the title parks off-screen (`x < 0`, slid out between menus) must not show in the pads (the user).

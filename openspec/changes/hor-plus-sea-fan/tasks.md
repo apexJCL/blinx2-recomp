@@ -1,0 +1,6 @@
+- [x] 1 Reproduce on Metal at 16:9 against 4:3 (`runs/blinx-sea/`).
+- [x] 2 Find the cause: the far sea's view fan, built by `sub_00215A40` for 4:3.
+- [x] 3 Wrapper `sub_00215A40` in `src/recomp_manual.c`, then `blinx2 analyze` and `blinx2 recomp`.
+- [x] 4 Metal at 16:9: the reflective sea reaches both sides of the frame.
+- [x] 5 Gates: Mac build, `uv run pytest scripts` and ruff pass. The Metal golden at stock passes (`runs/blinx-sea/golden-metal/`). The Deck D3D11 golden passes (bench-logs `20261022-011148`, `-011307`, `-011612`). D3D11 at 16:9 under Proton: `20261022-012256`.
+- [ ] 6 Native D3D11 re-check at 16:9 on the PC (the installed package), when a slot is free.

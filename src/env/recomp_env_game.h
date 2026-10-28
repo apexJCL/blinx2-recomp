@@ -21,14 +21,25 @@
 #define CAT_ENV_FOLDER_KEYS(X)
 #endif
 
+/* RECOMP_RUMBLE: a toolkit row since its v0.16 sync (RECOMP_ENV_HAVE_RUMBLE_ROW,
+ * read there by the OHCI pad model), a game row before it, for the same
+ * reason. pad_input.c reads it either way. Drop with the folder rows once
+ * the pin is past that merge. */
+#ifndef RECOMP_ENV_HAVE_RUMBLE_ROW
+#define CAT_ENV_RUMBLE_KEYS(X) \
+    X(RUMBLE,            CONFIG, "RECOMP_RUMBLE",            NULL, "0: no rumble")
+#else
+#define CAT_ENV_RUMBLE_KEYS(X)
+#endif
+
 #define RECOMP_ENV_GAME_KEYS(X) \
     CAT_ENV_FOLDER_KEYS(X) \
+    CAT_ENV_RUMBLE_KEYS(X) \
     X(SAVE_SEED,         CONFIG, "RECOMP_SAVE_SEED",         NULL, "seed the save dir from this save before boot") \
     X(BUILD_XBE,         CONFIG, "RECOMP_BUILD_XBE",         NULL, "the XBE a packaged build was made from (sha256 and verdict), printed at boot") \
     X(INPUT_SCRIPT,      CONFIG, "RECOMP_INPUT_SCRIPT",      NULL, "scripted pad: @preset, file or inline script") \
     X(INPUT_STRICT,      CONFIG, "RECOMP_INPUT_STRICT",      NULL, "1: a bad input script ends the run") \
     X(HOST_PAD,          CONFIG, "RECOMP_HOST_PAD",          NULL, "0/1: host gamepads in or out") \
-    X(RUMBLE,            CONFIG, "RECOMP_RUMBLE",            NULL, "0: no rumble") \
     X(FPS_MODE,          CONFIG, "RECOMP_FPS_MODE",          NULL, "enhancements: fps.mode, lock30 only (lock60 and free are not available)") \
     X(GLOW,              CONFIG, "RECOMP_GLOW",              NULL, "enhancements: fx.glow, on|off (the mode-3 glow pass)") \
     X(GLOW_INTENSITY,    CONFIG, "RECOMP_GLOW_INTENSITY",    NULL, "enhancements: fx.glow_intensity, 0.0..2.0 (scales the glow layer)") \
@@ -40,6 +51,9 @@
     X(CAMERA_FREE_HUD_KEY, CONFIG, "RECOMP_CAMERA_FREE_HUD_KEY", NULL, "enhancements: camera.free_hud_key, the key that shows or hides the HUD while flying (F7)") \
     X(CAMERA_FREE_FREEZE_KEY, CONFIG, "RECOMP_CAMERA_FREE_FREEZE_KEY", NULL, "enhancements: camera.free_freeze_key, the key that stops and restarts the world while flying (F8)") \
     X(CAMERA_FREE_RESET_KEY, CONFIG, "RECOMP_CAMERA_FREE_RESET_KEY", NULL, "enhancements: camera.free_reset_key, the key that puts the free camera back on the game's (F5)") \
+    X(LOD,               CONFIG, "RECOMP_LOD",               NULL, "enhancements: mods.lod.enable, off|on (character detail levels follow the render scale)") \
+    X(LOD_FOLLOW_SCALE,  CONFIG, "RECOMP_LOD_FOLLOW_SCALE",  NULL, "enhancements: mods.lod.follow_scale, true|false (divide the detail thresholds by the render scale)") \
+    X(LOD_DISTANCE,      CONFIG, "RECOMP_LOD_DISTANCE",      NULL, "enhancements: mods.lod.distance, 0.5..4 step 0.25, how far detail holds (1)") \
     X(INPUT_TRACE,       TRACE, "input",           "RECOMP_INPUT_TRACE",       "pad handles and states") \
     X(UNIMPL_BUDGET,     TRACE, "unimpl_budget",   NULL,                       "=n: [UNIMPL] lines per address before only hits 10, 100, ... (3)") \
     X(CAM_LOG,           DEBUG, "cam_log",         NULL,                       "=n: game camera, view, projection and cull planes every n-th view build") \
@@ -60,17 +74,44 @@
  * The stage loader and the main thread add lights to one global pool with
  * "slot = count; fill; count = slot + 1"; on two cores the loops ran at
  * once, lost each other's entries and the terrain baked black (dark water,
- * 2026-10-07). The toolkit's own default is the same; it is stated here so
- * this game's pinning does not depend on it. RECOMP_GUEST_CPUS=all is the
- * A/B.
+ * 2026-10-07). The toolkit's default since v0.16 is every core, as
+ * upstream's. RECOMP_GUEST_CPUS=all is the A/B.
+ *
+ * DISPATCH_GATE=1: the one-CPU DISPATCH gate. Device interrupts run at the
+ * gate holder's safe points and queued DPCs on the guest thread, so D3D's
+ * vblank DPC and the title never run guest code at once, as on the
+ * console's one CPU. The fork ran this way unconditionally before v0.16;
+ * upstream made it opt-in.
+ *
+ * FLIP_PACING=1: the pushbuffer walker and the KickOff ack hold after a
+ * flip until the guest vblank reaches the swap's interval, as the NV2A's
+ * FLIP_STALL does. Off, the stall completes at once and D3D's Swap returns
+ * before the vblank it asked to wait for. Also the fork's behaviour before
+ * v0.16.
  *
  * The DSOUND GP doorbell ack (apu_dsp_ack) was a game default until the
  * toolkit made `auto` its own default (chore/vanilla-cleanup): the doorbell
  * is GP scratch page 0 + 0x810, found from the GPSADDR table, which ends
  * the XDK DSOUND submit's spin at loc_00334325 (sub_003341BE). It was
  * 0x80A1C810, and reserving physical page 0 (upstream 423263b) moved it to
- * 0x80A20810. RECOMP_DEBUG=apu_dsp_ack=0 turns it off. */
+ * 0x80A20810. RECOMP_DEBUG=apu_dsp_ack=0 turns it off.
+ *
+ * CPUID_NO_SIMD=1: cpuid hides MMX, FXSR and SSE, as the fork did before
+ * v0.16. Reported, D3DX's JPEG decoder switches to its MMX IDCT
+ * (sub_00307F41), which no scene has ever run lifted; drop this once a
+ * golden and a JPEG-heavy scene pass on both backends with SIMD reported.
+ *
+ * These rows came with the toolkit's v0.16 sync, as RECOMP_RUMBLE did, so
+ * they are guarded the same way: a pin before that merge has none of them
+ * and already behaves this way. Drop the guard with the rumble one. */
+#ifdef RECOMP_ENV_HAVE_RUMBLE_ROW
 #define RECOMP_ENV_GAME_DEFAULTS(D) \
-    D(GUEST_CPUS, "one")
+    D(GUEST_CPUS,    "one") \
+    D(DISPATCH_GATE, "1") \
+    D(FLIP_PACING,   "1") \
+    D(CPUID_NO_SIMD, "1")
+#else
+#define RECOMP_ENV_GAME_DEFAULTS(D)
+#endif
 
 #endif /* RECOMP_ENV_GAME_H */

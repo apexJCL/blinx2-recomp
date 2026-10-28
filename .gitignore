@@ -111,8 +111,6 @@ analysis/golden/*
 !analysis/enhancements/
 analysis/enhancements/*
 !analysis/enhancements/hor-plus.md
-# What the timeline tool renders locally.
-timeline/
 # The developer's own options (the game reads config/config.toml from the
 # working directory over the build's config.default.toml); never committed.
 config/config.toml

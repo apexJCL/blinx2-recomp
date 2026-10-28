@@ -40,3 +40,13 @@ config/config.toml in the data folder, for example
   a = ["Space", "J"]
 (config.default.toml beside the game lists every control and key);
 keyboard = false or mouse = false under [input] there turns either off.
+
+
+In-game menu
+------------
+F10 (or Guide+A, or Back+L3 held for a moment) opens the in-game menu to
+change the options while you play; while the menu is on, F3 shows the
+frame-rate strip. "enabled = false" under "[menu]" in config/config.toml
+turns the menu (and F3) off. On a Steam Deck, SteamOS keeps Guide+A for itself: use Back+L3, or
+bind R4 to F10 once in Steam Input (the game's controller settings > Back
+Grip Buttons > R4 > Keyboard > F10).
