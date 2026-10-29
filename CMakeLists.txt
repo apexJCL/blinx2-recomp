@@ -153,6 +153,12 @@ add_custom_target(cat_config_default ALL
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/config.default.toml)
 add_dependencies(${PROJECT_NAME} cat_config_default)
 
+# present.shader: the toolkit's CRT presets (shaders/) and librashader beside
+# the executable. Guarded so a toolkit without it still builds the game.
+if(COMMAND xboxrecomp_present_shaders)
+    xboxrecomp_present_shaders(${PROJECT_NAME})
+endif()
+
 # Link against the xboxrecomp umbrella target (all 6 runtime libraries)
 target_link_libraries(${PROJECT_NAME} PRIVATE xboxrecomp)
 

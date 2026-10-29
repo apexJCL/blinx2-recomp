@@ -36,6 +36,10 @@ surface = "auto"          # "auto": the frame-sized surface goes to gamescope fo
                           # it to scale when the SteamOS launcher says it runs
                           # there (Steam's FSR needs scale = 1 on a Deck);
                           # "window" (the old behaviour) or "internal"
+# shader = "none"         # a CRT look on Metal and Direct3D 11: "crt-lottes",
+                          # "crt-lottes-fast", "crt-hyllian", "fsr" (an
+                          # upscaler), or a .slangp path; "none" is stock.
+                          # Also on the menu's Render page
 
 [menu]
 enabled = true            # the in-game menu over the game: F10, Guide+A or
