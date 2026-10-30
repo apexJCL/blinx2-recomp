@@ -39,7 +39,15 @@ surface = "auto"          # "auto": the frame-sized surface goes to gamescope fo
 # shader = "none"         # a CRT look on Metal and Direct3D 11: "crt-lottes",
                           # "crt-lottes-fast", "crt-hyllian", "fsr" (an
                           # upscaler), or a .slangp path; "none" is stock.
-                          # Also on the menu's Render page
+                          # Also on the menu's Shaders page
+
+# The active shader's settings, one table per preset, set on the menu's
+# Shaders page (Save writes only what differs from the preset). For example,
+# a flat screen and a lighter shadow mask for crt-lottes:
+# [present.shader_params.crt-lottes]
+# warpX = 0.0             # horizontal curvature: 0.0 (flat) .. 0.125
+# warpY = 0.0             # vertical curvature: 0.0 (flat) .. 0.125
+# maskDark = 0.8          # the mask's dark stripes: 0.0 .. 2.0, higher is lighter
 
 [menu]
 enabled = true            # the in-game menu over the game: F10, Guide+A or

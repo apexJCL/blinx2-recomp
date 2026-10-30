@@ -10,62 +10,130 @@ No release contains game data: you build the game from your own disc.
 
 ## [Unreleased]
 
-### Added
+## [2026.10.4] - 2026-10-29
+
+**CRT shaders, an in-game menu and a lighter Steam Deck.** Everything new is
+off until you turn it on, except the menu, and the menu only shows when you
+open it.
+
+- **CRT looks.** Shadow mask, scanlines and a gentle curve on the final
+  picture: `crt-lottes`, `crt-lottes-fast`, `crt-hyllian`, or AMD's `fsr`
+  upscaler. Metal and Direct3D 11, with nothing extra to install on
+  Windows.
+- **A Shaders page.** Pick a shader in the menu and tune its curvature,
+  mask, scanlines and bloom live, with a Reset to preset. Save keeps only
+  what you changed. The page shows only where this system can run the
+  shaders.
 - **An in-game menu, on by default.** F10, Guide+A or Back+L3 held for a
-  moment (and an Elite's P1 on macOS) opens it over the game to change
-  the options while you play, rebind the host actions and turn mods on or
-  off. Save keeps only what you changed. Closed, it changes nothing on
-  screen; the game only loses the presses of Guide+A and Back+L3 together.
-  On a Steam Deck, SteamOS keeps Guide+A for itself: use Back+L3, or bind
-  R4 to F10 once in Steam Input. `enabled = false` under `[menu]` in
-  `config/config.toml` turns it off.
-- **A stats strip**: while the menu is on, F3 shows fps, frame time,
-  pacing, scale and backend in the window's corner; off until you press
-  it.
+  moment (and an Elite's P1 on macOS) opens it over the game: change the
+  options while you play, rebind the host actions, turn mods on or off. On
+  a Steam Deck, SteamOS keeps Guide+A: use Back+L3, or bind R4 to F10 once
+  in Steam Input.
+- **A stats strip.** F3 shows fps, frame time, pacing, scale and backend in
+  the corner.
+- **Lighter on the Steam Deck.** A heavy frame's draw work went from about
+  18.5 to 14.4 ms.
+- **Render scale switches at once.** Textures stay loaded when you change
+  the scale, on Metal and Direct3D 11.
+- **Clean 2D at high scales.** "2D on guest grid" (`render.snap_2d`, on
+  the menu's Render page) removes the seams in loading screens and HUD
+  tiles at scale 2 and up.
+- **Character detail mod.** On the Mods page: characters keep their
+  detailed models further away, following the render scale.
+- **Borderless fullscreen on macOS.** No separate Space, and Cmd-Tab away
+  and back just works.
+- **The far sea fills widescreen.** The distant sea now reaches the
+  edges at 16:9 and wider.
+- **Nintendo pads by position.** On macOS and Linux, Switch Pro and
+  GameCube pads map like an Xbox pad: the right face button is B whatever
+  its label says. Windows is unchanged.
+- **Heads-up:** if you edited `[input.bindings]` or `[input.actions]` in
+  `config/config.toml`, some names changed. See below.
 
-### Changed
-- **Breaking: new names for controls and keys.** The game now uses the
-  names of upstream xboxrecomp in `[input.bindings]` and `[input.actions]`,
-  so every game on the toolkit reads the same file the same way. The old
-  names are not read any more: if your `config/config.toml` has your own
-  `[input.bindings]` or `[input.actions]` lines, rewrite them with the
-  table below. `config.default.toml` is updated for you. What an old
-  name does until you rewrite it (each one logs an `unknown control`,
-  `unknown input` or `unknown name` line):
-  - an old control name (`ltrigger = ...`) is ignored, and that control
-    keeps its default;
-  - an old key name is skipped but the rest of the line still applies, so
-    a line left with no valid entries unbinds that control
-    (`start = "KPEnter"` leaves Start with no key);
-  - an action line such as `menu.open` keeps only its valid entries.
+### Breaking: new names for controls and keys
 
-  | Old | New |
-  |---|---|
-  | `ltrigger` `rtrigger` | `left_trigger` `right_trigger` |
-  | `lthumb` `rthumb` | `left_thumb` `right_thumb` |
-  | `lstick_up` `lstick_down` `lstick_left` `lstick_right` | `left_stick_up` `left_stick_down` `left_stick_left` `left_stick_right` |
-  | `rstick_up` `rstick_down` `rstick_left` `rstick_right` | `right_stick_up` `right_stick_down` `right_stick_left` `right_stick_right` |
-  | `back+lthumb@400` (the menu chord) | `back+left_thumb@400` |
-  | `KP0` .. `KP9` | `Numpad0` .. `Numpad9` |
-  | `KPEnter` `KPPlus` `KPMinus` | `NumpadEnter` `NumpadAdd` `NumpadSubtract` |
-  | `KPMultiply` `KPDivide` `KPPeriod` | `NumpadMultiply` `NumpadDivide` `NumpadDecimal` |
-  | `LBracket` `RBracket` | `LeftBracket` `RightBracket` |
-  | `MouseLeft` `MouseRight` `MouseMiddle` | `Mouse1` `Mouse2` `Mouse3` |
+The game now uses upstream xboxrecomp's names in `[input.bindings]` and
+`[input.actions]`. The old names are not read any more: rewrite your own
+lines with the table below (`config.default.toml` is updated for you).
+Until you do, each old name logs an `unknown control`, `unknown input` or
+`unknown name` line, and:
+- an old control name (`ltrigger = ...`) is ignored, and that control
+  keeps its default;
+- an old key name is skipped but the rest of the line still applies, so a
+  line left with no valid entries unbinds that control
+  (`start = "KPEnter"` leaves Start with no key);
+- an action line such as `menu.open` keeps only its valid entries.
 
-  Every other name works as before (`Return`, `Esc`, `Mouse4`, `WheelUp`
-  ...), and `Pause`, `CapsLock` and `Control` are new. `RECOMP_TRACE=key`
-  prints each key by its new name (`[KEY] down enter`). The full list is in
-  `docs/input.md`.
-- On macOS and Linux, Nintendo-layout pads (Switch Pro, GameCube) now map
-  buttons by position, like an Xbox pad: the right face button is B
-  whatever its label says. Before, the button labelled A was A. Windows is
-  unchanged.
+| Old | New |
+|---|---|
+| `ltrigger` `rtrigger` | `left_trigger` `right_trigger` |
+| `lthumb` `rthumb` | `left_thumb` `right_thumb` |
+| `lstick_up` `lstick_down` `lstick_left` `lstick_right` | `left_stick_up` `left_stick_down` `left_stick_left` `left_stick_right` |
+| `rstick_up` `rstick_down` `rstick_left` `rstick_right` | `right_stick_up` `right_stick_down` `right_stick_left` `right_stick_right` |
+| `back+lthumb@400` (the menu chord) | `back+left_thumb@400` |
+| `KP0` .. `KP9` | `Numpad0` .. `Numpad9` |
+| `KPEnter` `KPPlus` `KPMinus` | `NumpadEnter` `NumpadAdd` `NumpadSubtract` |
+| `KPMultiply` `KPDivide` `KPPeriod` | `NumpadMultiply` `NumpadDivide` `NumpadDecimal` |
+| `LBracket` `RBracket` | `LeftBracket` `RightBracket` |
+| `MouseLeft` `MouseRight` `MouseMiddle` | `Mouse1` `Mouse2` `Mouse3` |
+
+Every other name works as before (`Return`, `Esc`, `Mouse4`, `WheelUp`
+...), and `Pause`, `CapsLock` and `Control` are new. `RECOMP_TRACE=key`
+prints each key by its new name (`[KEY] down enter`). The full list is in
+`docs/input.md`.
 
 ### For developers
 
-- The game sets `RECOMP_CPUID_NO_SIMD=1` by default again. The v0.16
-  toolkit reports MMX and SSE in cpuid, and the game's MMX JPEG decoder
-  has not been checked lifted yet; `RECOMP_CPUID_NO_SIMD=0` reports them.
+- **Pins:** xboxrecomp-cli v0.16.0 and toolkit blinx2-v0.9.0, up from v0.10.1
+  and blinx2-v0.6.0. The toolkit now carries upstream xboxrecomp v0.15.0
+  and v0.16.0, and the POSIX hosts link SDL3 instead of SDL2.
+- **Why the menu is on by default:** closed, it draws nothing and takes no
+  input but the Guide+A and Back+L3 chords, and players should find F10
+  without editing a file. A Deck A/B at stage 1 read 30.00 flips/s with it
+  on and 29.99 off. `enabled = false` under `[menu]` turns it off; the
+  goldens run with `RECOMP_MENU=0`. Every other new option stays off by
+  default.
+- **Why the rename breaks old configs:** one vocabulary with upstream
+  means every game on the toolkit reads the same file the same way. An
+  old name is refused and named in the log, never guessed at.
+- **Shaders:** `present.shader` (`RECOMP_PRESENT_SHADER`, default `none`)
+  runs a RetroArch slang preset through librashader v0.12.0 at present.
+  The library is fetched at build time, pinned by sha256, and loaded at
+  run time, never linked: without it the game logs one line and looks
+  stock. On x86-64 Windows it is the toolkit's own D3D11-only build of the
+  unmodified v0.12.0 source, which imports only system DLLs, so it runs
+  on a stock Windows 11 without D3DX9 or the Visual C++ runtime. The CPU
+  renderer ignores it.
+- **Licences:** every package carries the full third-party notices. The
+  Windows exe's MinGW-w64 and llvm-mingw runtime terms are in `LICENSES/`
+  with a `NOTICE` naming what each one links; the macOS app ships each
+  bundled dylib's licence in `Resources/LICENSES` with
+  `BUNDLED-LIBRARIES.md`; librashader's MPL-2.0 text and crate notices sit
+  in `shaders/`.
+- **Shader parameters:** the Shaders page reads each preset's
+  `#pragma parameter` table and sets values live on Metal and D3D11.
+  Overrides live in `[present.shader_params.<preset>]` as
+  `<param> = <number>`, and `RECOMP_MODS_DESCRIBE=json` lists every
+  bundled preset's parameters. My wrapper presets calm the curvature
+  (crt-lottes `warpX` 0.031 to 0.01, `warpY` 0.041 to 0.02; crt-lottes-fast
+  `CURVATURE` 0.02 to 0.01); the vendored upstream files are untouched.
+- **No fringing under gamescope:** with a shader running, the present
+  surface is the output, not the 640x480 frame, so gamescope no longer
+  rescales the mask and scanlines by a non-integer factor.
+- **Deck draw cost:** D3D11 skips unchanged vertex constants and
+  output-merger state, and the pushbuffer decode and per-batch setup are
+  memoised within a flip (Metal gets the constant-upload skip too).
+  `RECOMP_D3D11_MEMO=0` turns the skips off for A/B runs.
+- **Audio:** the stub fix promised in v2026.10.3 ships: the stub re-arms
+  its interrupt only when the sequencer is switched off, so the game's
+  audio recovery runs once per boot, not about 23 times a second. The
+  emulated audio DSP (MIT dsp56300 JIT) is now compiled into every build,
+  but the stub stays the run-time default until the DSP shows no frame-rate
+  cost; `RECOMP_APU_DSP=1` turns it on.
+- **cpuid:** the game sets `RECOMP_CPUID_NO_SIMD=1` by default again. The
+  v0.16 toolkit reports MMX and SSE in cpuid, and the game's MMX JPEG
+  decoder has not been checked lifted yet; `RECOMP_CPUID_NO_SIMD=0`
+  reports them.
 
 ## [2026.10.3] - 2026-10-21
 
@@ -276,7 +344,8 @@ blinx2-v0.3.1.
 - The game crashed once in stage 5-1 on macOS, after about 90 seconds;
   this is being investigated.
 
-[Unreleased]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.3...HEAD
+[Unreleased]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.4...HEAD
+[2026.10.4]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.3...v2026.10.4
 [2026.10.3]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.2...v2026.10.3
 [2026.10.2]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.1...v2026.10.2
 [2026.10.1]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.0...v2026.10.1

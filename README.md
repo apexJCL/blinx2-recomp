@@ -172,7 +172,7 @@ takes `KEY=value` lines for any `RECOMP_*` variable.
 | Fullscreen | `present.fullscreen` | `RECOMP_PRESENT_FULLSCREEN` | `false`, `true` | Opens the window borderless fullscreen (no mode change). |
 | Scaling filter | `present.filter` | `RECOMP_PRESENT_FILTER` | `"nearest"`, `"linear"`, `"integer"` | How the 4:3 frame fills the window: letterboxed nearest, letterboxed bilinear, or the largest whole multiple that fits, centred. |
 | Frame pacing | `present.pacing` | `RECOMP_PRESENT_PACING` | `"sleep"`, `"spin"` | `sleep` lets the game's frame wait sleep until the next vblank: less heat and battery on a laptop or a Deck, the same frames. `spin` is the console-original timing, where the wait holds a CPU core as it did on the Xbox. |
-| Shader | `present.shader` | `RECOMP_PRESENT_SHADER` | `"none"`, `"crt-lottes"`, `"crt-lottes-fast"`, `"crt-hyllian"`, `"fsr"`, a `.slangp` path | A CRT look (shadow mask, scanlines) on the final picture, run by librashader on Metal and Direct3D 11; `fsr` is AMD's upscaler instead. Also on the menu's Render page. On Windows it needs the Microsoft Visual C++ Redistributable (x64); without it the game says so in its log and looks stock. |
+| Shader | `present.shader` | `RECOMP_PRESENT_SHADER` | `"none"`, `"crt-lottes"`, `"crt-lottes-fast"`, `"crt-hyllian"`, `"fsr"`, a `.slangp` path | A CRT look (shadow mask, scanlines) on the final picture, run by librashader on Metal and Direct3D 11; `fsr` is AMD's upscaler instead. Also on the menu's Shaders page, with the preset's settings (`present.shader_params`). Nothing extra to install: on Windows the bundle ships a build that needs no Visual C++ runtime or D3DX9. Without the library the game says so in its log and looks stock. |
 | Present surface | `present.surface` | `RECOMP_PRESENT_SURFACE` | `"auto"`, `"window"`, `"internal"` | `internal` hands the compositor the frame at its own size to scale (gamescope's FSR on a Deck needs it, at `scale = 1`); `window` draws at the window's size. `auto` picks `internal` under the SteamOS launcher in gamescope, `window` elsewhere. |
 | HUD texture pack | `textures.pack` | `RECOMP_TEXTURES_PACK` | none, a path | Your own 4x HUD and font pack, see [below](#hud-texture-pack). A relative path is taken from the executable's folder. |
 | Glow | `fx.glow`, `fx.glow_intensity` | `RECOMP_GLOW`, `RECOMP_GLOW_INTENSITY` | `"on"`/`"off"`; `1.0` (0.0 to 2.0) | Turns the game's screen glow pass off, or scales it. |
@@ -463,8 +463,8 @@ reports what is in use and whether it is the pin.
 
 | Component | Pinned at | Where | Notes |
 |---|---|---|---|
-| xboxrecomp-cli (`xbr`) | tag `v0.15.0`, commit `277c336` | `game.toml` `[cli]` | The commit locks the tag: a tag moved to another commit is refused. |
-| xboxrecomp toolkit (fork) | tag `blinx2-v0.8.0`, commit `e5a7087`, branch `blinx2/portability` | `game.toml` `[toolkit]` | Cloned into `external/xboxrecomp` by `setup`. |
+| xboxrecomp-cli (`xbr`) | tag `v0.16.0`, commit `5ae107c` | `game.toml` `[cli]` | The commit locks the tag: a tag moved to another commit is refused. |
+| xboxrecomp toolkit (fork) | tag `blinx2-v0.9.0`, commit `f137ae0`, branch `blinx2/portability` | `game.toml` `[toolkit]` | Cloned into `external/xboxrecomp` by `setup`. |
 | llvm-mingw | `20260922` (clang 23.1.2) | `game.toml` `[toolchain]`, hashes in `config/setup-pins.json` | Cross-compiles the Windows build on every host. |
 | NSIS | `3.13` | `game.toml` `[toolchain]` | Fetched on Windows; Homebrew or the distribution elsewhere. |
 | umu-launcher | `1.4.4` | the CLI | What the SteamOS installer offers to download on a stock Deck. |

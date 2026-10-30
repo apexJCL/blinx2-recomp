@@ -105,15 +105,15 @@ sha256 = [
 # commit locks the tag: a tag that names another commit (moved, re-pushed)
 # is refused.
 [cli]
-tag = "v0.15.0"
-commit = "277c3366aa4fe59ec9271949db83728956be70dd"
+tag = "v0.16.0"
+commit = "5ae107ca1259cfa4f3aab221d138b5f641688c1b"
 url = "https://github.com/apexJCL/xboxrecomp-cli.git"
 
 [toolkit]
 url = "https://github.com/apexJCL/xboxrecomp.git"
-tag = "blinx2-v0.8.0"
+tag = "blinx2-v0.9.0"
 branch = "blinx2/portability"
-commit = "e5a7087201cea886b3b5d72e50f5515581920526"
+commit = "f137ae0703c41a13f57737552d705c32c9bd8e83"
 
 [toolchain]
 llvm_mingw = "20260922"
