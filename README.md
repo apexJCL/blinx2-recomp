@@ -463,8 +463,8 @@ reports what is in use and whether it is the pin.
 
 | Component | Pinned at | Where | Notes |
 |---|---|---|---|
-| xboxrecomp-cli (`xbr`) | tag `v0.16.0`, commit `5ae107c` | `game.toml` `[cli]` | The commit locks the tag: a tag moved to another commit is refused. |
-| xboxrecomp toolkit (fork) | tag `blinx2-v0.9.0`, commit `f137ae0`, branch `blinx2/portability` | `game.toml` `[toolkit]` | Cloned into `external/xboxrecomp` by `setup`. |
+| xboxrecomp-cli (`xbr`) | tag `v0.17.0`, commit `af5649d` | `game.toml` `[cli]` | The commit locks the tag: a tag moved to another commit is refused. |
+| xboxrecomp toolkit (fork) | tag `blinx2-v0.10.0`, commit `a0c51a5`, branch `blinx2/portability` | `game.toml` `[toolkit]` | Cloned into `external/xboxrecomp` by `setup`. |
 | llvm-mingw | `20260922` (clang 23.1.2) | `game.toml` `[toolchain]`, hashes in `config/setup-pins.json` | Cross-compiles the Windows build on every host. |
 | NSIS | `3.13` | `game.toml` `[toolchain]` | Fetched on Windows; Homebrew or the distribution elsewhere. |
 | umu-launcher | `1.4.4` | the CLI | What the SteamOS installer offers to download on a stock Deck. |

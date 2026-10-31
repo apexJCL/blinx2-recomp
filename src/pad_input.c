@@ -60,8 +60,9 @@
  *   memdump LABEL                write the RECOMP_DEBUG=mem_dump range now,
  *                                to <prefix>_LABEL.bin (main.c)
  *   key [-]NAME                  hold (or with -, release) a host key as the
- *                                window would: F1..F12, a letter or a digit
- *                                (camera.free's hotkeys in a headless run)
+ *                                window would: F1..F12, a letter, a digit,
+ *                                up, down, left, right, enter, esc, space
+ *                                (hotkeys and the in-game menu, headless)
  *   ACTION[,ACTION...]           now
  *
  *   ACTION  BUTTON        press (analog buttons to 255)
@@ -123,6 +124,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <ctype.h>
 #ifdef _WIN32
 #  define WIN32_LEAN_AND_MEAN
@@ -801,21 +803,31 @@ static void parse_line(char *e)
         return;
     }
     if (word(&p, "key")) {
-        /* A host key, as the window would record it: F1..F12, a letter or
-         * a digit; -NAME releases it. For hotkeys (camera.free) in a run
-         * with no window. */
+        /* A host key, as the window would record it: F1..F12, a letter, a
+         * digit, or a named key the in-game menu reads (the arrows, Enter,
+         * Esc, Space); -NAME releases it. For hotkeys (camera.free) and the
+         * menu in a run with no window. */
+        static const struct { const char *name; int vk; } k_named[] = {
+            { "up", 0x26 }, { "down", 0x28 }, { "left", 0x25 }, { "right", 0x27 },
+            { "enter", 0x0D }, { "esc", 0x1B }, { "space", 0x20 },
+        };
         Step *s = add_step(S_KEY, text);
         int up = *p == '-';
         char *k = p + up;
         int vk = -1;
-        if ((k[0] == 'F' || k[0] == 'f') && isdigit((unsigned char)k[1])) {
+        for (size_t i = 0; i < sizeof k_named / sizeof k_named[0]; i++)
+            if (!strcasecmp(k, k_named[i].name))
+                vk = k_named[i].vk;
+        if (vk >= 0) {
+            /* named */
+        } else if ((k[0] == 'F' || k[0] == 'f') && isdigit((unsigned char)k[1])) {
             long n = strtol(k + 1, NULL, 10);
             if (n >= 1 && n <= 12) vk = 0x6F + (int)n;
         } else if (isalnum((unsigned char)k[0]) && !k[1]) {
             vk = toupper((unsigned char)k[0]);
         }
         if (vk < 0) {
-            g_errors++, fprintf(stderr, "[INPUT] script: bad step '%s' (key [-]F1..F12|A..Z|0..9)\n", text);
+            g_errors++, fprintf(stderr, "[INPUT] script: bad step '%s' (key [-]F1..F12|A..Z|0..9|up|down|left|right|enter|esc|space)\n", text);
             free(s->text);
             g_nsteps--;
             return;

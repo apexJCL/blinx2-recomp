@@ -1,0 +1,2951 @@
+# symbols.toml: BLiNX 2's symbol map, the names we have learnt for game
+# addresses (openspec change entity-system-spike, Part A).
+#
+# One [[symbol]] table per address, sorted by address so branches that add
+# entries merge cleanly:
+#   addr     the guest VA (0x%08X, uppercase hex). A field of a struct that
+#            only lives on the heap has no addr; it goes at the end, sorted
+#            by struct then offset.
+#   name     <prefix>_<what it does>, lowercase snake case, unique.
+#   kind     "function" | "global" | "field" | "label"; a label is a code
+#            site inside a function (a hook point, a read or write we found),
+#            never a function start.
+#   struct   fields only: the struct's name; offset: from its base.
+#   note     what it is, or what we saw it do.
+#   source   where it was learnt: the openspec change and file, or the
+#            source file, plus the tracker item when there is one. Sources
+#            under analysis/research/ are untracked notes (in the main
+#            checkout only); a branch is named with its tip sha.
+#   conflict optional: what an earlier source said that a later one corrected.
+#   in_gen   false when a function has no sub_XXXXXXXX in src/recomp/gen:
+#            HLE overrides, and functions gen has under another name
+#            (atexit_002D5678, xbe_entry_point). ghidra_only = true when
+#            Ghidra knows it as a function.
+#
+# Prefixes, by subsystem: nj_ Ninja library, lib_ other XDK and C runtime
+# code, d3d_ Direct3D and XGRAPHICS, pb_ pushbuffer, snd_ sound, sys_ boot,
+# main loop, threads, memory, files and saves, pad_ input, fmv_ movies,
+# gfx_ game-side rendering, cam_ camera, stage_ stage, area and frame loop,
+# ent_ entities, hud_ HUD and 2D, menu_ menus and shop, evt_ events and
+# cutscenes, tc_ time control. scripts/test_symbols.py holds the list.
+#
+# A name changes only with a new source: a wrong name is worse than sub_.
+# Whoever learns what an address does adds it here in the same branch.
+#
+# The file stays in a TOML subset (one key = value per line, integers, booleans and
+# basic strings) that scripts/ghidra/ImportSymbolMap.java reads.
+
+[[symbol]]
+addr = 0x000133E0
+name = "menu_title_main"
+kind = "function"
+note = "Title state machine; state block ptr [0x5EB5F4] -> 0x5EB620, 27 states"
+source = "analysis/research/blinx2-menu-flow.md; src/pad_input.c"
+
+[[symbol]]
+addr = 0x00016A90
+name = "menu_title_state_jumptable"
+kind = "global"
+note = "Jump table of the title's 27 states (state dword 0x5EB620)"
+source = "analysis/research/blinx2-menu-flow.md"
+
+[[symbol]]
+addr = 0x00017130
+name = "menu_pause_draw"
+kind = "function"
+note = "Pause menu draw (with sub_00171750/sub_00171120); runs only while 0xAE73B4 set"
+source = "free-camera spike.md 9.6"
+
+[[symbol]]
+addr = 0x000177F0
+name = "hud_sprite_add_a"
+kind = "function"
+note = "Thin helper over the sprite add sub_00042190 (747 callers)"
+source = "hud-anchors design.md, the tracker item"
+
+[[symbol]]
+addr = 0x000178C0
+name = "hud_sprite_add_b"
+kind = "function"
+note = "Thin helper over the sprite add sub_00042190 (466 callers)"
+source = "hud-anchors design.md, the tracker item"
+
+[[symbol]]
+addr = 0x00022DB0
+name = "ent_player_draw"
+kind = "function"
+note = "Player code: reads point visibility table 0x9FB930, skips its draw on a low count"
+source = "archive/2026-10-07-pb-index-batch-cap design.md; archive/2026-10-17-occ-reports design.md"
+
+[[symbol]]
+addr = 0x00026340
+name = "ent_view_level_reset"
+kind = "function"
+note = "Resets per-object in-view/LOD level (+0x2B4, table 0xCD2440 stride 0x30C) each frame"
+source = "free-camera tasks.md 2.2, the tracker item"
+
+[[symbol]]
+addr = 0x000292A0
+name = "cam_view_build_pass"
+kind = "function"
+note = "View builder (ebx=camera) from the pass setup; writes eye p-o to +0x2C, view 0xA72380"
+source = "free-camera design.md; free-camera spike.md; src/recomp_manual.c, the tracker item"
+
+[[symbol]]
+addr = 0x0002DD40
+name = "cam_viewport_pass_setup"
+kind = "function"
+note = "Per-viewport pass setup; calls the view builder sub_000292A0"
+source = "free-camera spike.md; src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x0002E340
+name = "cam_follow_a"
+kind = "function"
+note = "Camera follow on cam_views 0x4B2718 (with sub_0002E3B0), called from the render at 0x67E91"
+source = "free-camera spike.md 9.6; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x0002E3B0
+name = "cam_follow_b"
+kind = "function"
+note = "Camera follow on cam_views 0x4B2718 (with sub_0002E340), called from the render at 0x67E91"
+source = "free-camera spike.md 9.6; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x0002EC20
+name = "nj_model_collide"
+kind = "function"
+note = "Collision against a Ninja model; surface types as material colours"
+source = "engine-bridge-assessment design.md S1, the tracker item"
+
+[[symbol]]
+addr = 0x000302E0
+name = "nj_object_node_walk"
+kind = "function"
+note = "Walks the 0x34-byte Ninja object node (model +4, child +0x2C, sibling +0x30)"
+source = "engine-bridge-assessment design.md S1, the tracker item; engine-extract design.md"
+
+[[symbol]]
+addr = 0x000348A0
+name = "gfx_pass_setup_348a0"
+kind = "function"
+note = "Calls the c[112] light write sub_0003FC40 and the matrix-ring reset sub_000359F0; hud-anchors reads it as the sprite queue 1 drain, unverified (task 2 (a))"
+source = "hud-anchors design.md, the tracker item; free-camera spike.md"
+
+[[symbol]]
+addr = 0x00035140
+name = "hud_sprite_queue0_drain"
+kind = "function"
+note = "Draws sprite queue 0 (the HUD sprites added by sub_00042190)"
+source = "hud-anchors design.md, the tracker item"
+
+[[symbol]]
+addr = 0x000359F0
+name = "gfx_matrix_ring_reset"
+kind = "function"
+note = "Resets the matrix-ring slot index [0xAD7BBC] to 1 once per frame, through sub_000348A0"
+source = "free-camera spike.md"
+
+[[symbol]]
+addr = 0x00037CE0
+name = "gfx_light_pool_add"
+kind = "function"
+note = "Adds a light to the pool (count 0xAACDFC, 36-byte entries at 0x8E9088), no lock"
+source = "archive/2026-10-17-guest-one-cpu design.md; archive/2026-10-17-mac-one-cpu proposal.md, the tracker item"
+
+[[symbol]]
+addr = 0x00038B00
+name = "nj_bone_palette_store"
+kind = "function"
+note = "Stores current transform 0xAAD3A0 into bone palette 0xA001D0 + idx*64"
+source = "free-camera spike.md; engine-bridge-assessment design.md S4, the tracker item"
+
+[[symbol]]
+addr = 0x00039100
+name = "nj_matrix_ring_write"
+kind = "function"
+note = "Normal path: writes a matrix-ring slot (0xAAF450) and bone palette; called from the model draw"
+source = "free-camera spike.md; engine-bridge-assessment design.md S4, the tracker item"
+
+[[symbol]]
+addr = 0x0003A780
+name = "nj_matrix_ring_write_alt"
+kind = "function"
+note = "Alternate matrix-ring writer, taken when [0x67EF6C] != 0"
+source = "free-camera spike.md; free-camera design.md"
+
+[[symbol]]
+addr = 0x0003B180
+name = "cam_cull_planes_build"
+kind = "function"
+note = "Builds the side cull planes (fov, -(h/w), zf); one caller at 0x42C78; Hor+ wrap"
+source = "free-camera design.md; src/recomp_manual.c, the tracker item"
+
+[[symbol]]
+addr = 0x0003B2D0
+name = "nj_model_cull_test"
+kind = "function"
+note = "Tests models against the side cull planes"
+source = "free-camera spike.md; src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x0003B5C0
+name = "nj_world_view_compose"
+kind = "function"
+note = "Composes each model's world x view into 0xAAD3A0"
+source = "free-camera design.md; free-camera spike.md"
+
+[[symbol]]
+addr = 0x0003B750
+name = "nj_model_view_cull"
+kind = "function"
+note = "Cull view-space centres; feeds in-view/LOD level of objects"
+source = "free-camera design.md; free-camera tasks.md 2.2"
+
+[[symbol]]
+addr = 0x0003B8D0
+name = "nj_draw_model"
+kind = "function"
+note = "Ninja chunk model draw; current matrix in xmm4..7; ~100 callers"
+source = "engine-bridge-assessment design.md S4, the tracker item; free-camera spike.md"
+
+[[symbol]]
+addr = 0x0003F940
+name = "nj_matrix_copy"
+kind = "function"
+note = "59-byte matrix copy eax->ecx; eax=0 stores xmm4-7, ecx=0 loads xmm4-7"
+source = "free-camera spike.md"
+
+[[symbol]]
+addr = 0x0003FC40
+name = "nj_light_const_set"
+kind = "function"
+note = "Writes the c[112] light constant (derived from the view)"
+source = "free-camera design.md; free-camera spike.md"
+
+[[symbol]]
+addr = 0x00040AB8
+name = "gfx_flare_vis_read_site"
+kind = "label"
+note = "Code inside sub_00040440 that reads the flare/glow visibility results; scales the sprites by count/area"
+source = "archive/2026-10-07-pb-index-batch-cap design.md; archive/2026-10-17-occ-reports design.md"
+
+[[symbol]]
+addr = 0x00040F30
+name = "gfx_flare_draw"
+kind = "function"
+note = "Draws the sun flare/glow proxy quads with visibility tests"
+source = "archive/2026-10-07-pb-index-batch-cap design.md"
+
+[[symbol]]
+addr = 0x00041100
+name = "gfx_flare_proxy_quad"
+kind = "function"
+note = "Flare/glow proxy quad with a visibility test"
+source = "archive/2026-10-07-pb-index-batch-cap design.md"
+
+[[symbol]]
+addr = 0x00042190
+name = "hud_sprite_add"
+kind = "function"
+note = "Adds a sprite to the queue (cdecl; 16-byte verts x,y,u,v; 0x34 records; queue 0 ptr [0xA043DC])"
+source = "hud-anchors design.md, the tracker item"
+
+[[symbol]]
+addr = 0x00042380
+name = "hud_fade_draw"
+kind = "function"
+note = "Full-screen fades, outside the sprite queue"
+source = "hud-anchors design.md, the tracker item"
+
+[[symbol]]
+addr = 0x00042AE0
+name = "cam_projection_setup"
+kind = "function"
+note = "Projection, cull planes and inverse view after each view build"
+source = "free-camera design.md; free-camera spike.md"
+
+[[symbol]]
+addr = 0x00044090
+name = "hud_fade_overlay"
+kind = "function"
+note = "Fade overlay; skipped only while paused"
+source = "free-camera spike.md 9.6"
+
+[[symbol]]
+addr = 0x00044220
+name = "nj_object_draw"
+kind = "function"
+note = "Renders a node's attached object (+4); also calls the bone palette writers"
+source = "archive/2026-10-06-present-frames design.md; engine-bridge-assessment design.md S4, the tracker item"
+
+[[symbol]]
+addr = 0x00044900
+name = "nj_display_list_exec"
+kind = "function"
+note = "Display-list interpreter; split by a lone int3 at 0x44CFA (lifter bug, fixed)"
+source = "archive/2026-10-06-present-frames design.md; recomp-coverage spec.md"
+
+[[symbol]]
+addr = 0x00045A50
+name = "gfx_vertex_light_bake"
+kind = "function"
+note = "Vertex-light bake of terrain from the light pool"
+source = "archive/2026-10-17-guest-one-cpu proposal.md"
+
+[[symbol]]
+addr = 0x00046720
+name = "nj_node_tree_draw"
+kind = "function"
+note = "Node walk (child +0x2C, sibling +0x30, attached object +4 drawn by sub_00044220)"
+source = "archive/2026-10-06-present-frames design.md"
+
+[[symbol]]
+addr = 0x00046CE0
+name = "gfx_point_vis_test"
+kind = "function"
+note = "Screen-space quad visibility test round a projected point; results in 0x9FB930"
+source = "archive/2026-10-07-pb-index-batch-cap design.md"
+
+[[symbol]]
+addr = 0x00047A00
+name = "hud_sprite_add_text"
+kind = "function"
+note = "Thin helper over the sprite add (394 callers); the font's 5 outline passes use it"
+source = "hud-anchors design.md, the tracker item"
+
+[[symbol]]
+addr = 0x00048600
+name = "hud_font_draw_string"
+kind = "function"
+note = "Draws a string as 5 offset passes (outline) through sub_00047A00"
+source = "hud-anchors design.md, the tracker item"
+
+[[symbol]]
+addr = 0x00048880
+name = "gfx_light_pool_add_loader"
+kind = "function"
+note = "Loader-thread path that adds lights to the pool; also reads the inverse view 0xA9C220"
+source = "archive/2026-10-17-guest-one-cpu proposal.md; free-camera design.md"
+
+[[symbol]]
+addr = 0x00049970
+name = "ent_zone_test_sphere"
+kind = "function"
+note = "zone type 1, a sphere: dist^2 divided by (param_4^2 + d[+8]^2)*k; the respawn gate passes param_4 = 0"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x00049B10
+name = "ent_zone_test_type2"
+kind = "function"
+note = "zone type 2 test (shape not decoded)"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x00049C50
+name = "ent_zone_test_type3"
+kind = "function"
+note = "zone type 3 test (shape not decoded)"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x0004E700
+name = "ent_enemy_update_all"
+kind = "function"
+note = "per-frame update of every enemy on the list at 0xAF0E88; called from stage_update"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x0004E950
+name = "ent_enemy_draw_all"
+kind = "function"
+note = "draws every enemy on the list"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x0004EBC0
+name = "ent_enemy_nth"
+kind = "function"
+note = "list node by index"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x0004EBE0
+name = "ent_enemy_find"
+kind = "function"
+note = "find an enemy on the list by id"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x0004EC10
+name = "ent_enemy_count"
+kind = "function"
+note = "count enemies on the list"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x0004ED30
+name = "ent_enemy_remove"
+kind = "function"
+note = "unlink and free one enemy (ESI = list node); runs only when an object's update fn (+0x98) returns nonzero, or at stage teardown, so dead enemies stay listed"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x0004EE20
+name = "ent_enemy_spawn"
+kind = "function"
+note = "cdecl(placement*), EAX = list 0xAF0E88; takes a pool slot and a node, copies pos/rot, runs the class init (switch on class & 0xFF); the class init links the enemy at the tail and bumps the count, so an unknown class leaks its slot and node; refuses once count > 0x21, after the slot and node are taken, so a refused spawn leaks them too; returns the node (object at node+8)"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; the tracker item review"
+
+[[symbol]]
+addr = 0x0004F5C0
+name = "stage_enemy_placements_load"
+kind = "function"
+note = "spawns every record of a placement table through ent_enemy_spawn (caller 0x4FA98); registers each in 0xADA9B0 first"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x0004F890
+name = "ent_placement_registry_add"
+kind = "function"
+note = "fills the 0xADA9B0 entry whose position matches (or a free one) with {1, EDI, pos, arg}"
+source = "the tracker item review; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x0004F910
+name = "ent_placement_registry_find"
+kind = "function"
+note = "looks up the 0xADA9B0 entry for a position (EDX = pos*)"
+source = "the tracker item review; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x0004F970
+name = "stage_enemy_init"
+kind = "function"
+note = "stage init: loads 0x4921E8[stage] through stage_enemy_placements_load; an index with idx % 5 == 3 uses idx - 2"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x0004FEE0
+name = "ent_respawn_zone_occupied"
+kind = "function"
+note = "1 when an active player stands in the placement's zone (descriptor ptr arg, placement pos +4 / rot +0x14); player pos is char+0xEC with y - 2.5; blocks the respawn"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x00050380
+name = "ent_respawn_crystal_held"
+kind = "function"
+note = "mode-1 gate: the players hold the crystal colours of placement+0x54"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x00050470
+name = "ent_respawn_gate"
+kind = "function"
+note = "dead enemy (state 0xA): returns 0 at once in Tom Tom mode (stage_team_mode 0xB21CB4 == 1) or while stage_play_mode 0xAE46EC != 0 (any nonzero play mode), and while the crystal block holds; else counts +0xAC; passes once the counter reaches the delay (mode 0: 300, mode 1: 450) and no player is in the zone (mode 0 default r 150, mode 1 placement+0x34 or r 50); mode >= 2 never"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item; src/recomp/gen, the tracker item"
+conflict = "part C (4da65a8) says the gate exits while 0xB21CB4 is not 1; gen loc_00050470 returns 0 when it is 1 and goes on otherwise"
+
+[[symbol]]
+addr = 0x00050800
+name = "ent_enemy_damage"
+kind = "function"
+note = "cdecl(obj, src pos*, float, dmg, ?, float, ?); the hit path, kills at hp 0"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x00050D40
+name = "ent_enemy_pool_alloc"
+kind = "function"
+note = "fastcall(list): first free 0x2C1-byte slot (used byte + 0x2C0 object), zeroed"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x00050D80
+name = "ent_enemy_node_alloc"
+kind = "function"
+note = "fastcall(?, list): first free 0xD-byte node slot after the object slots"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x000550C0
+name = "hud_cutscene_dim"
+kind = "function"
+note = "Cutscene dim (site 0x55210); nearest candidate for the cinematic bars"
+source = "hud-anchors design.md, the tracker item"
+
+[[symbol]]
+addr = 0x00055220
+name = "stage_frame_pre_55220"
+kind = "function"
+note = "First call of the stage frame sub_00064850, before sub_00071230"
+source = "free-camera spike.md 9.6, the tracker item"
+
+[[symbol]]
+addr = 0x0005B240
+name = "gfx_glow_defaults"
+kind = "function"
+note = "Writes the glow weight defaults (0xADC744)"
+source = "archive/2026-10-07-glow-toggle design.md"
+
+[[symbol]]
+addr = 0x0005B330
+name = "gfx_post_downsample"
+kind = "function"
+note = "Downsamples the frame into 0x00811000 (320x240)"
+source = "archive/2026-10-07-glow-toggle design.md; enhancements spec.md"
+
+[[symbol]]
+addr = 0x0005B550
+name = "gfx_post_effects"
+kind = "function"
+note = "Per-frame post: downsample, then by post mode 0xADC738 glow (3) or effect (4)"
+source = "archive/2026-10-07-glow-toggle design.md"
+
+[[symbol]]
+addr = 0x0005B7D0
+name = "gfx_glow_composite"
+kind = "function"
+note = "Glow composite (post mode 3); reads weight 0xADC744; wrapped for the glow toggle"
+source = "archive/2026-10-07-glow-toggle design.md; enhancements spec.md"
+
+[[symbol]]
+addr = 0x0005BC60
+name = "gfx_post_mode4"
+kind = "function"
+note = "Post mode 4 effect with its own shader"
+source = "archive/2026-10-07-glow-toggle design.md; enhancements spec.md"
+
+[[symbol]]
+addr = 0x0005C930
+name = "pad_frame_poll"
+kind = "function"
+note = "Once-per-frame pad poll from the main loop (0x60375); free-camera input wrap"
+source = "free-camera design.md D3; src/recomp_manual.c; archive/2026-10-13-input-real-devices design.md"
+
+[[symbol]]
+addr = 0x0005E060
+name = "pad_rumble_wait_a"
+kind = "function"
+note = "Busy-spins while the rumble status is 0x3E5; called per player while the world is frozen"
+source = "archive/2026-10-13-input-real-devices design.md; free-camera spike.md 9.6"
+conflict = "input-real-devices (2026-10-13): rumble busy-spin; free-camera spike 9.6: 'handles the pad' per player while frozen. Name kept to the code reading."
+
+[[symbol]]
+addr = 0x0005E0B0
+name = "pad_rumble_wait_b"
+kind = "function"
+note = "Busy-spins while the rumble status is 0x3E5"
+source = "archive/2026-10-13-input-real-devices design.md"
+
+[[symbol]]
+addr = 0x0005E380
+name = "sys_loader_thread_start"
+kind = "function"
+note = "Creates the stage loading thread (start 0x5E410), handle in 0xEC4B94"
+source = "analysis/research/hot-threads-macos.md"
+
+[[symbol]]
+addr = 0x0005E3C0
+name = "sys_loader_thread_wait"
+kind = "function"
+note = "Sets stop flag 0xADCA30, yields until the loading thread exits"
+source = "analysis/research/hot-threads-macos.md; archive/2026-10-17-fps-pacing design.md"
+
+[[symbol]]
+addr = 0x0005E410
+name = "sys_loader_thread"
+kind = "function"
+note = "Stage loading thread body (PsCreateSystemThreadEx)"
+source = "analysis/research/hot-threads-macos.md; archive/2026-10-17-guest-one-cpu proposal.md; kernel-threads spec"
+
+[[symbol]]
+addr = 0x0005EB30
+name = "hud_loading_bands"
+kind = "function"
+note = "Draws the loading bands (49 sprite sites, parked at +-1280)"
+source = "hud-anchors design.md, the tracker item"
+
+[[symbol]]
+addr = 0x0005F960
+name = "sys_main_loop"
+kind = "function"
+note = "Main loop: poll, frame, vblank spin at 0x60475 on [0xAE7388] >= [0x3FD344], swap"
+source = "archive/2026-10-17-fps-pacing design.md; deviations spec.md; archive/2026-10-13-input-real-devices design.md"
+
+[[symbol]]
+addr = 0x000604A0
+name = "sys_vblank_callback"
+kind = "function"
+note = "Title's D3D vblank callback; bumps the frame counter 0xAE7388"
+source = "archive/2026-10-17-fps-pacing design.md; deviations spec.md; src/main.c"
+
+[[symbol]]
+addr = 0x000606F0
+name = "stage_area_setup"
+kind = "function"
+note = "Area setup from the stage loader; writes glow weight, pause and world-stop flags at stage start; passes the enemy pool 0xADE790 and its size, and is the only caller of stage_enemy_extra_load"
+source = "archive/2026-10-07-glow-toggle design.md; free-camera spike.md 9.6; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x00061790
+name = "stage_area_setup_glow_site"
+kind = "label"
+note = "Code inside sub_000606F0 (the area setup) that writes the glow weight 0xADC744; not a branch target"
+source = "archive/2026-10-07-glow-toggle design.md"
+
+[[symbol]]
+addr = 0x00062550
+name = "stage_end"
+kind = "function"
+note = "Stage end / scene switch (args 0, 1); hub exits use it with sub_00062640"
+source = "entity-system-spike design.md; free-camera design.md; src/pad_input.c"
+
+[[symbol]]
+addr = 0x00062640
+name = "stage_scene_switch"
+kind = "function"
+note = "Scene switch used by the hub exits ([0xAE7424] next scene, [0xAE46EC]=2)"
+source = "src/pad_input.c"
+
+[[symbol]]
+addr = 0x00062BF0
+name = "stage_restart_flags"
+kind = "function"
+note = "Writes 0xAE73B4=1 and 0xAF0EF4=1 together (0x62D48) at stage retry/reset"
+source = "free-camera spike.md 9.6; free-camera design.md"
+
+[[symbol]]
+addr = 0x00062FB0
+name = "sys_frame_update"
+kind = "function"
+note = "Per-frame update and draw from the main loop; runs the title or the stage frame"
+source = "archive/2026-10-13-input-real-devices design.md; fps60-ways-spike design.md; free-camera spike.md; archive/2026-10-07-glow-toggle design.md"
+conflict = "glow-toggle design.md (archive 2026-10-07) calls it the stage loader that runs the area setup"
+
+[[symbol]]
+addr = 0x00063E20
+name = "tc_rew_start"
+kind = "function"
+note = "REW start (called from stage_update for the REW requests): sets 0xAE7450/0xAF0EF8 to 5, primes the time record and registers each player (0xCD2440 + i*0x30C, 0x30C bytes) with tc_region_register; the player is still not rewound"
+source = "the tracker item review; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x00064850
+name = "stage_frame"
+kind = "function"
+note = "Stage frame: calls 0x55220, 0x71230, the render 0x67E60, then the update 0x649B0"
+source = "free-camera spike.md 9.6, the tracker item; entity-system-spike design.md"
+
+[[symbol]]
+addr = 0x000649B0
+name = "stage_update"
+kind = "function"
+note = "Pause/menu handler plus the world update; per-player loop; computes world-frozen flag 0xAF5C94; at 0x65713 dispatches on the request 0xADE76C and sets stage_play_mode 0xAE46EC per request: PAUSE 0x100 (0x8000 in VS), SLOW 0x200, FF the value in EBX (not 0x400), REW 0x1000 (0x10000 in VS), REC 0x2000 (0x20000 in VS); resets the request to -1 at 0x65C4E"
+source = "free-camera spike.md 9.6, the tracker item; entity-system-spike design.md; archive/2026-10-07-recomp-test-flag-join notes.md; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x00067E60
+name = "stage_render"
+kind = "function"
+note = "Stage render; camera follow at 0x67E91; LOD in-view site 0x681B9; calls glow draw 0x5B550"
+source = "free-camera spike.md 9.6, the tracker item; free-camera tasks.md 2.2; archive/2026-10-07-glow-toggle design.md"
+
+[[symbol]]
+addr = 0x00068E70
+name = "gfx_stage_pass_68e70"
+kind = "function"
+note = "Stage draw pass; calls 0x216D70 (stage view build)"
+source = "free-camera spike.md; src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x000693E9
+name = "gfx_stage_pass_693e9"
+kind = "function"
+note = "Stage draw pass; calls 0x216D70 (stage view build)"
+source = "free-camera spike.md; src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x0006B1F0
+name = "hud_draw_status"
+kind = "function"
+note = "Draws lives dots, Time, gauge bracket, yellow arc, TS label and '/ 5' (left, centre, right sites)"
+source = "hud-anchors design.md"
+
+[[symbol]]
+addr = 0x00071230
+name = "stage_frame_step_71230"
+kind = "function"
+note = "Called by the stage frame after sub_00055220; returns early only while the pause flag 0xAE73B4 is set, so it runs under a world stop"
+source = "free-camera spike.md 9.6, the tracker item"
+
+[[symbol]]
+addr = 0x00075210
+name = "stage_area_init"
+kind = "function"
+note = "Area setup at stage init from the stage loader; clears 0xAE73FC, writes glow weight 0xADC744"
+source = "archive/2026-10-07-glow-toggle design.md; analysis/research/blinx2-menu-flow.md"
+
+[[symbol]]
+addr = 0x00076030
+name = "stage_snapshot_restore"
+kind = "function"
+note = "Restores a stage snapshot that includes the world-stop flag 0xAF0EF4 (at 0x761B4)"
+source = "free-camera spike.md 9.6, the tracker item; src/free_camera.c"
+
+[[symbol]]
+addr = 0x000794D0
+name = "ent_item_spawn"
+kind = "function"
+note = "item and projectile spawn into the pool at 0xB22E68 (?, pos*, type, flag); rotor 0xB2A738, serial 0xB2A744; 85+ callers"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x00079D30
+name = "ent_item_free"
+kind = "function"
+note = "frees an item slot; ESI = slot"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x0007A0F0
+name = "ent_item_update_all"
+kind = "function"
+note = "per-frame item update"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x0007A460
+name = "ent_item_update_all_b"
+kind = "function"
+note = "per-frame item update, second pass"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x0008C530
+name = "tc_player_activate"
+kind = "function"
+note = "player time control use: switch on id-2 writes the request 0xADE76C (PAUSE 0x100, SLOW 0x200, FF 0x400, REW 0x1000, REC 0x2000) and the duration 0xAEB818 = 0x12C"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; the tracker item review"
+
+[[symbol]]
+addr = 0x0008C9A0
+name = "tc_enemy_activate"
+kind = "function"
+note = "an enemy's time control: same request word, ids 2-6; callers in enemy class code"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x0008CB10
+name = "tc_item_activate"
+kind = "function"
+note = "item use from stage_update: while 0xAF5CAC is 0 writes request 0x800 and the duration 0xAEB818 from 0xEC4BCC (capped at 0xE10 frames), clears 0xEC4BCC; stage_update then takes one from the player's item count (0xADCB07 for 1P, 0xADD0E3 for 2P)"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; the tracker item review; src/recomp/gen, the tracker item"
+conflict = "the tracker item named it tc_request_800, a stage effect"
+
+[[symbol]]
+addr = 0x00092370
+name = "hud_gold_draw"
+kind = "function"
+note = "draws the gold counter; reads each player's cam_state +0x78 through cam_views 0x4B2718"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x000BAC40
+name = "nj_bone_palette_caller_bac40"
+kind = "function"
+note = "Calls the bone-palette writer sub_00039100 outside the hooked model draw"
+source = "free-camera spike.md; engine-bridge-assessment design.md (S4), the tracker item"
+
+[[symbol]]
+addr = 0x000E2180
+name = "stage_map_read_a"
+kind = "function"
+note = "Reads the stage map table 0x40D180 (root to 0xB87180, texlist onward)"
+source = "engine-extract design.md (feat/engine-extract 69972d7)"
+
+[[symbol]]
+addr = 0x000E21C0
+name = "stage_map_read_b"
+kind = "function"
+note = "Reads the stage map table 0x40D180 (root to 0xB87180, texlist onward)"
+source = "engine-extract design.md (feat/engine-extract 69972d7)"
+
+[[symbol]]
+addr = 0x000E3B50
+name = "stage_mission_init"
+kind = "function"
+note = "Mission init, run by the mission switch 0xE42D0 as the real clear does"
+source = "src/pad_input.c, the tracker item"
+
+[[symbol]]
+addr = 0x000E4140
+name = "gfx_glow_fade"
+kind = "function"
+note = "Per-frame glow fade: steps weight 0xADC744 by +-1 toward a target, clamps 0x20..0x40"
+source = "archive/2026-10-07-glow-toggle design.md"
+
+[[symbol]]
+addr = 0x000E42D0
+name = "stage_mission_switch"
+kind = "function"
+note = "Mission switch(n): sets the mission [0xB871B0] and runs its init 0xE3B50"
+source = "src/pad_input.c, the tracker item"
+
+[[symbol]]
+addr = 0x000E58D0
+name = "gfx_stage_pass_e58d0"
+kind = "function"
+note = "Stage draw pass; calls 0x216D70 (stage view build)"
+source = "free-camera spike.md"
+
+[[symbol]]
+addr = 0x000EEB40
+name = "evt_system_update"
+kind = "function"
+note = "Event system, called at 0x652CD in stage_update; script opcodes write 0xAF0EF4"
+source = "free-camera spike.md 9.6, the tracker item; src/recomp_manual.c; entity-system-spike design.md"
+
+[[symbol]]
+addr = 0x000F1C20
+name = "ent_freeze_players"
+kind = "function"
+note = "Freeze every player for n frames (sets hit-stun byte [0xCD2440+0x60])"
+source = "archive/2026-10-07-stage1-water-spike spike.md; archive/2026-10-07-recomp-test-flag-join proposal.md"
+
+[[symbol]]
+addr = 0x000F1FD0
+name = "hud_draw_dialogue"
+kind = "function"
+note = "Dialogue draw (head of a family), centred as one group"
+source = "hud-anchors design.md"
+
+[[symbol]]
+addr = 0x000F2630
+name = "hud_draw_objectives"
+kind = "function"
+note = "Mission objectives draw"
+source = "hud-anchors design.md"
+
+[[symbol]]
+addr = 0x000F6D20
+name = "evt_talk_zone_path_f6d20"
+kind = "function"
+note = "On the call path from the event system sub_000EEB40 to the talk-zone machine sub_000F7C50"
+source = "archive/2026-10-07-stage1-water-spike spike.md"
+
+[[symbol]]
+addr = 0x000F7C50
+name = "evt_talk_zone_update"
+kind = "function"
+note = "Sign/talk-zone state machine at 0xB8BD70 (show, wait in zone, wait press, wait release)"
+source = "archive/2026-10-07-recomp-test-flag-join proposal.md; archive/2026-10-07-stage1-water-spike spike.md"
+
+[[symbol]]
+addr = 0x000F8400
+name = "evt_goal_sequence"
+kind = "function"
+note = "Stage goal sequence, state [0xB8BD50]: 6 puts players at goal, 7 bumps phase [0xB8BB60]"
+source = "src/pad_input.c, the tracker item"
+
+[[symbol]]
+addr = 0x000FA2C0
+name = "stage_phase2"
+kind = "function"
+note = "Stage phase 2: calls the mission switch 0xE42D0(2)"
+source = "src/pad_input.c, the tracker item"
+
+[[symbol]]
+addr = 0x00143F80
+name = "ent_offscreen_logic"
+kind = "function"
+note = "Object logic: counts frames while off-screen (LOD +0x2B4 == 0), then raises y +0xF0, advances state"
+source = "free-camera tasks.md 2.2; lod-scale design.md; src/lod_scale.c"
+
+[[symbol]]
+addr = 0x0015B470
+name = "hud_draw_movie_quad"
+kind = "function"
+note = "Movie and stills full-screen quad (non-queue 2D)"
+source = "hud-anchors design.md"
+
+[[symbol]]
+addr = 0x00160E70
+name = "stage_enemy_extra_load"
+kind = "function"
+note = "loads the extra placement set (1P 0x4923C8, 2P 0x4925A8) for stage_current, at stage start only"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x00161120
+name = "evt_post_update_2"
+kind = "function"
+note = "Called once, at 0x652D7 in stage_update after the events; may write 0xAF0EF4"
+source = "src/recomp_manual.c; free-camera spike.md 9.6, the tracker item"
+
+[[symbol]]
+addr = 0x0016A870
+name = "menu_inplay_flag_clear"
+kind = "function"
+note = "Clears 0x449F40"
+source = "free-camera spike.md 9.2"
+conflict = "spike.md 9.2 first said 0x449F40 is 1 outside play; 9.6 corrected: 1 in play, 0 in menu; kept 9.6"
+
+[[symbol]]
+addr = 0x0016AA90
+name = "menu_inplay_flag_set"
+kind = "function"
+note = "Sets 0x449F40 and frees the handle list 0xEC5050 (count 0xEC5058) when 0xAE73B4 is 0"
+source = "free-camera spike.md 9.2"
+conflict = "spike.md 9.2 first said 0x449F40 is 1 outside play; 9.6 corrected: 1 in play, 0 in menu; kept 9.6"
+
+[[symbol]]
+addr = 0x00171120
+name = "menu_pause_draw_b"
+kind = "function"
+note = "Pause menu draw (with 0x17130, 0x171750), from 0x68E2D, only while 0xAE73B4 set"
+source = "free-camera spike.md 9.6, the tracker item"
+
+[[symbol]]
+addr = 0x00171750
+name = "menu_pause_draw_a"
+kind = "function"
+note = "Pause menu draw (with 0x17130, 0x171120), from 0x68E2D, only while 0xAE73B4 set"
+source = "free-camera spike.md 9.6, the tracker item"
+
+[[symbol]]
+addr = 0x00176150
+name = "ent_player_update"
+kind = "function"
+note = "Player update (via vtable, every frame); zeroes the stick while hit-stun [+0x60] > 0"
+source = "archive/2026-10-07-recomp-test-flag-join proposal.md, design.md"
+
+[[symbol]]
+addr = 0x0018CBD0
+name = "ent_character_draw"
+kind = "function"
+note = "Character draw: uses LOD +0x2B4 for node ranges, anim snapping, face pass, drop shadow"
+source = "lod-scale design.md; free-camera tasks.md 2.2"
+
+[[symbol]]
+addr = 0x0019A2C0
+name = "gfx_lod_select"
+kind = "function"
+note = "Projects a sphere (y+5, r 10) to a 640x480 screen radius, picks LOD from table 0x450B08"
+source = "lod-scale design.md, the tracker item; src/lod_scale.c"
+
+[[symbol]]
+addr = 0x001A8D80
+name = "tc_frame_copy"
+kind = "function"
+note = "copies every registered region (0xDD9BB8 entries) and the item pool slots between live memory and ring frame i (0x16B0C bytes each); the direction follows stage_play_mode 0xAE46EC"
+source = "the tracker item review; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x001A9010
+name = "tc_frame_step"
+kind = "function"
+note = "steps the time-record ring (frame 0xDDD188, frame ptr 0xDD9BAC), pages through sub_001A94C0 / sub_001A93F0, then runs tc_frame_copy"
+source = "the tracker item review; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x001A95A0
+name = "stage_checkpoint_take"
+kind = "function"
+note = "Takes the checkpoint snapshot (0x5DC dwords 0xADCA58 -> 0xAE4780), sets 0xAE73FC"
+source = "analysis/research/blinx2-menu-flow.md; src/pad_input.c"
+
+[[symbol]]
+addr = 0x001A9720
+name = "tc_record_tick"
+kind = "function"
+note = "per-frame time-record step from stage_update while 0xAF0F00 is set; runs tc_frame_step once or twice by stage_play_mode 0xAE46EC"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; src/recomp/gen, the tracker item"
+conflict = "the tracker item named it tc_playback; its frame copy (tc_frame_copy) goes both ways by mode, so it records as well as plays back"
+
+[[symbol]]
+addr = 0x001A9830
+name = "tc_region_register"
+kind = "function"
+note = "registers a memory region (ptr, size, flag) with the time record; table 0xDD9BB8; 100+ callers"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x001B7B60
+name = "sys_save_device_scan"
+kind = "function"
+note = "Enumerates memory units (XGetDevices MU) before a save"
+source = "src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x001B8140
+name = "sys_tex_cache_copy"
+kind = "function"
+note = "Texture-cache copy: writes x.tmp padded to 512 bytes (then 0x1B8240)"
+source = "archive/2026-10-06-kernel-memory-and-files tasks.md 1.13"
+
+[[symbol]]
+addr = 0x001B8240
+name = "sys_tex_cache_copy_2"
+kind = "function"
+note = "Texture-cache copy second step: reopens CREATE_ALWAYS, sets true EOF"
+source = "archive/2026-10-06-kernel-memory-and-files tasks.md 1.13"
+
+[[symbol]]
+addr = 0x001B8830
+name = "sys_file_read"
+kind = "function"
+note = "Reads a file (used by the edit_char .edt loader)"
+source = "free-camera spike.md"
+
+[[symbol]]
+addr = 0x001CFCA0
+name = "sys_jump_table_1cfca0"
+kind = "function"
+note = "Ends in jmp [ecx*4+0x1CE000] with table bytes after it; a phantom start once cut it short (the mgtu_tg rank exam hang)"
+source = "archive/2026-10-17-mid-instruction-starts proposal.md, design.md, the tracker item"
+
+[[symbol]]
+addr = 0x001D5FB0
+name = "evt_post_update_1"
+kind = "function"
+note = "Called in stage_update after the event system, before 0x161120; may write 0xAF0EF4"
+source = "free-camera spike.md 9.6, the tracker item; src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x001F3E60
+name = "ent_char_desc_apply_edit"
+kind = "function"
+note = "Copies edit_char .edt bytes into a character descriptor at +0x3C..+0x6C"
+source = "free-camera spike.md"
+
+[[symbol]]
+addr = 0x00210660
+name = "menu_shop"
+kind = "function"
+note = "shop screen over the catalogue at 0x4AACE0"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x00215A40
+name = "gfx_sea_fan_build"
+kind = "function"
+note = "Builds the far sea's view fan (VB 0x3918 bytes) for 4:3; eax = sea object; Hor+ wrapper"
+source = "hor-plus-sea-fan design.md; mod-connectivity-layer design.md"
+
+[[symbol]]
+addr = 0x00215EA0
+name = "gfx_sea_stage_setup"
+kind = "function"
+note = "Calls the sea fan build 0x215A40 once per stage"
+source = "hor-plus-sea-fan design.md"
+
+[[symbol]]
+addr = 0x00216D70
+name = "gfx_stage_pass_view"
+kind = "function"
+note = "Called by the stage passes; calls the view build 0x21B1F0; draws full-width zero-height quads"
+source = "free-camera spike.md, design.md; hud-anchors design.md"
+
+[[symbol]]
+addr = 0x002171C0
+name = "gfx_sea_wave_grid_a"
+kind = "function"
+note = "Sea wave grid"
+source = "hor-plus-sea-fan design.md"
+
+[[symbol]]
+addr = 0x002177E0
+name = "gfx_sea_wave_grid_b"
+kind = "function"
+note = "Sea wave grid"
+source = "hor-plus-sea-fan design.md"
+
+[[symbol]]
+addr = 0x00219DC0
+name = "gfx_water_grid_draw"
+kind = "function"
+note = "Draws the stage 1 water grid: DrawIndexedVertices QUADLIST, count [0xF2A834]"
+source = "archive/2026-10-07-pb-index-batch-cap proposal.md"
+
+[[symbol]]
+addr = 0x0021B1F0
+name = "cam_build_view_stage"
+kind = "function"
+note = "Builds the view 0xA72380 from camera [0x4B271C] eye +0x2C, angles +0x0C/+0x10/+0x14; decides the stage image"
+source = "free-camera spike.md, design.md, proposal.md"
+
+[[symbol]]
+addr = 0x0021C190
+name = "pad_init"
+kind = "function"
+note = "Game input module init"
+source = "archive/2026-10-02-input tasks.md; archive/2026-10-13-input-real-devices design.md; src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x0021C290
+name = "pad_poll"
+kind = "function"
+note = "Game input module per-frame poll (XInputGetState)"
+source = "archive/2026-10-02-input tasks.md; archive/2026-10-13-input-real-devices design.md; src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x0021C710
+name = "pad_rumble"
+kind = "function"
+note = "Game input module rumble (XInputSetState)"
+source = "archive/2026-10-13-input-real-devices design.md; src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x002243A0
+name = "ent_class9_nest_spawn"
+kind = "function"
+note = "class 9 nest spawner: spawns a new enemy with the nest's own placement while a child slot is empty (count < 0x22, at most 3 children), else reuses the child; not the respawn path"
+source = "the tracker item review; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x00258AB0
+name = "ent_enemy_init_spawner"
+kind = "function"
+note = "a class init in ent_enemy_spawn's switch (case at 0x4F24C) that spawns one more enemy through ent_enemy_spawn with the static placement record 0x4AED00"
+source = "the tracker item review; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x00279D20
+name = "ent_enemy_init_class1"
+kind = "function"
+note = "class init for class & 0xFF == 1; EAX = 0 re-inits the same object in place (the respawn); +0x88 = 0x4AFCD8 + class byte 1 * 0x20, or 0x4AFD18 when class byte 3 is set; the id comes from 0x680F84"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x0027D3F0
+name = "ent_class1_state_dead"
+kind = "function"
+note = "class 1's state 0xA handler (seen on class 0x201): calls ent_respawn_gate (which counts +0xAC); on a pass ent_enemy_init_class1 resets the same object in place"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x00293B30
+name = "cam_aspect_reader_293b30"
+kind = "function"
+note = "Reads the 4/3 constant at 0x3DFA30; called from sub_002865E0 and sub_00295320; not the projection builder"
+source = "free-camera spike.md"
+
+[[symbol]]
+addr = 0x00297F3D
+name = "lib_suspend_thread"
+kind = "function"
+note = "XAPI SuspendThread; idle workers suspend themselves through it"
+source = "archive/2026-10-01-xdk-library-hle design.md; analysis/research/hot-threads-macos.md"
+
+[[symbol]]
+addr = 0x00297FDF
+name = "lib_switch_to_thread"
+kind = "function"
+note = "XAPI SwitchToThread, in the thread-exit wait loop"
+source = "analysis/research/hot-threads-macos.md"
+
+[[symbol]]
+addr = 0x00298004
+name = "lib_get_exit_code_thread"
+kind = "function"
+note = "XAPI GetExitCodeThread (ObReferenceObjectByHandle on the thread)"
+source = "analysis/research/hot-threads-macos.md"
+
+[[symbol]]
+addr = 0x002980E7
+name = "lib_thread_start_routine"
+kind = "function"
+note = "XAPI thread routine: receives the PsCreateSystemThreadEx ctx and calls it"
+source = "archive/2026-10-17-upstream-sync-v0-14-0 design.md; save-states design.md; analysis/research/hot-threads-macos.md"
+
+[[symbol]]
+addr = 0x0029817F
+name = "lib_xapi_startup"
+kind = "function"
+note = "called from the XBE entry; creates the guest main thread (PsCreateSystemThreadEx)"
+source = "analysis/research/hot-threads-macos.md"
+
+[[symbol]]
+addr = 0x00298AA3
+name = "lib_xget_video_flags"
+kind = "function"
+note = "XGetVideoFlags; BLiNX 2 reads only the PAL-60 bit, once from the main loop"
+source = "native-widescreen proposal.md"
+
+[[symbol]]
+addr = 0x0029A166
+name = "lib_main_thread_entry"
+kind = "function"
+note = "guest main thread body between the thread routine and the main loop sub_0005F960"
+source = "save-states design.md; analysis/research/hot-threads-macos.md"
+
+[[symbol]]
+addr = 0x0029A1DA
+name = "lib_xbe_entry_point"
+kind = "function"
+note = "XBE entry point; gen names it xbe_entry_point"
+source = "src/main.c; specs/host-boot spec.md"
+in_gen = false
+
+[[symbol]]
+addr = 0x0029EEF2
+name = "gfx_build_perspective"
+kind = "function"
+note = "perspective builder: (out 0xAC1870, fov, aspect, 1, [0x9FD95C]) from sub_00042AE0"
+source = "free-camera design.md; free-camera spike.md"
+
+[[symbol]]
+addr = 0x002A02E0
+name = "lib_heap_routine"
+kind = "function"
+note = "guest heap code; early boot crash at +0x2A8 (garbage pointer write)"
+source = "archive/2026-10-01-recomp-coverage proposal.md; archive/2026-10-01-toolkit-memory-layout design.md"
+
+[[symbol]]
+addr = 0x002A1740
+name = "snd_adx_set_thread_priority"
+kind = "function"
+note = "sets XAPI thread priority on CRI ADX threads (one of several siblings)"
+source = "archive/2026-10-17-mac-one-cpu design.md, the tracker item"
+
+[[symbol]]
+addr = 0x002A17B0
+name = "sys_idle_worker_thread"
+kind = "function"
+note = "third guest worker routine; parks by suspending itself"
+source = "analysis/research/hot-threads-macos.md"
+
+[[symbol]]
+addr = 0x002A1870
+name = "d3d_block_until_vblank_thunk"
+kind = "function"
+note = ".text thunk calling D3DDevice_BlockUntilVerticalBlank"
+source = "archive/2026-10-01-xdk-library-hle design.md; specs/xdk-library-hle spec.md"
+
+[[symbol]]
+addr = 0x002A1B20
+name = "snd_adx_vsync_server"
+kind = "function"
+note = "CRI ADX vsync server thread; waits in BlockUntilVerticalBlank"
+source = "src/recomp_manual.c; save-states design.md"
+
+[[symbol]]
+addr = 0x002A1BA0
+name = "snd_adx_vsync_server_sibling"
+kind = "function"
+note = "sibling ADX thread of the vsync server; waits in BlockUntilVerticalBlank"
+source = "src/recomp_manual.c; archive/2026-10-01-recomp-coverage design.md"
+
+[[symbol]]
+addr = 0x002ACBA0
+name = "snd_adx_prio_lock_a"
+kind = "function"
+note = "CRI ADX priority lock (pair with sub_002ACBB0); relies on running at priority 15"
+source = "guest-priority-scheduling design.md; archive/2026-10-17-mac-one-cpu design.md, the tracker item"
+
+[[symbol]]
+addr = 0x002ACBB0
+name = "snd_adx_prio_lock_b"
+kind = "function"
+note = "CRI ADX priority lock (pair with sub_002ACBA0)"
+source = "guest-priority-scheduling design.md; archive/2026-10-17-mac-one-cpu design.md, the tracker item"
+
+[[symbol]]
+addr = 0x002D0450
+name = "fmv_decoder_callback"
+kind = "function"
+note = "decoder callback, reached only indirectly (seeded, hle-13)"
+source = "archive/2026-10-01-xdk-library-hle tasks.md"
+
+[[symbol]]
+addr = 0x002D4BD0
+name = "gfx_matrix_load_xmm"
+kind = "function"
+note = "loads the matrix at eax into xmm4-7 (sub_0003F940 with ecx == 0)"
+source = "free-camera spike.md"
+
+[[symbol]]
+addr = 0x002D4C10
+name = "gfx_matrix_store_xmm"
+kind = "function"
+note = "stores xmm4-7 to the matrix at ecx (sub_0003F940 with eax == 0)"
+source = "free-camera spike.md"
+
+[[symbol]]
+addr = 0x002D5678
+name = "lib_crt_atexit"
+kind = "function"
+note = "CRT atexit; static initializers push destructor thunks to it; gen has it as atexit_002D5678"
+source = "archive/2026-10-17-upstream-sync-v0-14-0 design.md"
+in_gen = false
+ghidra_only = true
+
+[[symbol]]
+addr = 0x002D7024
+name = "lib_crt_noreturn_thunk"
+kind = "function"
+note = "push [esp+4]; call; int3: ends in a call that never returns"
+source = "archive/2026-10-01-recomp-coverage proposal.md, design.md"
+
+[[symbol]]
+addr = 0x002D702E
+name = "lib_crt_thread_start"
+kind = "function"
+note = "CRT thread-start routine passed to PsCreateSystemThreadEx (seeded)"
+source = "archive/2026-10-01-recomp-coverage proposal.md, specs/recomp-coverage spec.md; archive/2026-10-01-toolkit-memory-layout design.md"
+
+[[symbol]]
+addr = 0x002D8294
+name = "lib_crt_thread_exit"
+kind = "function"
+note = "CRT exit path of a thread; frees its per-thread data"
+source = "archive/2026-10-06-kernel-memory-and-files tasks.md; specs/kernel-threads spec.md"
+
+[[symbol]]
+addr = 0x002DA624
+name = "lib_crt_x87_pop2_fldz"
+kind = "function"
+note = "CRT x87 helper (fstp st0; fstp st0; fldz; ret), reached through jmp [ebx]"
+source = "archive/2026-10-17-upstream-sync-v0-14-0 design.md"
+
+[[symbol]]
+addr = 0x002E0144
+name = "lib_crt_fmod_x87"
+kind = "function"
+note = "CRT x87 fmod (fprem/fnstsw/sahf loop), through the dispatch table"
+source = "archive/2026-10-17-x87-fsincos-fptan proposal.md"
+
+[[symbol]]
+addr = 0x002E0B90
+name = "d3d_set_transform"
+kind = "function"
+note = "D3DDevice_SetTransform; state 0 = view"
+source = "free-camera design.md; free-camera spike.md; src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x002E0D20
+name = "d3d_get_visibility_test_result"
+kind = "function"
+note = "D3DDevice_GetVisibilityTestResult"
+source = "archive/2026-10-07-pb-index-batch-cap design.md; archive/2026-10-17-occ-reports design.md"
+
+[[symbol]]
+addr = 0x002E0D90
+name = "d3d_set_vertical_blank_callback"
+kind = "function"
+note = "D3DDevice_SetVerticalBlankCallback; stores the callback at device+0x1DB8"
+source = "archive/2026-10-01-xdk-library-hle design.md"
+
+[[symbol]]
+addr = 0x002E0DB0
+name = "d3d_block_until_vertical_blank"
+kind = "function"
+note = "D3DDevice_BlockUntilVerticalBlank; overridden as a 60 Hz pacer in src/recomp_manual.c"
+source = "archive/2026-10-01-xdk-library-hle design.md; specs/xdk-library-hle spec.md; src/recomp_manual.c"
+in_gen = false
+ghidra_only = true
+
+[[symbol]]
+addr = 0x002E1C80
+name = "d3d_begin_visibility_test"
+kind = "function"
+note = "D3DDevice_BeginVisibilityTest"
+source = "archive/2026-10-07-pb-index-batch-cap design.md"
+
+[[symbol]]
+addr = 0x002E1D20
+name = "d3d_end_visibility_test"
+kind = "function"
+note = "D3DDevice_EndVisibilityTest"
+source = "archive/2026-10-07-pb-index-batch-cap design.md"
+
+[[symbol]]
+addr = 0x002E5B10
+name = "d3d_lock"
+kind = "function"
+note = "D3D buffer Lock (the vertex buffer data the cull fan writes through)"
+source = "src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x002E6660
+name = "d3d_av_set_display_mode"
+kind = "function"
+note = "calls AvSetDisplayMode (step loop); halves the pitch for field modes"
+source = "archive/2026-10-17-present-mode-height design.md; archive/2026-10-01-xdk-library-hle design.md"
+
+[[symbol]]
+addr = 0x002E6FE0
+name = "d3d_swap"
+kind = "function"
+note = "D3DDevice_Swap, called after the frame wait in the main loop"
+source = "archive/2026-10-17-fps-pacing design.md; archive/2026-10-13-input-real-devices design.md"
+conflict = "guest-priority-scheduling design.md calls it KickOff (with callees); fps-pacing names it Swap and KickOff is sub_002E7F30 (pb-event-kick); kept Swap"
+
+[[symbol]]
+addr = 0x002E7E80
+name = "d3d_kick_pfb_flush"
+kind = "function"
+note = "Swap path: kicks a PFB flush, then spins on PGRAPH 0x400B10 vs the fence"
+source = "archive/2026-10-06-present-frames design.md"
+
+[[symbol]]
+addr = 0x002E7F30
+name = "d3d_kickoff"
+kind = "function"
+note = "D3D KickOff: set the flush bit, spin at 0x002E7F70 until clear, store PUT"
+source = "pb-event-kick design.md; save-states design.md"
+
+[[symbol]]
+addr = 0x002E8110
+name = "d3d_fence_wait"
+kind = "function"
+note = "D3D fence wait on *[device+0x30]; the function main.c mirrors the fence for"
+source = "archive/2026-10-01-xdk-library-hle design.md; archive/2026-10-17-scaffold-fence-defaults design.md"
+
+[[symbol]]
+addr = 0x002E95B0
+name = "d3d_format_to_av"
+kind = "function"
+note = "maps D3DFORMAT to the AV format codes"
+source = "archive/2026-10-17-present-mode-height design.md"
+
+[[symbol]]
+addr = 0x002EA2E0
+name = "d3d_gpu_isr"
+kind = "function"
+note = "NV2A vblank ISR, vector 3, context 0x002F3BE8"
+source = "archive/2026-10-01-xdk-library-hle design.md; src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x002EA4E0
+name = "d3d_vblank_dpc_ack"
+kind = "function"
+note = "called by the vblank DPC; spins at 0x002EA590 on PMC_INTR_0 bit 24"
+source = "archive/2026-10-06-kernel-memory-and-files tasks.md; analysis/research/hot-threads-macos.md"
+
+[[symbol]]
+addr = 0x002EAC90
+name = "d3d_vblank_dpc"
+kind = "function"
+note = "D3D vblank DPC (calls sub_002EA4E0)"
+source = "analysis/research/hot-threads-macos.md; audio RESUME-audio.md"
+
+[[symbol]]
+addr = 0x002F0820
+name = "d3d_display_mode_table"
+kind = "global"
+note = "XDK display-mode table, 12-byte rows (flags, h<<16|w, mode word); file off 0x2E0820"
+source = "archive/2026-10-17-present-mode-height design.md"
+
+[[symbol]]
+addr = 0x002F1FB8
+name = "d3d_p_device"
+kind = "global"
+note = "D3D__pDevice; the fence mirror reads +0x2C/+0x30 through it"
+source = "archive/2026-10-17-scaffold-fence-defaults proposal.md; archive/2026-10-06-deviations-register spec.md"
+
+[[symbol]]
+addr = 0x002F1FC0
+name = "d3d_g_device"
+kind = "global"
+note = "g_Device; +0 is the pushbuffer push pointer"
+source = "hud-anchors proposal.md"
+
+[[symbol]]
+addr = 0x002F3BE8
+name = "d3d_gpu_isr_context"
+kind = "global"
+note = "context of the NV2A ISR (vector 3)"
+source = "archive/2026-10-01-xdk-library-hle design.md"
+
+[[symbol]]
+addr = 0x002F3D7C
+name = "d3d_vblank_event"
+kind = "global"
+note = "D3D vblank KEVENT (.bss), built inline without KeInitializeEvent"
+source = "archive/2026-10-01-xdk-library-hle design.md; archive/2026-10-17-upstream-sync-v0-13-1 design.md"
+
+[[symbol]]
+addr = 0x002F4EBC
+name = "d3d_dx_create_texture_from_file_in_memory_ex"
+kind = "function"
+note = "D3DXCreateTextureFromFileInMemoryEx (15 args, ret 0x3c)"
+source = "archive/2026-10-06-present-frames design.md"
+
+[[symbol]]
+addr = 0x002F89C3
+name = "d3d_dx_jpeg_load"
+kind = "function"
+note = "D3DX JPEG image loader (MSVC offset frame)"
+source = "archive/2026-10-06-present-frames design.md"
+
+[[symbol]]
+addr = 0x002F9B7D
+name = "d3d_dx_load_image"
+kind = "function"
+note = "D3DX: tries seven image loaders in turn"
+source = "archive/2026-10-06-present-frames design.md"
+
+[[symbol]]
+addr = 0x00301AB1
+name = "d3d_dx_cpu_probe"
+kind = "function"
+note = "D3DX MMX probe (pushfd/popfd/cpuid)"
+source = "src/unimpl_budget.h"
+
+[[symbol]]
+addr = 0x00307F41
+name = "d3d_dx_jpeg_idct_mmx"
+kind = "function"
+note = "D3DX JPEG decoder's MMX IDCT, used when cpuid reports MMX"
+source = "src/env/recomp_env_game.h"
+
+[[symbol]]
+addr = 0x00333BD1
+name = "snd_direct_sound_create"
+kind = "function"
+note = "DirectSoundCreate path (outermost DSOUND frame in the boot doorbell spin)"
+source = "audio spike-results.md"
+
+[[symbol]]
+addr = 0x003340D7
+name = "snd_dsound_static_init"
+kind = "function"
+note = "DSOUND static initializer: mov [0x0033A178], 0x00339AA4; ret"
+source = "archive/2026-10-01-recomp-coverage proposal.md; archive/2026-10-01-toolkit-memory-layout design.md"
+
+[[symbol]]
+addr = 0x003341BE
+name = "snd_gp_command_submit"
+kind = "function"
+note = "DSOUND: builds the GP DMA list, writes command 3 to the doorbell, spins till 0"
+source = "audio spike-results.md; audio design.md; src/env/recomp_env_game.h"
+
+[[symbol]]
+addr = 0x0033439F
+name = "snd_gp_command_caller"
+kind = "function"
+note = "DSOUND caller of sub_003341BE in the boot GP handshake"
+source = "audio spike-results.md"
+
+[[symbol]]
+addr = 0x003346BE
+name = "snd_dsound_dpc"
+kind = "function"
+note = "DSOUND DPC: pops the list at dsound+0x4A0, calls each node's handler"
+source = "archive/2026-10-07-irq-safe-points proposal.md; archive/2026-10-17-dpc-on-irql-raise design.md"
+
+[[symbol]]
+addr = 0x00334D23
+name = "snd_apu_isr_body"
+kind = "function"
+note = "APU interrupt handler body (reads FEDECMETH/PARAM, unlinks the voice)"
+source = "archive/2026-10-07-irq-safe-points proposal.md; audio design.md"
+
+[[symbol]]
+addr = 0x00334DBF
+name = "snd_apu_isr"
+kind = "function"
+note = "APU ISR on vector 5; calls sub_00334D23"
+source = "audio design.md"
+
+[[symbol]]
+addr = 0x00335C18
+name = "snd_voice_list_insert"
+kind = "function"
+note = "appends voice+0x54 to a DSOUND list without a linked check (insert at 0x335DB8)"
+source = "archive/2026-10-07-irq-safe-points proposal.md"
+
+[[symbol]]
+addr = 0x00338103
+name = "snd_ep_reset"
+kind = "function"
+note = "DSOUND: writes EPRST (MEM32(0xFE85FFFC) = 1)"
+source = "audio design.md"
+
+[[symbol]]
+addr = 0x0033A178
+name = "snd_dsound_static_global"
+kind = "global"
+note = "DSOUND global set to 0x00339AA4 by the static initializer sub_003340D7"
+source = "archive/2026-10-01-recomp-coverage proposal.md"
+
+[[symbol]]
+addr = 0x0033A340
+name = "fmv_psfd_i_entry"
+kind = "function"
+note = "PSFD_I section code (CRI MPEG decode), indirect entry (seeded)"
+source = "archive/2026-10-01-xdk-library-hle tasks.md; analysis/research/blinx2-internals-and-fmv.md"
+
+[[symbol]]
+addr = 0x0033A960
+name = "fmv_psfd_b_decode"
+kind = "function"
+note = "PSFD_B section code, in the SFD/ADX decode samples"
+source = "analysis/research/hot-threads-macos.md"
+
+[[symbol]]
+addr = 0x0033B040
+name = "fmv_psfd_p_entry"
+kind = "function"
+note = "PSFD_P section code (CRI MPEG decode), indirect entry (seeded)"
+source = "archive/2026-10-01-xdk-library-hle tasks.md; analysis/research/hot-threads-macos.md"
+
+[[symbol]]
+addr = 0x0033CED0
+name = "lib_atexit_dtor_thunk_0"
+kind = "function"
+note = "atexit destructor thunk (mov ecx, obj; jmp sub_00348580), seeded"
+source = "archive/2026-10-17-upstream-sync-v0-14-0 design.md"
+
+[[symbol]]
+addr = 0x0033D0B0
+name = "lib_atexit_dtor_thunk_1"
+kind = "function"
+note = "atexit destructor thunk (mov ecx, obj; jmp sub_00348580), seeded"
+source = "archive/2026-10-17-upstream-sync-v0-14-0 design.md"
+
+[[symbol]]
+addr = 0x0033D0E0
+name = "lib_atexit_dtor_thunk_2"
+kind = "function"
+note = "atexit destructor thunk (mov ecx, obj; jmp sub_00348580), seeded"
+source = "archive/2026-10-17-upstream-sync-v0-14-0 design.md"
+
+[[symbol]]
+addr = 0x00348580
+name = "lib_static_dtor"
+kind = "function"
+note = "destructor the three atexit thunks jump to"
+source = "archive/2026-10-17-upstream-sync-v0-14-0 design.md"
+
+[[symbol]]
+addr = 0x0035E600
+name = "cam_aspect_reader_35e600"
+kind = "function"
+note = "SRCADV code that reads the 4/3 constant at 0x3DFA30; not the projection builder"
+source = "free-camera spike.md"
+
+[[symbol]]
+addr = 0x00366B10
+name = "lib_xdevice_type_memory_unit"
+kind = "global"
+note = "XDEVICE_TYPE_MEMORY_UNIT, passed to XGetDevices before a save"
+source = "src/recomp_manual.c; archive/2026-10-13-input-real-devices design.md"
+
+[[symbol]]
+addr = 0x00366B90
+name = "lib_xdevice_type_gamepad"
+kind = "global"
+note = "XDEVICE_TYPE_GAMEPAD, passed for pads everywhere"
+source = "src/recomp_manual.c; specs/input spec.md"
+
+[[symbol]]
+addr = 0x00367EEC
+name = "lib_xget_devices"
+kind = "function"
+note = "XGetDevices; overridden in src/recomp_manual.c"
+source = "specs/input spec.md; src/recomp_manual.c"
+in_gen = false
+ghidra_only = true
+
+[[symbol]]
+addr = 0x00367F0E
+name = "lib_xget_device_changes"
+kind = "function"
+note = "XGetDeviceChanges; overridden in src/recomp_manual.c"
+source = "specs/input spec.md; src/recomp_manual.c"
+in_gen = false
+ghidra_only = true
+
+[[symbol]]
+addr = 0x00367FDD
+name = "lib_mu_mount"
+kind = "function"
+note = "mounts a memory unit (with sub_0036810F), after XGetDevices(MU)"
+source = "archive/2026-10-13-input-real-devices design.md"
+
+[[symbol]]
+addr = 0x0036810F
+name = "lib_mu_mount_2"
+kind = "function"
+note = "second memory-unit mount helper (with sub_00367FDD)"
+source = "archive/2026-10-13-input-real-devices design.md"
+
+[[symbol]]
+addr = 0x0036821D
+name = "lib_xinput_open"
+kind = "function"
+note = "XInputOpen; overridden in src/recomp_manual.c"
+source = "specs/input spec.md; src/recomp_manual.c"
+in_gen = false
+ghidra_only = true
+
+[[symbol]]
+addr = 0x00368273
+name = "lib_xinput_close"
+kind = "function"
+note = "XInputClose; overridden in src/recomp_manual.c"
+source = "specs/input spec.md; src/recomp_manual.c"
+in_gen = false
+ghidra_only = true
+
+[[symbol]]
+addr = 0x0036827F
+name = "lib_xinput_get_capabilities"
+kind = "function"
+note = "XInputGetCapabilities; overridden in src/recomp_manual.c"
+source = "specs/input spec.md; src/recomp_manual.c"
+in_gen = false
+ghidra_only = true
+
+[[symbol]]
+addr = 0x00368457
+name = "lib_xinput_get_state"
+kind = "function"
+note = "XInputGetState; overridden in src/recomp_manual.c"
+source = "specs/input spec.md; src/recomp_manual.c"
+in_gen = false
+ghidra_only = true
+
+[[symbol]]
+addr = 0x003684CA
+name = "lib_xinput_set_state"
+kind = "function"
+note = "XInputSetState; overridden in src/recomp_manual.c"
+source = "specs/input spec.md; src/recomp_manual.c"
+in_gen = false
+ghidra_only = true
+
+[[symbol]]
+addr = 0x0036E924
+name = "lib_str_device_mu_0"
+kind = "global"
+note = "the string \\Device\\MU_0"
+source = "archive/2026-10-17-upstream-sync-v0-14-0 design.md"
+
+[[symbol]]
+addr = 0x0036EB54
+name = "lib_imp_ke_synchronize_execution"
+kind = "global"
+note = "kernel import slot KeSynchronizeExecution"
+source = "archive/2026-10-17-dpc-on-irql-raise proposal.md"
+
+[[symbol]]
+addr = 0x003DC3B0
+name = "menu_edit_char_tg_fmt"
+kind = "global"
+note = "string: edit_char\\mdl_param_list_tg%03d.edt (character editor, Tom-Tom Gang)"
+source = "free-camera spike.md 9.4"
+
+[[symbol]]
+addr = 0x003DC3D8
+name = "menu_edit_char_ts_fmt"
+kind = "global"
+note = "string: edit_char\\mdl_param_list_ts%03d.edt (character editor, Time Sweepers)"
+source = "free-camera spike.md 9.4"
+
+[[symbol]]
+addr = 0x003DD438
+name = "menu_edit_model_strs"
+kind = "global"
+note = "edit_model variants of the .edt path strings start here"
+source = "free-camera spike.md 9.4"
+
+[[symbol]]
+addr = 0x003DECBC
+name = "pad_deadzone_const_a"
+kind = "global"
+note = "one of the stick deadzone constants"
+source = "archive/2026-10-13-input-real-devices design.md"
+
+[[symbol]]
+addr = 0x003DED60
+name = "pad_deadzone_const_c"
+kind = "global"
+note = "one of the stick deadzone constants"
+source = "archive/2026-10-13-input-real-devices design.md"
+
+[[symbol]]
+addr = 0x003DF06C
+name = "pad_deadzone_const_b"
+kind = "global"
+note = "one of the stick deadzone constants"
+source = "archive/2026-10-13-input-real-devices design.md"
+
+[[symbol]]
+addr = 0x003DF648
+name = "cam_fov_width_const"
+kind = "global"
+note = "640.0 (double) in fov = -atan(640/512) for the projection"
+source = "free-camera spike.md 9.3"
+
+[[symbol]]
+addr = 0x003DFA30
+name = "cam_aspect_4_3_const"
+kind = "global"
+note = "4/3 constant read by sub_00293B30 and sub_0035E600; not the game projection"
+source = "free-camera spike.md"
+
+[[symbol]]
+addr = 0x003F15C0
+name = "menu_stage_names"
+kind = "global"
+note = "SELECT A STAGE names, idx*32 bytes; 0 = ST1-1&2 SWEEPER"
+source = "analysis/research/blinx2-menu-flow.md"
+
+[[symbol]]
+addr = 0x003F5020
+name = "ent_class_fn_table"
+kind = "global"
+note = "per-class function table for class & 0xFF < 0x80, 0x18 bytes per class (reset/event, ?, common, radius effect, hit)"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x003F5218
+name = "ent_class_fn_table_hi"
+kind = "global"
+note = "per-class function table for class & 0xFF >= 0x80, entry (class & 0xF) * 0x18 (code at 0x506C0)"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; the tracker item review; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x003FC3F8
+name = "gfx_glow_quad_verts"
+kind = "global"
+note = "glow full-screen quad vertices (..0x3FC564); diffuse gets the glow weight"
+source = "archive/2026-10-07-glow-toggle design.md"
+
+[[symbol]]
+addr = 0x003FC8B0
+name = "menu_msg_table"
+kind = "global"
+note = "message table, 5 languages x 4-byte pointers per message (ids 78-92 vacuums, 93-120 guns, 121-129 space controls and items, 43 Gold:)"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x003FD33C
+name = "sys_frame_step"
+kind = "global"
+note = "main-loop step, copied from 0x3FD340: 2 in 3D scenes, 1 in menus; loader sleeps step<<4 ms"
+source = "fps60-ways-spike design.md; playthrough-replay design.md"
+
+[[symbol]]
+addr = 0x003FD340
+name = "sys_frame_step_src"
+kind = "global"
+note = "source of the frame step [0x3FD33C]"
+source = "fps60-ways-spike design.md"
+
+[[symbol]]
+addr = 0x003FD344
+name = "sys_vblank_wait"
+kind = "global"
+note = "vblanks the main loop waits per frame (1 menus, 2 in 3D)"
+source = "archive/2026-10-17-fps-pacing design.md; archive/2026-10-13-input-real-devices design.md"
+
+[[symbol]]
+addr = 0x0040D180
+name = "stage_map_table"
+kind = "global"
+note = "12-byte rows (X, root, texlist) by area id; read by sub_000E2180/sub_000E21C0"
+source = "engine-extract design.md (feat/engine-extract 69972d7); entity-system-spike design.md"
+
+[[symbol]]
+addr = 0x0040D454
+name = "stage_map_table_alt"
+kind = "global"
+note = "parallel stage map table; X = 0 rows for M14, M24, M44"
+source = "engine-extract design.md (feat/engine-extract 69972d7)"
+
+[[symbol]]
+addr = 0x00449F40
+name = "stage_play_active"
+kind = "global"
+note = "1 in play, 0 in the menu; set by sub_0016AA90, cleared by sub_0016A870"
+source = "free-camera spike.md 9.2 (corrected 9.6); free-camera proposal.md, the tracker item; hud-anchors design.md"
+conflict = "spike.md 9.2 first read it as 1 outside play; 9.6 reverses every polarity: kept 1 in play. hud-anchors design.md reads it as 'not paused'"
+
+[[symbol]]
+addr = 0x00450B08
+name = "gfx_lod_table"
+kind = "global"
+note = "LOD (threshold, level) int32 pairs x5: (8,0)(24,1)(48,2)(80,3)(160,4); loop at 0x19A460"
+source = "lod-scale design.md, proposal.md"
+
+[[symbol]]
+addr = 0x004921E8
+name = "stage_enemy_placement_table"
+kind = "global"
+note = "per stage index (stage_current): pointer to {count, records*}; records are 0x5C bytes"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x004923C8
+name = "stage_enemy_extra_table_1p"
+kind = "global"
+note = "extra placement sets, 1P"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x004925A8
+name = "stage_enemy_extra_table_2p"
+kind = "global"
+note = "extra placement sets, 2P"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x004AACE0
+name = "menu_shop_catalogue"
+kind = "global"
+note = "53 records x 0x14 (menu_shop_item); categories 0 HP, 1 max HP, 2 barrier, 3 jetpack, 4 tank repair, 5 time controls, 6 space controls and items, 7 weapons"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x004AC358
+name = "stage_table"
+kind = "global"
+note = "stage table the area records come from"
+source = "engine-extract design.md (feat/engine-extract 69972d7)"
+
+[[symbol]]
+addr = 0x004AC760
+name = "pad_divisor"
+kind = "global"
+note = "pad divisor set by the main loop (2 in 3D, 1 in menus)"
+source = "fps60-ways-spike design.md; playthrough-replay design.md"
+
+[[symbol]]
+addr = 0x004AED00
+name = "ent_placement_static"
+kind = "global"
+note = "a static 0x5C-byte placement record; ent_enemy_init_spawner spawns from it"
+source = "the tracker item review; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x004AFCD8
+name = "ent_class1_variants"
+kind = "global"
+note = "class 1's variant records, 0x20 each, indexed by class byte 1 (hp short at +0xC; 0x4AFD04 is class 0x101's hp); not a table for every class"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; the tracker item review; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x004AFD18
+name = "ent_class1_variants_alt"
+kind = "global"
+note = "class 1's variant records when class byte 3 is set (0x20 each, by class byte 1)"
+source = "the tracker item review; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x004B2718
+name = "cam_views"
+kind = "global"
+note = "camera set: +0 array of 0x140-byte cam_state (one per view, 1-4, allocated by sub_0002DB60), +4 the current one (cam_ptr), +8 count; sub_0002E060(ECX = this, EAX = i) returns entry i, or entry 0 when i is out of range; 2,167 code refs"
+source = "free-camera spike.md 9.6; the tracker item review; src/recomp/gen, the tracker item"
+conflict = "free-camera spike 9.6 named it cam_follow (the struct the follow works on); the tracker item read it as ent_player_stats_ptr with gold at +0x78, which is cam_state's followed object"
+
+[[symbol]]
+addr = 0x004B271C
+name = "cam_ptr"
+kind = "global"
+note = "pointer to the game camera struct (cam_state); cam_views +4"
+source = "free-camera design.md; src/recomp_manual.c; engine-bridge-assessment design.md; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x004B2798
+name = "stage_area_records"
+kind = "global"
+note = "area records, stride 0xE4; part-list pointers at +0xDC and +0xE0"
+source = "engine-extract design.md (feat/engine-extract 69972d7)"
+
+[[symbol]]
+addr = 0x005EB5F4
+name = "menu_title_state_ptr"
+kind = "global"
+note = "points to the title state block (0x5EB620 once the title runs)"
+source = "analysis/research/blinx2-menu-flow.md; src/pad_input.c"
+
+[[symbol]]
+addr = 0x005EB620
+name = "menu_title_state"
+kind = "global"
+note = "title state dword (27 states, jump table 0x16A90): 0 press start, 1 debug, 0xB stage select, 0xD story"
+source = "analysis/research/blinx2-menu-flow.md; src/pad_input.c"
+
+[[symbol]]
+addr = 0x005EB630
+name = "menu_debug_cursor"
+kind = "field"
+struct = "menu_title_state"
+offset = 0x10
+note = "debug menu cursor (0 = 1P_MISSION(NORMAL))"
+source = "analysis/research/blinx2-menu-flow.md; src/pad_input.c"
+
+[[symbol]]
+addr = 0x005EB638
+name = "menu_stage_cursor"
+kind = "field"
+struct = "menu_title_state"
+offset = 0x18
+note = "SELECT A STAGE cursor (0 = ST1-1&2 SWEEPER)"
+source = "analysis/research/blinx2-menu-flow.md; src/pad_input.c"
+
+[[symbol]]
+addr = 0x0067EF6C
+name = "gfx_draw_alt_path_flag"
+kind = "global"
+note = "nonzero: sub_0003B8D0 takes the sub_0003A780 matrix-ring writer (branch 0x3BBDF)"
+source = "free-camera spike.md"
+
+[[symbol]]
+addr = 0x00680F84
+name = "ent_enemy_id_serial"
+kind = "global"
+note = "enemy id serial: a class init takes id = serial++ while it is below 0xFF, else id -1; several writers reset it"
+source = "the tracker item review; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x00811000
+name = "gfx_glow_downsample_rt"
+kind = "global"
+note = "320x240 target the frame is downsampled into (sub_0005B330) for the glow"
+source = "archive/2026-10-07-glow-toggle design.md"
+
+[[symbol]]
+addr = 0x00881080
+name = "cam_far_cull"
+kind = "global"
+note = "far-cull word logged with the camera (farcull)"
+source = "src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x00885B98
+name = "gfx_light_count_visible"
+kind = "global"
+note = "light count, varies 0-6 with the camera in stage 1"
+source = "archive/2026-10-17-mac-one-cpu tasks.md"
+
+[[symbol]]
+addr = 0x00885BC0
+name = "cam_focal"
+kind = "global"
+note = "focal length 512 (float) in fov = -atan(640/512)"
+source = "free-camera spike.md 9.3; src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x00885E20
+name = "nj_matrix_stack"
+kind = "global"
+note = "matrix stack, 64 bytes per entry, index [0xAD8030]"
+source = "free-camera spike.md"
+
+[[symbol]]
+addr = 0x00888620
+name = "cam_viewport_w"
+kind = "global"
+note = "viewport width (float), logged as vp"
+source = "src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x008E4E80
+name = "nj_node_ordinal"
+kind = "global"
+note = "node ordinal that indexes the bone palette 0xA001D0"
+source = "engine-bridge-assessment design.md (S4), the tracker item"
+
+[[symbol]]
+addr = 0x008E9088
+name = "gfx_light_pool"
+kind = "global"
+note = "light pool entries, 36 bytes each; count at 0xAACDFC"
+source = "archive/2026-10-17-guest-one-cpu design.md, the tracker item; playthrough-replay design.md"
+
+[[symbol]]
+addr = 0x009FB930
+name = "gfx_vis_test_results"
+kind = "global"
+note = "visibility results of sub_00046CE0 quads, read by sub_00022DB0 (count < threshold skips)"
+source = "archive/2026-10-07-pb-index-batch-cap design.md"
+
+[[symbol]]
+addr = 0x009FD95C
+name = "cam_proj_param"
+kind = "global"
+note = "5th argument of the perspective builder sub_0029EEF2"
+source = "free-camera design.md; free-camera spike.md 9.3"
+
+[[symbol]]
+addr = 0x00A0019C
+name = "cam_cull_planes"
+kind = "global"
+note = "four side cull-plane normals, 12 bytes each, set by sub_0003B180"
+source = "free-camera spike.md 9.3; src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x00A001D0
+name = "nj_bone_palette"
+kind = "global"
+note = "node matrices, idx*64; written by sub_00038B00 from the current transform"
+source = "free-camera spike.md; engine-bridge-assessment design.md (S4), the tracker item; entity-system-spike design.md"
+
+[[symbol]]
+addr = 0x00A043DC
+name = "hud_sprite_queue0_wp"
+kind = "global"
+note = "write pointer of 2D sprite queue 0 (records 0x34 bytes; sub_00042190 adds)"
+source = "hud-anchors design.md"
+
+[[symbol]]
+addr = 0x00A10C08
+name = "cam_viewport_h"
+kind = "global"
+note = "viewport height (float), logged as vp"
+source = "src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x00A72380
+name = "cam_view_matrix"
+kind = "global"
+note = "D3D view matrix global written by the view builders"
+source = "free-camera design.md; free-camera proposal.md; src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x00A72438
+name = "cam_center_x"
+kind = "global"
+note = "viewport centre x (float), logged as c"
+source = "src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x00A88498
+name = "cam_far"
+kind = "global"
+note = "far distance (float), logged as far"
+source = "src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x00A9C220
+name = "cam_inverse_view"
+kind = "global"
+note = "inverse view, computed by sub_00042AE0"
+source = "free-camera design.md; free-camera spike.md 9.3; src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x00AACDFC
+name = "gfx_light_pool_count"
+kind = "global"
+note = "light pool count; main/loader race in sub_00037CE0"
+source = "archive/2026-10-17-guest-one-cpu design.md, the tracker item; archive/2026-10-17-mac-one-cpu proposal.md"
+
+[[symbol]]
+addr = 0x00AAD3A0
+name = "nj_current_matrix"
+kind = "global"
+note = "transform being composed (world x view for the model); stored by sub_0003B5C0"
+source = "free-camera spike.md; free-camera design.md"
+
+[[symbol]]
+addr = 0x00AAF440
+name = "cam_center_y"
+kind = "global"
+note = "viewport centre y (float), logged as c"
+source = "src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x00AAF450
+name = "gfx_model_matrix_ring"
+kind = "global"
+note = "per-model W.V matrix ring, 0x80 per slot (+0x40 copy of 0xAAD3A0); not a view"
+source = "free-camera spike.md; fps60-ways-spike design.md"
+
+[[symbol]]
+addr = 0x00AC1870
+name = "cam_projection_matrix"
+kind = "global"
+note = "projection matrix built by sub_0029EEF2 from sub_00042AE0"
+source = "free-camera design.md; free-camera spike.md 9.3; src/recomp_manual.c"
+
+[[symbol]]
+addr = 0x00AD77F4
+name = "gfx_rs_shadow"
+kind = "global"
+note = "game's D3D render-state shadow words (also 0xAD77F8, 0xAD79D4)"
+source = "archive/2026-10-07-glow-toggle design.md"
+
+[[symbol]]
+addr = 0x00AD7BBC
+name = "gfx_matrix_ring_slot"
+kind = "global"
+note = "running slot index of the matrix ring; reset to 1 per frame by sub_000359F0"
+source = "free-camera spike.md"
+
+[[symbol]]
+addr = 0x00AD8030
+name = "nj_matrix_stack_index"
+kind = "global"
+note = "index into the matrix stack 0x885E20"
+source = "free-camera spike.md"
+
+[[symbol]]
+addr = 0x00ADA9B0
+name = "ent_placement_registry"
+kind = "global"
+note = "128 entries x 0x18 {used, ?, pos[3], arg}; add sub_0004F890, find sub_0004F910; its dedupe plausibly never runs (the loader appears to pass 1)"
+source = "the tracker item review; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x00ADC738
+name = "gfx_post_mode"
+kind = "global"
+note = "post mode: 3 glow composite (sub_0005B7D0), 4 second effect (sub_0005BC60)"
+source = "archive/2026-10-07-glow-toggle design.md"
+
+[[symbol]]
+addr = 0x00ADC744
+name = "gfx_glow_weight"
+kind = "global"
+note = "glow weight 0x00RRGGBB (0x404040 default); faded by sub_000E4140"
+source = "archive/2026-10-07-glow-toggle design.md"
+
+[[symbol]]
+addr = 0x00ADC794
+name = "pad_active_ptr"
+kind = "global"
+note = "pointer to the active pad structs (pad_state, stride 0x1E4)"
+source = "archive/2026-10-13-input-real-devices design.md; analysis/research/blinx2-menu-flow.md"
+
+[[symbol]]
+addr = 0x00ADCA30
+name = "sys_loader_stop_flag"
+kind = "global"
+note = "set to 1 by sub_0005E3C0 to stop the loading thread"
+source = "analysis/research/hot-threads-macos.md"
+
+[[symbol]]
+addr = 0x00ADCA58
+name = "stage_checkpoint_src"
+kind = "global"
+note = "checkpoint snapshot source: sub_001A95A0 copies 0x5DC dwords to 0xAE4780"
+source = "analysis/research/blinx2-menu-flow.md"
+
+[[symbol]]
+addr = 0x00ADE1C8
+name = "tc_rew_counter"
+kind = "global"
+note = "REW end counter"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x00ADE76C
+name = "tc_request"
+kind = "global"
+note = "time-control request word: -1 none, 0x100 PAUSE, 0x200 SLOW, 0x400 FF, 0x800 item (tc_item_activate), 0x1000 REW, 0x2000 REC; stage_update dispatches on it at 0x65713 and sets stage_play_mode 0xAE46EC per request (PAUSE 0x100 (0x8000 in VS), SLOW 0x200, FF the value in EBX (not 0x400), REW 0x1000 (0x10000 in VS), REC 0x2000 (0x20000 in VS)), then resets it to -1"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x00ADE790
+name = "ent_enemy_pool"
+kind = "global"
+note = "enemy pool in .bss, 0x5F5C bytes = 34 x (0x2C1 slot + 0xD node); stage_area_setup passes it and its size; stage_play_mode 0xAE46EC follows it"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x00AE46EC
+name = "stage_play_mode"
+kind = "global"
+note = "stage play-mode word (0 normal play, 2, 3, 4, 0x200, 0x800, 0x1100); 2 leaves the hub; bit 0x800 skips events; stage_update sets it per request 0xADE76C at 0x65713: PAUSE 0x100 (0x8000 in VS), SLOW 0x200, FF the value in EBX (not 0x400), REW 0x1000 (0x10000 in VS), REC 0x2000 (0x20000 in VS) (VS: stage_team_mode 3)"
+source = "archive/2026-10-07-recomp-test-flag-join notes.md; src/pad_input.c; free-camera spike.md 9.6; entity-system-spike design.md part B (spike/entity 9770730), the tracker item; the tracker item review; src/recomp/gen, the tracker item"
+conflict = "recomp-test-flag-join proposal.md read it as a pad mask (A = bit 0x100); notes.md 3.3 corrects: a game-mode word; named sys_game_mode until the tracker item; the tracker item read it as the active time control, one family of its values"
+
+[[symbol]]
+addr = 0x00AE4780
+name = "stage_checkpoint_snapshot"
+kind = "global"
+note = "checkpoint snapshot (0x5DC dwords from 0xADCA58); holds no enemy state"
+source = "analysis/research/blinx2-menu-flow.md; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x00AE7180
+name = "sys_frame_counter"
+kind = "global"
+note = "game frame counter, bumped by the loader loop; seeds srand"
+source = "playthrough-replay design.md"
+
+[[symbol]]
+addr = 0x00AE7388
+name = "sys_vblank_count"
+kind = "global"
+note = "vblank counter moved by the vblank callback sub_000604A0; main loop waits on it"
+source = "archive/2026-10-17-fps-pacing design.md; archive/2026-10-01-xdk-library-hle design.md"
+
+[[symbol]]
+addr = 0x00AE73B4
+name = "stage_pause_flag"
+kind = "global"
+note = "1 while the pause menu is open, 0 in play"
+source = "free-camera design.md; free-camera spike.md 9.6; entity-system-spike design.md, the tracker item"
+conflict = "spike.md 9.2 first read it as the in-play state; corrected in 9.6"
+
+[[symbol]]
+addr = 0x00AE73BC
+name = "stage_play_counter"
+kind = "global"
+note = "increments only when pause and world-stop are both 0; not the displayed timer"
+source = "free-camera spike.md 9.6"
+
+[[symbol]]
+addr = 0x00AE73F0
+name = "stage_scene_cur"
+kind = "global"
+note = "changes on scene changes (fps60 cut detection)"
+source = "fps60-ways-spike design.md"
+
+[[symbol]]
+addr = 0x00AE73FC
+name = "stage_checkpoint_flag"
+kind = "global"
+note = "0 -> 1 when play starts (first checkpoint, sub_001A95A0); cleared by sub_00075210"
+source = "analysis/research/blinx2-menu-flow.md; src/pad_input.c; playthrough-replay design.md"
+
+[[symbol]]
+addr = 0x00AE7424
+name = "stage_next_scene"
+kind = "global"
+note = "next scene; 0xA = stage load"
+source = "analysis/research/blinx2-menu-flow.md; src/pad_input.c; playthrough-replay design.md"
+
+[[symbol]]
+addr = 0x00AE7428
+name = "hud_timer"
+kind = "global"
+note = "HUD timer driven by the time-control rate stores"
+source = "fps60-ways-spike design.md"
+
+[[symbol]]
+addr = 0x00AE7744
+name = "ent_player_pos_copy"
+kind = "global"
+note = "A player position copy, the fps60 watch target; the authoritative state was not found (mod60 1b). See ent_player_pos at 0xCD252C"
+source = "fps60-ways-spike tasks.md, design.md"
+
+[[symbol]]
+addr = 0x00AE7A10
+name = "pad_menu_index"
+kind = "global"
+note = "pad index per menu player, i*4; START sets it"
+source = "analysis/research/blinx2-menu-flow.md; src/pad_input.c"
+
+[[symbol]]
+addr = 0x00AEB818
+name = "tc_duration"
+kind = "global"
+note = "time-control duration in frames: 0x12C on a player or enemy use, up to 0xE10 from tc_item_activate"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; the tracker item review; src/recomp/gen, the tracker item"
+conflict = "the tracker item named it tc_timer"
+
+[[symbol]]
+addr = 0x00AF0E88
+name = "ent_enemy_list"
+kind = "global"
+note = "the live enemy list (struct ent_enemy_list); +0 head node, nodes {prev, next, obj}"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x00AF0E90
+name = "ent_enemy_list_pool"
+kind = "field"
+struct = "ent_enemy_list"
+offset = 0x8
+note = "object pool (0xADE790): slots of a used byte + 0x2C0 object, then 0xD-byte node slots"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x00AF0E98
+name = "ent_enemy_list_capacity"
+kind = "field"
+struct = "ent_enemy_list"
+offset = 0x10
+note = "pool slots: pool size / 0x2CE = 34"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x00AF0E9C
+name = "ent_enemy_list_count"
+kind = "field"
+struct = "ent_enemy_list"
+offset = 0x14
+note = "enemies on the list, placed and dead alike; a spawn is refused once it is > 0x21"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; the tracker item review"
+
+[[symbol]]
+addr = 0x00AF0EA0
+name = "ent_enemy_list_aggro"
+kind = "field"
+struct = "ent_enemy_list"
+offset = 0x18
+note = "16 aggro slots (to +0x58)"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x00AF0EF4
+name = "evt_world_stop"
+kind = "global"
+note = "event/script world-stop flag; freezes the world update; free-camera freeze key"
+source = "free-camera design.md; free-camera spike.md 9.6; entity-system-spike design.md, the tracker item"
+
+[[symbol]]
+addr = 0x00AF5C94
+name = "stage_world_frozen"
+kind = "global"
+note = "derived: pause != 0 || world-stop != 0, computed in sub_000649B0 at 0x652DC"
+source = "free-camera spike.md 9.6"
+
+[[symbol]]
+addr = 0x00B21CB4
+name = "stage_team_mode"
+kind = "global"
+note = "team mode: 0 Sweepers, 1 Tom Tom, 3 VS"
+source = "analysis/research/blinx2-menu-flow.md"
+
+[[symbol]]
+addr = 0x00B22E3C
+name = "menu_player_count"
+kind = "global"
+note = "players the menus read the pad for; START sets it"
+source = "analysis/research/blinx2-menu-flow.md; src/pad_input.c"
+
+[[symbol]]
+addr = 0x00B22E68
+name = "ent_item_pool"
+kind = "global"
+note = "items and projectiles: 256 slots x 0x6C"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x00B2A738
+name = "ent_item_rotor"
+kind = "global"
+note = "next slot to try in the item pool"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x00B2A744
+name = "ent_item_serial"
+kind = "global"
+note = "item serial counter"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x00B87168
+name = "stage_current"
+kind = "global"
+note = "current stage index (selects 0x4921E8[stage]); stage loads set it and restore it around sub_00062550"
+source = "analysis/research/blinx2-menu-flow.md; entity-system-spike design.md part B (spike/entity 9770730), the tracker item; the tracker item review; src/recomp/gen, the tracker item"
+conflict = "blinx2-menu-flow.md named it stage_prev (current or previous stage)"
+
+[[symbol]]
+addr = 0x00B87180
+name = "stage_map_root"
+kind = "global"
+note = "stage root from the stage map table lands here"
+source = "engine-extract design.md (feat/engine-extract 69972d7)"
+
+[[symbol]]
+addr = 0x00B871AC
+name = "stage_index"
+kind = "global"
+note = "stage index: round = idx/5+1, stage = idx%5+1; stg0101 = 0; hub 0x32/0x37"
+source = "analysis/research/blinx2-menu-flow.md; src/pad_input.c; playthrough-replay design.md"
+
+[[symbol]]
+addr = 0x00B871B0
+name = "stage_mission"
+kind = "global"
+note = "current mission, set by sub_000E42D0"
+source = "src/pad_input.c, the tracker item"
+
+[[symbol]]
+addr = 0x00B8BB60
+name = "stage_phase"
+kind = "global"
+note = "stage phase (1 -> 2 at the 1-1 goal)"
+source = "src/pad_input.c, the tracker item; playthrough-replay design.md"
+
+[[symbol]]
+addr = 0x00B8BD50
+name = "evt_goal_state"
+kind = "global"
+note = "state of the goal sequence sub_000F8400"
+source = "src/pad_input.c, the tracker item"
+
+[[symbol]]
+addr = 0x00B8BD70
+name = "evt_talk_zone_state"
+kind = "global"
+note = "state of the sign-and-talk zone machine sub_000F7C50"
+source = "archive/2026-10-07-recomp-test-flag-join proposal.md; notes.md"
+
+[[symbol]]
+addr = 0x00B9D310
+name = "ent_player_ptr"
+kind = "global"
+note = "pointer to the player object"
+source = "archive/2026-10-07-stage1-water-spike spike.md"
+
+[[symbol]]
+addr = 0x00CD2440
+name = "ent_player"
+kind = "global"
+note = "player objects, 0x30C each (0xCD2440 + i*0x30C); stage 1"
+source = "archive/2026-10-07-stage1-water-spike spike.md; archive/2026-10-07-recomp-test-flag-join proposal.md; entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x00CD24A0
+name = "ent_player_hit_stun"
+kind = "field"
+struct = "ent_player"
+offset = 0x60
+note = "hit-stun byte; > 0 zeroes the stick in sub_00176150"
+source = "archive/2026-10-07-recomp-test-flag-join proposal.md"
+
+[[symbol]]
+addr = 0x00CD24AC
+name = "ent_player_hp"
+kind = "field"
+struct = "ent_player"
+offset = 0x6C
+note = "hp (short); the players are 0x30C apart (0xCD2440 + i*0x30C)"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; the tracker item review; src/recomp/gen, the tracker item"
+
+[[symbol]]
+addr = 0x00CD24C4
+name = "ent_player_walk_ramp"
+kind = "field"
+struct = "ent_player"
+offset = 0x84
+note = "walk-ramp counter"
+source = "archive/2026-10-07-recomp-test-flag-join proposal.md"
+
+[[symbol]]
+addr = 0x00CD252C
+name = "ent_player_pos"
+kind = "field"
+struct = "ent_player"
+offset = 0xEC
+note = "position (3 floats), current"
+source = "archive/2026-10-07-stage1-water-spike spike.md; playthrough-replay design.md"
+
+[[symbol]]
+addr = 0x00CD2538
+name = "ent_player_pos_prev"
+kind = "field"
+struct = "ent_player"
+offset = 0xF8
+note = "position (3 floats), previous"
+source = "archive/2026-10-07-stage1-water-spike spike.md"
+
+[[symbol]]
+addr = 0x00DD9BB8
+name = "tc_region_table"
+kind = "global"
+note = "time-record regions, up to 0x266 x 0x14"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x00DDD198
+name = "tc_record_ring_ptr"
+kind = "global"
+note = "time-record ring: 10 frames of 0x16B0C; header +0xC region count, +0x10 used bytes; budget 0x16800 bytes, 0x20 regions"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x00E95E58
+name = "menu_edit_param_ts"
+kind = "global"
+note = "current Time Sweepers .edt parameter copy"
+source = "free-camera spike.md 9.4"
+
+[[symbol]]
+addr = 0x00E95EC4
+name = "menu_edit_param_tg"
+kind = "global"
+note = "current Tom-Tom Gang .edt parameter copy"
+source = "free-camera spike.md 9.4"
+
+[[symbol]]
+addr = 0x00E95F38
+name = "menu_edit_param_cache"
+kind = "global"
+note = "cache of the loaded .edt (0x6C bytes)"
+source = "free-camera spike.md 9.4"
+
+[[symbol]]
+addr = 0x00EBD278
+name = "pad_states"
+kind = "global"
+note = "pad structs x4, stride 0x1E4; open handle at +0x88"
+source = "archive/2026-10-13-input-real-devices design.md; src/pad_input.c"
+
+[[symbol]]
+addr = 0x00EC4B94
+name = "sys_loader_thread_handle"
+kind = "global"
+note = "handle of the loading thread (start sub_0005E410) made by sub_0005E380"
+source = "analysis/research/hot-threads-macos.md"
+
+[[symbol]]
+addr = 0x00EC4BF4
+name = "sys_pal60_flag"
+kind = "global"
+note = "PAL-60 bit stored by sub_00298AA3"
+source = "native-widescreen proposal.md"
+
+[[symbol]]
+addr = 0x00EC4C14
+name = "tc_world_clock"
+kind = "global"
+note = "world clock driven by the 20 time-control rate stores"
+source = "fps60-ways-spike design.md"
+
+[[symbol]]
+addr = 0x00EC4CE0
+name = "stage_drill_flag_b"
+kind = "global"
+note = "hub drill flag; while set the loader picks mgtu_ts files"
+source = "src/pad_input.c; archive/2026-10-17-rt-stale-alias tasks.md"
+
+[[symbol]]
+addr = 0x00EC4CF8
+name = "stage_drill_flag_a"
+kind = "global"
+note = "hub drill flag; while set the loader picks mgtu_ts files"
+source = "src/pad_input.c; archive/2026-10-17-rt-stale-alias tasks.md"
+
+[[symbol]]
+addr = 0x00EC5050
+name = "stage_handle_list"
+kind = "global"
+note = "handle list freed by sub_0016AA90"
+source = "free-camera spike.md 9.2"
+
+[[symbol]]
+addr = 0x00EC5058
+name = "stage_handle_count"
+kind = "global"
+note = "count of the handle list 0xEC5050"
+source = "free-camera spike.md 9.2"
+
+[[symbol]]
+addr = 0x00F2A834
+name = "gfx_grid_index_count"
+kind = "global"
+note = "quad-list index count of the grid drawn by sub_00219DC0 (4592)"
+source = "archive/2026-10-07-pb-index-batch-cap proposal.md"
+
+[[symbol]]
+name = "cam_pos"
+kind = "field"
+struct = "cam_state"
+offset = 0x0
+note = "position p (3 floats)"
+source = "free-camera design.md; src/recomp_manual.c"
+
+[[symbol]]
+name = "cam_pitch"
+kind = "field"
+struct = "cam_state"
+offset = 0xC
+note = "pitch"
+source = "free-camera design.md; src/recomp_manual.c"
+
+[[symbol]]
+name = "cam_yaw"
+kind = "field"
+struct = "cam_state"
+offset = 0x10
+note = "yaw"
+source = "free-camera design.md; src/recomp_manual.c"
+
+[[symbol]]
+name = "cam_roll"
+kind = "field"
+struct = "cam_state"
+offset = 0x14
+note = "roll"
+source = "free-camera design.md; src/recomp_manual.c"
+
+[[symbol]]
+name = "cam_angle_18"
+kind = "field"
+struct = "cam_state"
+offset = 0x18
+note = "angle used by sub_000292A0"
+source = "free-camera design.md; src/recomp_manual.c"
+
+[[symbol]]
+name = "cam_angle_1c"
+kind = "field"
+struct = "cam_state"
+offset = 0x1C
+note = "angle used by sub_000292A0"
+source = "free-camera design.md; src/recomp_manual.c"
+
+[[symbol]]
+name = "cam_eye"
+kind = "field"
+struct = "cam_state"
+offset = 0x2C
+note = "eye, written back by sub_000292A0 (p - o)"
+source = "free-camera design.md; src/recomp_manual.c"
+
+[[symbol]]
+name = "cam_shake"
+kind = "field"
+struct = "cam_state"
+offset = 0x38
+note = "shake offset o (3 floats)"
+source = "free-camera design.md; src/recomp_manual.c"
+
+[[symbol]]
+name = "cam_target"
+kind = "field"
+struct = "cam_state"
+offset = 0x78
+note = "the object a camera follows (written by sub_0002E080); hud_gold_draw reads it per player"
+source = "src/recomp/gen, the tracker item"
+
+[[symbol]]
+name = "ent_enemy_class"
+kind = "field"
+struct = "ent_enemy"
+offset = 0x0
+note = "class dword; byte 0 selects the init and the function table, byte 1 the variant (0x101, 0x102, 0x105, 0x110, 0x210, 0x310 in stage 1); objects sit at odd addresses (after the used byte), so host reads need memcpy"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; the tracker item review"
+
+[[symbol]]
+name = "ent_enemy_state"
+kind = "field"
+struct = "ent_enemy"
+offset = 0x4
+note = "behaviour state; 0xA dead"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+name = "ent_enemy_placement"
+kind = "field"
+struct = "ent_enemy"
+offset = 0x10
+note = "placement record it came from; must stay live while the object does"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "ent_enemy_flags"
+kind = "field"
+struct = "ent_enemy"
+offset = 0x18
+note = "flags"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "ent_enemy_hp"
+kind = "field"
+struct = "ent_enemy"
+offset = 0x28
+note = "hp (short)"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "ent_enemy_hp_max"
+kind = "field"
+struct = "ent_enemy"
+offset = 0x2A
+note = "max hp (short)"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "ent_enemy_id"
+kind = "field"
+struct = "ent_enemy"
+offset = 0x2C
+note = "id from ent_enemy_id_serial 0x680F84"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; the tracker item review"
+
+[[symbol]]
+name = "ent_enemy_pos"
+kind = "field"
+struct = "ent_enemy"
+offset = 0x48
+note = "position (3 floats)"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "ent_enemy_pos_prev"
+kind = "field"
+struct = "ent_enemy"
+offset = 0x54
+note = "previous position"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "ent_enemy_rot"
+kind = "field"
+struct = "ent_enemy"
+offset = 0x6C
+note = "rotation (3 floats, from placement +0x14)"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "ent_enemy_class_data"
+kind = "field"
+struct = "ent_enemy"
+offset = 0x88
+note = "variant record (class 1: an ent_class1_variants entry)"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; src/recomp/gen, the tracker item"
+
+[[symbol]]
+name = "ent_enemy_update_fn"
+kind = "field"
+struct = "ent_enemy"
+offset = 0x98
+note = "per-object update function; nonzero return removes the enemy"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "ent_enemy_dtor_fn"
+kind = "field"
+struct = "ent_enemy"
+offset = 0xA4
+note = "destructor"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "ent_enemy_respawn_count"
+kind = "field"
+struct = "ent_enemy"
+offset = 0xAC
+note = "short: frames dead (state 0xA); counts past the delay while the zone is occupied"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+name = "ent_enemy_home"
+kind = "field"
+struct = "ent_enemy"
+offset = 0xF0
+note = "home position (class 1)"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "ent_item_used"
+kind = "field"
+struct = "ent_item"
+offset = 0x0
+note = "used byte"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "ent_item_type"
+kind = "field"
+struct = "ent_item"
+offset = 0x2
+note = "item type byte"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "ent_item_serial_no"
+kind = "field"
+struct = "ent_item"
+offset = 0xE
+note = "serial"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "ent_placement_class"
+kind = "field"
+struct = "ent_placement"
+offset = 0x0
+note = "class dword"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "ent_placement_pos"
+kind = "field"
+struct = "ent_placement"
+offset = 0x4
+note = "position (3 floats)"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "ent_placement_rot"
+kind = "field"
+struct = "ent_placement"
+offset = 0x14
+note = "rotation (3 floats)"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "ent_placement_group"
+kind = "field"
+struct = "ent_placement"
+offset = 0x30
+note = "group: 0xADB5C8[group*8] gives the default respawn mode, and the short at 0xADB5CC[group*8] must be > 0 for a respawn"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+conflict = "the tracker item read it as a link id (ent_placement_link)"
+
+[[symbol]]
+name = "ent_placement_zone"
+kind = "field"
+struct = "ent_placement"
+offset = 0x34
+note = "respawn zone descriptor {type, +4, +8 radius float}; 0 means the default sphere"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+name = "ent_placement_mode"
+kind = "field"
+struct = "ent_placement"
+offset = 0x54
+note = "top nibble respawn mode (0: the group's default; 1: 450 frames + crystal gate; >= 2 never), low 24 bits crystal colour nibbles"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+name = "menu_shop_item_name"
+kind = "field"
+struct = "menu_shop_item"
+offset = 0x0
+note = "name: message-table pointer, or 0 and a direct string at +4"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "menu_shop_item_price"
+kind = "field"
+struct = "menu_shop_item"
+offset = 0x8
+note = "price"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "menu_shop_item_category"
+kind = "field"
+struct = "menu_shop_item"
+offset = 0xC
+note = "category"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "menu_shop_item_id"
+kind = "field"
+struct = "menu_shop_item"
+offset = 0x10
+note = "id within the category"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+name = "pad_state_handle"
+kind = "field"
+struct = "pad_state"
+offset = 0x88
+note = "open handle; 0 = port closed"
+source = "src/pad_input.c; archive/2026-10-13-input-real-devices tasks.md"

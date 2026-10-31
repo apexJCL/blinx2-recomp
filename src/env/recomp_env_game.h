@@ -54,6 +54,8 @@
     X(LOD,               CONFIG, "RECOMP_LOD",               NULL, "enhancements: mods.lod.enable, off|on (character detail levels follow the render scale)") \
     X(LOD_FOLLOW_SCALE,  CONFIG, "RECOMP_LOD_FOLLOW_SCALE",  NULL, "enhancements: mods.lod.follow_scale, true|false (divide the detail thresholds by the render scale)") \
     X(LOD_DISTANCE,      CONFIG, "RECOMP_LOD_DISTANCE",      NULL, "enhancements: mods.lod.distance, 0.5..4 step 0.25, how far detail holds (1)") \
+    X(DEBUG_MENU,        CONFIG, "RECOMP_DEBUG_MENU",        NULL, "enhancements: mods.debug_menu.enable, off|on (the title's debug menu and stage select, opened from the in-game menu at PRESS START)") \
+    X(DEBUG_MENU_KEY,    CONFIG, "RECOMP_DEBUG_MENU_KEY",    NULL, "enhancements: [input.actions] debug_menu.open, the bindings that open the debug menu at PRESS START (unbound)") \
     X(INPUT_TRACE,       TRACE, "input",           "RECOMP_INPUT_TRACE",       "pad handles and states") \
     X(UNIMPL_BUDGET,     TRACE, "unimpl_budget",   NULL,                       "=n: [UNIMPL] lines per address before only hits 10, 100, ... (3)") \
     X(CAM_LOG,           DEBUG, "cam_log",         NULL,                       "=n: game camera, view, projection and cull planes every n-th view build") \

@@ -26,6 +26,7 @@
  * a frame callback nor the draw filter exists.
  */
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -442,6 +443,13 @@ static int init(const struct xbox_mod_api *api)
     /* The golden check reads the game's keys from [ENHANCE] lines
      * (game.toml golden.enhance_stock), not from the [MOD] ones. */
     fprintf(stderr, "[ENHANCE] camera.free=%s\n", on ? "on" : "off");
+    /* The init runs off as well (it reads its own key, so no follows), and
+     * a mod that never reports is listed in [ENHANCE] mods= while it runs:
+     * say whether it does anything, so a stock run logs mods=none. */
+#if XBOX_MOD_API_VERSION >= 4
+    if (api->size >= offsetof(struct xbox_mod_api, active) + sizeof api->active && api->active)
+        api->active(&s_mod, on);
+#endif
     if (!on)
         return 0;
     s_on = 1;

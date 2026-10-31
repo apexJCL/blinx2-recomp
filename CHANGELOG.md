@@ -10,6 +10,27 @@ No release contains game data: you build the game from your own disc.
 
 ## [Unreleased]
 
+### Changed
+- **The cache partition lives in memory** (`storage.ram_cache = true`, the
+  toolkit's new default for every game): what the game writes to its
+  scratch cache drive while it plays stays in RAM, up to the console's
+  750 MB, instead of being rewritten on your disk. The game sees the same
+  files. `ram_cache = false` under `[storage]` in `config/config.toml`
+  puts them back on the disk.
+- **The real audio DSP, on by default.** The game's own sound programs now
+  run on the emulated Xbox audio DSP: the reverb, the effect sends and the
+  game's own mix, instead of a plain stereo fold. Want the old sound back?
+  Put `RECOMP_APU_DSP=0` in `config/launch.env`.
+
+### For developers
+
+- The APU DSP default moved into the toolkit: `XBOXRECOMP_APU_DSP`
+  defaults ON where a dsp56300 archive exists, and the exe runs the JIT
+  unless `RECOMP_APU_DSP=0`. `CMakeLists.txt` drops its own migration and
+  set, keeping only the hand-over of `CAT_APU_DSP_MIGRATED`, so a tree's
+  OFF stays OFF. The CLI shares one dsp56300 download per game in
+  `third_party/dsp56300`.
+
 ## [2026.10.4] - 2026-10-29
 
 **CRT shaders, an in-game menu and a lighter Steam Deck.** Everything new is

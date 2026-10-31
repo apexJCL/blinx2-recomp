@@ -105,15 +105,15 @@ sha256 = [
 # commit locks the tag: a tag that names another commit (moved, re-pushed)
 # is refused.
 [cli]
-tag = "v0.16.0"
-commit = "5ae107ca1259cfa4f3aab221d138b5f641688c1b"
+tag = "v0.17.0"
+commit = "af5649d15fedb09eac8fd76f05f55edd39816e42"
 url = "https://github.com/apexJCL/xboxrecomp-cli.git"
 
 [toolkit]
 url = "https://github.com/apexJCL/xboxrecomp.git"
-tag = "blinx2-v0.9.0"
+tag = "blinx2-v0.10.0"
 branch = "blinx2/portability"
-commit = "f137ae0703c41a13f57737552d705c32c9bd8e83"
+commit = "a0c51a5c2db4ce0d2dcc4091552fc2d0a0e56f99"
 
 [toolchain]
 llvm_mingw = "20260922"
@@ -142,7 +142,7 @@ windows_dir = "build-win"
 macos_dir = "build"
 # Passed on every packaging configure so a cache cannot keep a non-stock
 # value; nonstock_vars are what package refuses without --allow-nonstock.
-# The APU DSP is compiled in and stays off until RECOMP_APU_DSP=1.
+# The APU DSP is compiled in and runs by default (RECOMP_APU_DSP=0: the stub).
 stock_cmake = ["-DXBOXRECOMP_ENHANCE=ON", "-DXBOXRECOMP_APU_DSP=ON", "-UCAT_GEN_OPT"]
 nonstock_vars = ["CAT_GEN_OPT"]
 icon_var = "CAT_APP_ICON"
@@ -180,7 +180,7 @@ frames = "analysis/golden/frames"
 audio = "analysis/golden/audio.json"
 # The game's own enhancement keys at their stock values (docs/env.md): a
 # golden run showing another value is not a stock run.
-enhance_stock = { "camera.free" = "off", "fps.mode" = "lock30", "fx.glow" = "on", "fx.glow_intensity" = "1", "mods.lod.enable" = "off" }
+enhance_stock = { "camera.free" = "off", "fps.mode" = "lock30", "fx.glow" = "on", "fx.glow_intensity" = "1", "mods.lod.enable" = "off", "mods.debug_menu.enable" = "off" }
 
 [package]
 app = "BLiNX2"
@@ -377,3 +377,152 @@ author = "carlos <4037632+apexJCL@users.noreply.github.com>"
 # Globs dropped from the export on top of the CLI's private set. A tracked
 # file on an ignored path needs one (scripts/test_public_exclude.py).
 exclude = []
+
+# xbr extract (local Godot project from the owner's dump; never published).
+[extract]
+vertex_header = 8
+angles = "radians"
+texname_size = 36
+textures = "ipk:media:dds/{name}.dds"
+
+# Stages: one per M section. Roots are the stage map table's rows (.data
+# 0x40d180 and the parallel rows at 0x40d454, by area) plus the parts in
+# each area record's second part list; the first list is the mirrored
+# reflection and part lists outside area records are runtime-placed
+# gimmicks, both left out. Each root draws with its own texlist. Method
+# and the S4 check: openspec/changes/engine-extract/design.md.
+
+[[extract.stage]]
+name = "M11"
+section = "M11"
+root = [0x01A091DC, 0x019F6C80, 0x0198C064, 0x01A22DC8, 0x01A3A8B8, 0x01A5BEC8, 0x01A2C418, 0x01A52BE8, 0x01A53040]
+texlist = [0x01A093C0, 0x019F739C, 0x0198C878, 0x01A1FFE0, 0x01A35F18, 0x01A574BC, 0x01A2B8D4, 0x01A52308, 0x01A52D40]
+
+# M13 adds the roots its stage code draws outside the tables: the glass
+# floor over the mirror pit (0x018F4858), the lamp glows (0x018F9450, both
+# from sub_000E61A0's M13 case), the sky (0x018FEA0C, drawn there a second
+# time mirrored in Y, which is left out) and the grass (0x018F6128, drawn by
+# sub_000E6FA0). The two 4,600-wide planes (0x01903248, 0x019069E0, drawn by
+# sub_0021A830) take a texlist set at runtime and are left out.
+[[extract.stage]]
+name = "M13"
+section = "M13"
+root = [0x018BD8A8, 0x018E3220, 0x018F4858, 0x018F9450, 0x018FEA0C, 0x018F6128]
+texlist = [0x018BE174, 0x018DFFE4, 0x018F42C4, 0x018F61A8, 0x018FC110, 0x018F48B0]
+
+[[extract.stage]]
+name = "M14"
+section = "M14"
+root = [0x02420798, 0x023D09D4, 0x02475208]
+texlist = [0x02420C2C, 0x023D0E40, 0x0246F8FC]
+
+# Table rows only: the area's second part list is in BSS, filled at runtime.
+[[extract.stage]]
+name = "M111"
+section = "M111"
+root = [0x02A58A6C]
+texlist = [0x02A58D70]
+
+[[extract.stage]]
+name = "M121"
+section = "M121"
+root = [0x027F0E80]
+texlist = [0x027F1260]
+
+[[extract.stage]]
+name = "M21"
+section = "M21"
+root = [0x023128EC, 0x022DED4C, 0x0223657C, 0x0234BB68]
+texlist = [0x02313220, 0x022DFB00, 0x02237018, 0x0234AA18]
+
+[[extract.stage]]
+name = "M23"
+section = "M23"
+root = [0x0217E934]
+texlist = [0x0217F6A0]
+
+[[extract.stage]]
+name = "M24"
+section = "M24"
+root = [0x01C80320, 0x01C5CEBC]
+texlist = [0x01C80868, 0x01C5D5B0]
+
+[[extract.stage]]
+name = "M31"
+section = "M31"
+root = [0x01E388EC, 0x01E114F4, 0x01DA777C]
+texlist = [0x01E38F98, 0x01E120B0, 0x01DA8068]
+
+[[extract.stage]]
+name = "M33"
+section = "M33"
+root = [0x0208AC84]
+texlist = [0x0208B7D4]
+
+# Table rows only: the area's second part list is in BSS, filled at runtime.
+[[extract.stage]]
+name = "M34"
+section = "M34"
+root = [0x026DDC78]
+texlist = [0x026DE208]
+
+[[extract.stage]]
+name = "M41"
+section = "M41"
+root = [0x0169BB04, 0x0164EBC8, 0x0160C75C]
+texlist = [0x0169C750, 0x0164F764, 0x0160D708]
+
+[[extract.stage]]
+name = "M43"
+section = "M43"
+root = [0x02A1207C]
+texlist = [0x02A12BF0]
+
+# Table rows only: the area's second part list is in BSS, filled at runtime.
+[[extract.stage]]
+name = "M44"
+section = "M44"
+root = [0x017721C0, 0x0173DC48]
+texlist = [0x01772CCC, 0x0173E7E4]
+
+[[extract.stage]]
+name = "M51"
+section = "M51"
+root = [0x029479B0, 0x0292CAC4, 0x028A0C40]
+texlist = [0x02947D00, 0x0292D128, 0x028A10D4]
+
+[[extract.stage]]
+name = "M53"
+section = "M53"
+root = [0x01F48138, 0x01F5E630]
+texlist = [0x01F4865C, 0x01F5DDDC]
+
+[[extract.stage]]
+name = "M54"
+section = "M54"
+root = [0x02B55A70]
+texlist = [0x02B55BA4]
+
+[[extract.stage]]
+name = "M61"
+section = "M61"
+root = [0x01CFD1D4]
+texlist = [0x01CFD274]
+
+[[extract.stage]]
+name = "M64"
+section = "M64"
+root = [0x02ABC7DC]
+texlist = [0x02ABC8A0]
+
+[[extract.stage]]
+name = "M91"
+section = "M91"
+root = [0x0155AD2C, 0x01562FD0]
+texlist = [0x0155B12C, 0x0155F9A8]
+
+[[extract.stage]]
+name = "M93"
+section = "M93"
+root = [0x014E9FEC]
+texlist = [0x014EAB18]

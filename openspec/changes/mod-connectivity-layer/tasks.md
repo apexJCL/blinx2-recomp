@@ -59,13 +59,17 @@ Every section merges on its own: the gates listed, then a review, then the merge
 - [ ] 3.4 If 2.2 cannot reach a case, add b3's rows here.
 - [ ] 3.5 Gates: the Mac build, `tests/posix_ctest.sh` (0 FAIL), stock goldens for cat and b3 on Metal, `blinx2 bench golden` on D3D11 under Proton, and a b3 Hor+ run under Proton (renderer change).
 
-## 4. Mod API v2 (toolkit; about 3 days)
+## 4. Mod API v4 (toolkit; about 3 days)
 
-- [ ] 4.1 `struct xbox_mod` gains `needs` and `follows`. `XBOX_MOD_API_VERSION 2`. A v1 table still works. No `api_min` until dynamic plugins.
+The design calls these services "v2". The toolkit's `mod.h` reached version 3 first (mod-settings: actions, menu, descriptors), so they land as version 4 (amended by hud-anchors). hud-anchors' fields follow as version 5, or share the bump if both land in one merge.
+
+
+- [x] 4.1 `struct xbox_mod` gains `needs` and `follows`. `XBOX_MOD_API_VERSION 4`. v1 to v3 tables still work. No `api_min` until dynamic plugins.
 - [ ] 4.2 One enable gate for every mod (design D9):
   - `[mods.<name>] enabled` (default false), or a `follows` key whose value differs from that key's default;
   - cat's free camera declares `follows = "camera.free"`, so it is not counted at stock;
-  - the refusal lines.
+  - the refusal lines;
+  - a descriptor mod's `XBOX_SET_ENABLE` setting (mod-settings, v3) is its switch, the same switch as `[mods.<name>] enabled`, default off unless the descriptor says otherwise (hud-anchors' `hud` mod defaults on, an exception the user approved on 2026-10-30); a dormant init (switch off, menu on) does not pass the gate for `mods=` (4.9).
 - [ ] 4.3 `aspect()` and `pad()` (design D2).
 - [ ] 4.4 Probes:
   - `state_probe`, `state_probe_fn` and `state`, sampled by the layer at each flip, in every title (no frame glue needed);
@@ -78,32 +82,32 @@ Every section merges on its own: the gates listed, then a review, then the merge
 - [ ] 4.6 `place()` callbacks between the overrides and the generic rules (design D5).
 - [ ] 4.7 `rt_dims()` (design D7).
 - [ ] 4.8 ctests for each of 4.1 to 4.7, with a stub guest memory and a stub backend. Include a held poke the game overwrote with a value other than the expected one (not re-written).
-- [ ] 4.9 The `[ENHANCE]` line gains `mods=` (the mods that passed the gate, or `none`), and `docs/runtime/config.md` gets a "Mods" section. This lands before the CLI requires the token (5.7).
+- [x] 4.9 The `[ENHANCE]` line gains `mods=` (the mods that passed the gate, or `none`; a mod that reports an active state is listed only while it is set, so hud-anchors' default-on `hud` mod stays out of the token at 4:3), and `docs/runtime/config.md` gets a "Mods" section. This lands before the CLI requires the token (5.7).
 - [ ] 4.10 Move `fx.glow` (`sub_0005B7D0`) onto cat's mod table (free-camera spike §6.4 step 1), behind the same gate.
 - [ ] 4.11 Gates: the Mac build, `tests/posix_ctest.sh` (0 FAIL), `pytest tools/recomp tools/disasm` if the tools changed, stock goldens for cat and b3 on Metal (they must print `mods=none`), `blinx2 bench golden` on D3D11, and a Proton run (runtime change).
 
 ## 5. Hook slots (CLI, toolkit runtime; free-camera D7; about 3 days)
 
-- [ ] 5.1 `manifest.py`:
+- [x] 5.1 `manifest.py`:
   - the `[mods]` table: `hook_functions` (VA strings or `sig:<name>`);
   - `[mods.signatures]` (name to pattern and section);
   - `docs/manifest.md`.
-- [ ] 5.2 `analyze`:
+- [x] 5.2 `analyze`:
   - resolve each signature to exactly one VA in its section, and fail otherwise;
   - fail when a listed VA also has a hand-written override in `recomp_manual.c`;
   - record each VA's `ret_pop` (from its `ret imm16`) and whether it returns on the x87 stack;
   - write `config/hook_functions.json`;
   - the gen key includes the list.
-- [ ] 5.3 `recomp`: emit the pre and post dispatch around each listed function (design D3). A pytest checks that the generated code is byte-identical to a build without `[mods]` when the list is empty.
-- [ ] 5.4 The toolkit runtime: the `recomp_hook_*` table, and `hook()` in the API (design D3). ctests for:
+- [x] 5.3 `recomp`: emit the pre and post dispatch around each listed function (design D3). A pytest checks that the generated code is byte-identical to a build without `[mods]` when the list is empty.
+- [x] 5.4 The toolkit runtime: the `recomp_hook_*` table, and `hook()` in the API (design D3). ctests for:
   - the pre order and the reverse post order;
   - ecx and edx seen at entry (a fastcall stub);
   - post callbacks seeing the entry `esp`;
   - a skip from a `XBOX_MOD_HOOK_MAY_SKIP` hook on a `ret 0x14` function (the stack balanced after) and on a function returning st0;
   - a second may-skip hook on one VA refused at init, and a skip without the flag ignored;
   - the refusal when a slot is missing.
-- [ ] 5.5 The CLI's golden token: `golden.py` adds `("mods", ..., "none")` to `ENHANCE_STOCK`, and `manifest.TOOLKIT_ENHANCE_KEYS` gains `mods` (the CLI's `tests/test_manifest.py` checks they agree). Only after the toolkit from 4.9 is pinned in every game.
-- [ ] 5.6 CLI gates: `uv run pytest tests`, `uv run ruff check . && uv run ruff format --check .`. Merge the CLI, then bump the `[cli]` pin in each game before it lists `hook_functions`. Stock goldens of a game built with a non-empty list (cat, after 6.1) prove the empty branch.
+- [x] 5.5 The CLI's golden token: `golden.py` adds `("mods", ..., "none")` to `ENHANCE_STOCK`, and `manifest.TOOLKIT_ENHANCE_KEYS` gains `mods` (the CLI's `tests/test_manifest.py` checks they agree). Only after the toolkit from 4.9 is pinned in every game.
+- [x] 5.6 CLI gates: `uv run pytest tests`, `uv run ruff check . && uv run ruff format --check .`. Merge the CLI, then bump the `[cli]` pin in each game before it lists `hook_functions`. Stock goldens of a game built with a non-empty list (cat, after 6.1) prove the empty branch.
 
 ## 6. Proof: `blinx2-wide-cull` (cat; about 2 days)
 

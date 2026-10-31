@@ -1,8 +1,10 @@
 # BLiNX 2 options: every key at its default. Each enhancement default is the
-# stock behaviour except two: present.pacing sleeps (the frames and pace
-# are the same as the console's spin and it frees a CPU core), and the
+# stock behaviour except three: present.pacing sleeps (the frames and pace
+# are the same as the console's spin and it frees a CPU core), the
 # in-game menu is on (closed, it changes no frame; the game loses only the
-# presses of the chords that open it, Guide+A and Back+L3). The [input]
+# presses of the chords that open it, Guide+A and Back+L3), and the cache
+# partition lives in memory (storage.ram_cache: the game sees the same
+# files, the host disk is spared). The [input]
 # table turns the keyboard and mouse on for player 1, with this game's
 # layout and stick feel (stick_ramp_ms, walk_key, walk_scale; the toolkit's
 # own defaults are 0, none and 1.0). The game reads this file
@@ -24,6 +26,8 @@ aniso = 0                 # anisotropic filtering on mipmapped textures: 0 (stoc
 [display]
 aspect = "4:3"            # "4:3" (stock) or wider, "16:9", "16:10", "21:9": Hor+ (Metal, D3D11)
 movie = "black"           # with a wide aspect: "black" (pillarbox), "fit" (stretch), "fill" (crop)
+hud_aspect = "display"    # with a HUD mod and a wide aspect: "display" (the frame's edges) or "W:H"
+hud_margin = 0            # with a HUD mod: guest px the edge elements move in, 0..64
 
 [present]
 filter = "nearest"        # "nearest" (stock), "linear", "integer"
@@ -67,6 +71,15 @@ stats = false             # the stats strip in the window's top right corner (fp
                           # frame ms, pacing, scale, backend); F3 or the
                           # menu's Stats page toggles it while you play
 
+[storage]
+ram_cache = true          # the cache partition (Z:) in memory, capped at the
+                          # stock 750 MB: what the game writes there as it plays
+                          # (a scratch cache the console's dashboard clears
+                          # anyway) never reaches the disk (SSD wear, Deck
+                          # storage). It starts from hdd/Cache and writes
+                          # nothing back. Costs up to 750 MB of RAM. false: the
+                          # files go to hdd/Cache as stock
+
 [fps]
 mode = "lock30"           # lock60 and free are not available for this title:
                           # the stage logic steps a fixed 1/30 s per frame
@@ -94,6 +107,9 @@ free_reset_key = "F5"     # back to the game's camera
 #                           # the menu's Mods page
 # "lod.follow_scale" = true # divide the detail distances by the render scale
 # "lod.distance" = 1.0      # 0.5 .. 4: how far detail holds, on top of that
+# "debug_menu.enable" = "off" # "on": the Mods page's Debug menu page opens the
+#                           # game's own debug menu and stage select at the
+#                           # title's PRESS START
 
 # [textures]
 # pack = "enhance/hud.pack" # your own HUD texture pack, made from your dump by

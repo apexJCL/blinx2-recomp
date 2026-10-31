@@ -30,8 +30,8 @@ you distribute a built binary. The LGPL then requires you to do the following:
 Distributing this repository and the toolkit as source meets these terms. A
 binary distribution must meet them separately.
 
-A toolkit built with -DXBOXRECOMP_APU_DSP=ON (default OFF) also links the
-prebuilt dsp56300 library (https://github.com/xemu-project/dsp56300, MIT,
+Every build also links the toolkit's APU DSP (-DXBOXRECOMP_APU_DSP=ON, the
+toolkit's default and this game's stock_cmake): the prebuilt dsp56300 library (https://github.com/xemu-project/dsp56300, MIT,
 copyright Matt Borgerson) and the Rust crates it bundles (Apache-2.0 with the
 LLVM exception, MIT, Unicode-3.0, Zlib; none GPL). The toolkit's NOTICE lists
 them, and its LICENSES/ has their texts.

@@ -63,6 +63,7 @@
 #include "glow.h"
 #include "free_camera.h"
 #include "lod_scale.h"
+#include "debug_menu.h"
 #if defined(__has_include)
 #  if __has_include("mod.h")   /* a toolkit with the mod API (camera.free) */
 #    include "mod.h"
@@ -1393,9 +1394,10 @@ static BOOL load_xbe(const char *path, void **out_data, size_t *out_size)
  * mode-3 glow layer (0..2), applied by the sub_0005B7D0 wrapper in
  * recomp_manual.c. At on and 1 the wrapper never touches the guest.
  *
- * camera.free (free_camera.c) and lod (lod_scale.c) are mods: their table
- * goes to the layer before xbox_enhance_init, which runs their inits last
- * and so reads their keys there.
+ * camera.free (free_camera.c), lod (lod_scale.c) and debug_menu
+ * (debug_menu.c) are mods: their table goes to the layer before
+ * xbox_enhance_init, which runs their inits last and so reads their keys
+ * there.
  *
  * All game keys are read before the unused-key report, so a file that sets
  * one is not told the key is unknown. */
@@ -1407,7 +1409,7 @@ static void host_enhance_init(void)
     int fps, glow_off;
     double glow_k;
 #ifdef CAT_HAVE_MODS
-    static const struct xbox_mod *mods[3];
+    static const struct xbox_mod *mods[4];
     int nm = 0;
 
     /* A NULL entry ends the table, so each mod is added only when built
@@ -1416,6 +1418,8 @@ static void host_enhance_init(void)
         mods[nm++] = free_cam_mod();
     if (lod_mod())
         mods[nm++] = lod_mod();
+    if (debug_menu_mod())
+        mods[nm++] = debug_menu_mod();
     xbox_mod_register_table(mods);
 #else
     /* The golden check reads camera.free from the [ENHANCE] line, as with
