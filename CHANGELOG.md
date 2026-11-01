@@ -10,26 +10,100 @@ No release contains game data: you build the game from your own disc.
 
 ## [Unreleased]
 
-### Changed
-- **The cache partition lives in memory** (`storage.ram_cache = true`, the
-  toolkit's new default for every game): what the game writes to its
-  scratch cache drive while it plays stays in RAM, up to the console's
-  750 MB, instead of being rewritten on your disk. The game sees the same
-  files. `ram_cache = false` under `[storage]` in `config/config.toml`
-  puts them back on the disk.
-- **The real audio DSP, on by default.** The game's own sound programs now
-  run on the emulated Xbox audio DSP: the reverb, the effect sends and the
-  game's own mix, instead of a plain stereo fold. Want the old sound back?
-  Put `RECOMP_APU_DSP=0` in `config/launch.env`.
+## [2026.11.0] - 2026-11-01
+
+**A widescreen HUD, sharper CRT shaders and a handful of new mods.**
+Everything new is off until you turn it on, except the HUD at the
+screen edges, and that one changes nothing at 4:3.
+
+- **Widescreen HUD.** At 16:9, 16:10 or 21:9 the HUD moves out to the
+  edges: panel, Time and radar on the left; TS, the item counter, the
+  goal message and the REW/PAUSE legend on the right. On by default;
+  *HUD at the screen edges* on the Mods page turns it off, live.
+- **The title movie fills a wide screen.** It crops to the width instead
+  of sitting in black bars (`display.movie` brings back `black` or `fit`).
+- **CRT shaders fixed at high scales.** The shader picture sits in the
+  game's frame, and the scanlines no longer band at render scale 2 or 3.
+- **Shader profiles.** Chain up to 8 shaders, tune them, save them by
+  name on the Shaders page and switch between them. On/off effects are
+  toggles now, not sliders.
+- **A friendlier menu.** Changed rows are marked, Save and Revert work
+  from any page, leaving with unsaved changes asks first, and the
+  selected row explains itself in the footer.
+- **Free camera on the Mods page.** Turn it on, set speed, mouse
+  sensitivity, invert and fast/slow, and rebind its controls there.
+  Guide+Y starts it on a pad.
+- **New mods, all off until you pick them:**
+  - **Enemies:** spawn a copy of the nearest enemy, defeat the nearest
+    one, or give enemies up to 10 times the hp.
+  - **Crystal sets:** BLiNX 1's rules, where a row of crystals grants a
+    time control (Sweepers stages).
+  - **Shop:** change shop prices and gun power, speed and ammo. Never
+    saved; off puts them back.
+  - **Debug menu:** opens the game's own debug menu and stage select
+    from the title screen.
+- **The real audio DSP, on by default.** The game's own reverb, effect
+  sends and mix, instead of a plain stereo fold. `RECOMP_APU_DSP=0` in
+  `config/launch.env` brings the old sound back.
+- **Less disk wear.** The cache partition lives in memory (up to the
+  console's 750 MB) instead of being rewritten on your disk.
+  `ram_cache = false` under `[storage]` puts it back on the disk.
+- **Fixed:** rewinding no longer loops when the cache partition is full.
+- **Heads-up:** the free camera's default keys moved: End freezes the
+  world and Home resets the camera (were F8 and F5). The old
+  `free_*_key` lines in your `config.toml` still work.
 
 ### For developers
 
-- The APU DSP default moved into the toolkit: `XBOXRECOMP_APU_DSP`
-  defaults ON where a dsp56300 archive exists, and the exe runs the JIT
-  unless `RECOMP_APU_DSP=0`. `CMakeLists.txt` drops its own migration and
-  set, keeping only the hand-over of `CAT_APU_DSP_MIGRATED`, so a tree's
-  OFF stays OFF. The CLI shares one dsp56300 download per game in
-  `third_party/dsp56300`.
+- **Pins:** xboxrecomp-cli v0.19.0 and toolkit blinx2-v0.12.0, up from
+  v0.16.0 and blinx2-v0.9.0. The toolkit adds the HUD anchor layer with
+  its `full` stretch key, mod API v4 to v6 (hooks on recompiled
+  functions, `guest_call`, `guest_alloc`), shader profiles, the menu's
+  Save and Revert, and the lifter's 8- and 16-bit `mul`/`div` (19 sites
+  in gen change).
+- **Why the HUD mod is on by default:** it is the one exception to
+  default-off among the mods. At 4:3 it returns before any table lookup,
+  so stock frames are untouched, and wide-screen players should not have
+  to find a switch to see their HUD. The table keys 201 call sites in 18
+  groups; each moved draw is restored byte for byte after it. Goldens run
+  with `mods=none`.
+- **Why `display.movie = "fill"`:** at 16:9 a cropped title movie looks
+  better than a stretched or pillarboxed one. It does nothing at 4:3.
+- **Regenerate gen:** the HUD, entities, shop and walls mods add hook
+  slots (`config/hook_functions.json`), so a build tree needs
+  `blinx2 analyze` then `blinx2 recomp`.
+- **Mod APIs:** the entity API (`src/ent_api.h`: list, spawn, kill and
+  hp scale for class-1 enemies, run on the guest thread through
+  `guest_call`) and the shop and weapon API (catalogue, story-shop price
+  lists, weapon stats) give mods typed access instead of raw guest
+  memory.
+- **Walls (experimental, off):** a `walls` mod keeps the near face when
+  the player sits inside a wall thinner than its own diameter, where the
+  game's single best contact can push it through. That clip happens on
+  original hardware too and may matter to speedruns, so it stays opt-in.
+- **Gamepads on by default on every host,** macOS included; only an
+  input script or `RECOMP_HOST_PAD=0` keeps them out. Packaged builds
+  already had them on.
+- **Per-title hard disk:** dev runs without `RECOMP_HDD_DIR` now use
+  `<data>/xboxrecomp/<title id>`, copying old saves once from the shared
+  root. Installed builds are unchanged.
+- **Pad scripts and recordings** (`RECOMP_PAD_SCRIPT`, `pad_record`) now
+  drive BLiNX 2, which polls its pads itself, and recordings can anchor
+  to file opens so a longer load no longer drifts the presses.
+- **Symbol map and extraction:** `config/symbols.toml` gathers the
+  functions, globals and fields named so far, each with its source, and
+  imports into Ghidra; feeding it into gen through the CLI's
+  `[pipeline] symbols` comes later. `blinx2 extract` turns the owner's
+  stages into a local Godot project, with floor reflections, mirrored
+  skies and additive glows; nothing it writes is shared.
+- **Extract keys:** `[extract]` in `game.toml` gains the stages'
+  collision trees (M64 has none), the placement sets with per-stage
+  layers, and 168 placement models with the collectible set, for
+  `blinx2 extract --collision` and `--placements`.
+- **Why the DSP is on:** it is the faithful path; the stub skipped the
+  game's effects mix. The default moved into the toolkit
+  (`XBOXRECOMP_APU_DSP` ON where a dsp56300 archive exists), and a tree's
+  own OFF stays OFF.
 
 ## [2026.10.4] - 2026-10-29
 
@@ -365,7 +439,8 @@ blinx2-v0.3.1.
 - The game crashed once in stage 5-1 on macOS, after about 90 seconds;
   this is being investigated.
 
-[Unreleased]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.4...HEAD
+[Unreleased]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.11.0...HEAD
+[2026.11.0]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.4...v2026.11.0
 [2026.10.4]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.3...v2026.10.4
 [2026.10.3]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.2...v2026.10.3
 [2026.10.2]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.1...v2026.10.2

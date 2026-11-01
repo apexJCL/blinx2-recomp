@@ -1,10 +1,13 @@
 # BLiNX 2 options: every key at its default. Each enhancement default is the
-# stock behaviour except three: present.pacing sleeps (the frames and pace
+# stock behaviour except four: present.pacing sleeps (the frames and pace
 # are the same as the console's spin and it frees a CPU core), the
 # in-game menu is on (closed, it changes no frame; the game loses only the
-# presses of the chords that open it, Guide+A and Back+L3), and the cache
+# presses of the chords that open it, Guide+A and Back+L3), the cache
 # partition lives in memory (storage.ram_cache: the game sees the same
-# files, the host disk is spared). The [input]
+# files, the host disk is spared), and the hud mod is on (mods."hud.enable":
+# at 4:3 it moves nothing; with a wide aspect the HUD sits at the edges).
+# With a wide aspect, movies fill the width (display.movie = "fill"); at
+# 4:3 that key does nothing, so stock is unchanged. The [input]
 # table turns the keyboard and mouse on for player 1, with this game's
 # layout and stick feel (stick_ramp_ms, walk_key, walk_scale; the toolkit's
 # own defaults are 0, none and 1.0). The game reads this file
@@ -25,9 +28,13 @@ aniso = 0                 # anisotropic filtering on mipmapped textures: 0 (stoc
 
 [display]
 aspect = "4:3"            # "4:3" (stock) or wider, "16:9", "16:10", "21:9": Hor+ (Metal, D3D11)
-movie = "black"           # with a wide aspect: "black" (pillarbox), "fit" (stretch), "fill" (crop)
-hud_aspect = "display"    # with a HUD mod and a wide aspect: "display" (the frame's edges) or "W:H"
-hud_margin = 0            # with a HUD mod: guest px the edge elements move in, 0..64
+movie = "fill"            # with a wide aspect: "black" (pillarbox), "fit" (stretch), "fill" (crop);
+                          # fill here (the user, 2026-10-30) so the 16:9 title movie
+                          # fills the width: crop over stretch. Nothing at 4:3
+hud_aspect = "display"    # with the hud mod (on by default) and a wide aspect: "display"
+                          # (the frame's edges) or "W:H"
+hud_margin = 0            # with the hud mod (on by default): guest px the edge elements
+                          # move in, 0..64
 
 [present]
 filter = "nearest"        # "nearest" (stock), "linear", "integer"
@@ -44,6 +51,10 @@ surface = "auto"          # "auto": the frame-sized surface goes to gamescope fo
                           # "crt-lottes-fast", "crt-hyllian", "fsr" (an
                           # upscaler), or a .slangp path; "none" is stock.
                           # Also on the menu's Shaders page
+# profile = "none"        # a shader profile: a chain of up to 8 presets with
+                          # its settings, saved from the menu's Shaders page
+                          # as config/shader-profiles/<name>.toml; "none" is
+                          # stock. When set it wins over shader
 
 # The active shader's settings, one table per preset, set on the menu's
 # Shaders page (Save writes only what differs from the preset). For example,
@@ -90,18 +101,27 @@ glow_intensity = 1.0      # 0.0 .. 2.0: a scale of that layer (1.0 is stock)
 
 [camera]
 free = "off"              # "on": a free-flying camera you start and stop with
-                          # free_toggle; the pad (sticks, triggers, X/Y up and
-                          # down, White fast, Black slow) and the mouse fly it
-                          # while player 1 stands still (Metal, Direct3D 11)
+                          # camera.free.toggle under [input.actions]; the pad
+                          # (sticks, triggers, X/Y up and down, White fast,
+                          # Black slow) and the mouse fly it while player 1
+                          # stands still (Metal, Direct3D 11). Also on the
+                          # menu's Mods page, with the settings below
 free_speed = 1.0          # 0.05 .. 20: fly speed
-free_look_sens = 1.0      # 0.05 .. 10: look speed
+free_look_sens = 1.0      # 0.05 .. 10: look speed (stick and mouse)
+free_mouse_sens = 1.0     # 0.05 .. 10: mouse look on top of free_look_sens
+free_invert_x = false     # flip the look left and right
+free_invert_y = false     # flip the look up and down
+free_fast = 4.0           # 1 .. 20: speed times this while White is held
+free_slow = 0.25          # 0.05 .. 1: speed times this while Black is held
 free_hud = "keep"         # "keep" or "hide": the HUD when the camera starts
-free_toggle = "F6"        # start and stop the free camera
-free_hud_key = "F7"       # show or hide the HUD while flying
-free_freeze_key = "F8"    # stop and restart the world while flying
-free_reset_key = "F5"     # back to the game's camera
+# The camera's keys are host actions under [input.actions] (camera.free.*).
+# The old free_toggle, free_hud_key, free_freeze_key and free_reset_key keys
+# are still read here as aliases.
 
-# [mods]
+[mods]
+"hud.enable" = "on"       # the HUD at the edges of a wide screen (the user's
+                          # exception to default-off, 2026-10-30); "off" keeps it
+                          # in the 4:3 frame. Nothing at 4:3. Also on the Mods page
 # "lod.enable" = "off"      # "on": characters keep their detailed models as far
 #                           # away at 2x and 3x as at 480p (more draws); also on
 #                           # the menu's Mods page
@@ -110,6 +130,28 @@ free_reset_key = "F5"     # back to the game's camera
 # "debug_menu.enable" = "off" # "on": the Mods page's Debug menu page opens the
 #                           # game's own debug menu and stage select at the
 #                           # title's PRESS START
+# "entities.enable" = "off" # "on": the Mods page's Enemies page spawns a copy
+#                           # of the nearest enemy and defeats the nearest one
+#                           # (bind keys under [input.actions] entities.spawn,
+#                           # entities.kill); off in VS and during time controls
+# "entities.hp_scale" = 1   # 1 .. 10: class-1 enemies' hp times this, from
+#                           # the next area loaded
+# "crystals.enable" = "off" # "on": BLiNX 1-style crystal sets: a row of four,
+#                           # three of a colour give its time control, four
+#                           # give it twice; Sweepers stages only
+# "walls.enable" = "off"    # "on" (experimental): meant to stop the player
+#                           # sliding through thin walls (the side the sphere
+#                           # went in by pushes it back out); shown by a probe
+#                           # of the game's triangle test only, the pass-
+#                           # through in play not reproduced, and it never
+#                           # acted in 5600 frames of play
+# "shop.enable" = "off"     # "on": the Mods page's Shop page changes prices
+#                           # and gun stats; never saved, off puts them back
+# "shop.price_pct" = 100    # 10 .. 500: every shop price, in percent
+# "shop.ammo_pct" = 100     # 50 .. 500: gun capacity and ammo per purchase
+# "shop.power_pct" = 100    # 50 .. 500: gun shot power
+# "shop.speed_pct" = 100    # 50 .. 300: gun shot speed
+# "shop.interval_pct" = 100 # 25 .. 100: frames a gun stays busy after a shot
 
 # [textures]
 # pack = "enhance/hud.pack" # your own HUD texture pack, made from your dump by
@@ -183,3 +225,9 @@ menu.open = ["F10", "guide+a", "paddle1", "back+left_thumb@400"]
                             # a lone Back or L3 press in play (Back acts only
                             # in menus)
 overlay.stats = "F3"        # toggles the stats strip; no key of the game's
+camera.free.toggle = ["F6", "guide+y"]
+                            # start and stop the free camera when [camera]
+                            # free is on; the game reads neither
+camera.free.hud = "F7"      # show or hide the HUD while flying
+camera.free.freeze = "End"  # stop and restart the world while flying
+camera.free.reset = "Home"  # back to the game's camera while flying

@@ -3,4 +3,4 @@
 - [x] 3 Wrapper `sub_00215A40` in `src/recomp_manual.c`, then `blinx2 analyze` and `blinx2 recomp`.
 - [x] 4 Metal at 16:9: the reflective sea reaches both sides of the frame.
 - [x] 5 Gates: Mac build, `uv run pytest scripts` and ruff pass. The Metal golden at stock passes (`runs/blinx-sea/golden-metal/`). The Deck D3D11 golden passes (bench-logs `20261022-011148`, `-011307`, `-011612`). D3D11 at 16:9 under Proton: `20261022-012256`.
-- [ ] 6 Native D3D11 re-check at 16:9 on the PC (the installed package), when a slot is free.
+- [x] 6 Native D3D11 re-check at 16:9 on the PC (the installed package), when a slot is free. Passed 2026-10-22: the far sea runs past the old 4:3 edge, 0 rt-reject lines (`runs/pc-checks/blinx-sea`).

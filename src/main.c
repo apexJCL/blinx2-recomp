@@ -64,7 +64,15 @@
 #include "free_camera.h"
 #include "lod_scale.h"
 #include "debug_menu.h"
+#include "crystals_mod.h"
+#include "walls_mod.h"
+#include "entities_mod.h"
+#include "shop_mod.h"
+#include "hud_mod.h"
 #if defined(__has_include)
+#  if __has_include("enhance_menu.h")   /* ENHANCE_MENU_HELP: the Game intro */
+#    include "enhance_menu.h"
+#  endif
 #  if __has_include("mod.h")   /* a toolkit with the mod API (camera.free) */
 #    include "mod.h"
 #    define CAT_HAVE_MODS 1
@@ -1394,10 +1402,11 @@ static BOOL load_xbe(const char *path, void **out_data, size_t *out_size)
  * mode-3 glow layer (0..2), applied by the sub_0005B7D0 wrapper in
  * recomp_manual.c. At on and 1 the wrapper never touches the guest.
  *
- * camera.free (free_camera.c), lod (lod_scale.c) and debug_menu
- * (debug_menu.c) are mods: their table goes to the layer before
- * xbox_enhance_init, which runs their inits last and so reads their keys
- * there.
+ * camera.free (free_camera.c), lod (lod_scale.c), debug_menu
+ * (debug_menu.c), crystals (crystals_mod.c), hud (hud_mod.c), entities
+ * (entities_mod.c), shop (shop_mod.c) and walls (walls_mod.c) are mods:
+ * their table goes to the layer before xbox_enhance_init, which runs their
+ * inits last and so reads their keys there.
  *
  * All game keys are read before the unused-key report, so a file that sets
  * one is not told the key is unknown. */
@@ -1409,17 +1418,31 @@ static void host_enhance_init(void)
     int fps, glow_off;
     double glow_k;
 #ifdef CAT_HAVE_MODS
-    static const struct xbox_mod *mods[4];
+    static const struct xbox_mod *mods[12];
     int nm = 0;
 
     /* A NULL entry ends the table, so each mod is added only when built
-     * (lod_mod is NULL before mod API v3). */
+     * (lod_mod is NULL before mod API v3, hud_mod before v5, crystals_mod,
+     * entities_mod, shop_mod and walls_mod before v6). crystals goes
+     * before hud: both hook the sprite add, and its pre must see the
+     * game's vertices and its post run after hud's restore (openspec
+     * change crystal-sets, D3). */
     if (free_cam_mod())
         mods[nm++] = free_cam_mod();
     if (lod_mod())
         mods[nm++] = lod_mod();
     if (debug_menu_mod())
         mods[nm++] = debug_menu_mod();
+    if (crystals_mod())
+        mods[nm++] = crystals_mod();
+    if (hud_mod())
+        mods[nm++] = hud_mod();
+    if (entities_mod())
+        mods[nm++] = entities_mod();
+    if (shop_mod())
+        mods[nm++] = shop_mod();
+    if (walls_mod())
+        mods[nm++] = walls_mod();
     xbox_mod_register_table(mods);
 #else
     /* The golden check reads camera.free from the [ENHANCE] line, as with
@@ -1428,6 +1451,11 @@ static void host_enhance_init(void)
     fprintf(stderr, "[MOD] none: this toolkit has no mod API, camera.free is not built\n");
 #endif
 
+#ifdef ENHANCE_MENU_HELP
+    /* The menu's line under the Game tab; the page shows once the game
+     * adds an item there. */
+    enhance_menu_page_intro("Game", "BLiNX 2's own options.");
+#endif
     xbox_enhance_init(".", NULL);
     enhance_cfg_bind_env("fps.mode", RENV_FPS_MODE);
     fps = enhance_cfg_choice("fps.mode", fps_modes, 0);

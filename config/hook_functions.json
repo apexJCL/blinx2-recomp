@@ -1,0 +1,156 @@
+{
+ "version": 1,
+ "mods": {
+  "hook_functions": [
+   "0x00042190",
+   "0x000177F0",
+   "0x000178C0",
+   "0x00018030",
+   "0x00018250",
+   "0x00017330",
+   "0x00047A00",
+   "0x00048600",
+   "0x0004E700",
+   "0x0008BFD0",
+   "0x00163160",
+   "0x001636C0",
+   "0x00165630",
+   "0x001A0260"
+  ],
+  "signatures": {},
+  "st0": [],
+  "no_st0": [
+   "0x0004E700",
+   "0x0008BFD0",
+   "0x001A0260"
+  ]
+ },
+ "functions": [
+  {
+   "entry": "0x00042190",
+   "va": "0x00042190",
+   "name": "sub_00042190",
+   "signature": "",
+   "ret_pop": 0,
+   "x87": false,
+   "x87_from": "walk"
+  },
+  {
+   "entry": "0x000177F0",
+   "va": "0x000177F0",
+   "name": "sub_000177F0",
+   "signature": "",
+   "ret_pop": 0,
+   "x87": false,
+   "x87_from": "walk"
+  },
+  {
+   "entry": "0x000178C0",
+   "va": "0x000178C0",
+   "name": "sub_000178C0",
+   "signature": "",
+   "ret_pop": 0,
+   "x87": false,
+   "x87_from": "walk"
+  },
+  {
+   "entry": "0x00018030",
+   "va": "0x00018030",
+   "name": "sub_00018030",
+   "signature": "",
+   "ret_pop": 0,
+   "x87": false,
+   "x87_from": "walk"
+  },
+  {
+   "entry": "0x00018250",
+   "va": "0x00018250",
+   "name": "sub_00018250",
+   "signature": "",
+   "ret_pop": 0,
+   "x87": false,
+   "x87_from": "walk"
+  },
+  {
+   "entry": "0x00017330",
+   "va": "0x00017330",
+   "name": "sub_00017330",
+   "signature": "",
+   "ret_pop": 0,
+   "x87": false,
+   "x87_from": "walk"
+  },
+  {
+   "entry": "0x00047A00",
+   "va": "0x00047A00",
+   "name": "sub_00047A00",
+   "signature": "",
+   "ret_pop": 0,
+   "x87": true,
+   "x87_from": "walk"
+  },
+  {
+   "entry": "0x00048600",
+   "va": "0x00048600",
+   "name": "sub_00048600",
+   "signature": "",
+   "ret_pop": 0,
+   "x87": true,
+   "x87_from": "walk"
+  },
+  {
+   "entry": "0x0004E700",
+   "va": "0x0004E700",
+   "name": "sub_0004E700",
+   "signature": "",
+   "ret_pop": 0,
+   "x87": false,
+   "x87_from": "override"
+  },
+  {
+   "entry": "0x0008BFD0",
+   "va": "0x0008BFD0",
+   "name": "sub_0008BFD0",
+   "signature": "",
+   "ret_pop": 0,
+   "x87": false,
+   "x87_from": "override"
+  },
+  {
+   "entry": "0x00163160",
+   "va": "0x00163160",
+   "name": "sub_00163160",
+   "signature": "",
+   "ret_pop": 0,
+   "x87": false,
+   "x87_from": "walk"
+  },
+  {
+   "entry": "0x001636C0",
+   "va": "0x001636C0",
+   "name": "sub_001636C0",
+   "signature": "",
+   "ret_pop": 0,
+   "x87": false,
+   "x87_from": "walk"
+  },
+  {
+   "entry": "0x00165630",
+   "va": "0x00165630",
+   "name": "sub_00165630",
+   "signature": "",
+   "ret_pop": 0,
+   "x87": false,
+   "x87_from": "walk"
+  },
+  {
+   "entry": "0x001A0260",
+   "va": "0x001A0260",
+   "name": "sub_001A0260",
+   "signature": "",
+   "ret_pop": 0,
+   "x87": false,
+   "x87_from": "override"
+  }
+ ]
+}

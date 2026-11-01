@@ -41,9 +41,9 @@ So the anchor is applied in guest memory, where the sprite is added, and the ren
   - CLI: `<game> hud-map capture | propose | review | emit | check`, a developer command group beside `bench` and `public` (apart from the player's `enhance hud`), standard library only. `propose` groups sprites into elements by call site and chain and suggests kinds by position; `review` writes a static HTML contact sheet at 4:3 and at a wide ratio; `emit` writes and validates the game's `config/hud.toml`; `check` runs the per-ratio scenarios;
   - captures and sheets stay in `runs/` (or a gitignored `dist/`) and are never published. The CLI holds no game constants; `game.toml` only names the table and the scenarios.
 - **BLiNX 2's `hud` mod** (cat), the first table built with the framework:
-  - `game.toml` `[mods] hook_functions` gains the sprite add `sub_00042190`, its helpers `sub_000177F0`, `sub_000178C0`, `sub_00047A00`, and the font routine `sub_00048600`. `blinx2 analyze` then `blinx2 recomp` generate the slots.
+  - `game.toml` `[mods] hook_functions` gains the sprite add `sub_00042190`, its helpers `sub_000177F0`, `sub_000178C0`, `sub_00047A00`, the digit helper `sub_00018030` (the item counter, whose own add every caller shares; the tracker item review), and the font routine `sub_00048600`. `blinx2 analyze` then `blinx2 recomp` generate the slots.
   - `config/hud.toml`, emitted by the framework and checked against the tracker item's element table: the top-left panel and the radar left; the item counter and the TS label right; the time-control slots, the yellow arc, the round banner and the dialogue centre; the world markers `world`; the loading bands, the cinematic bars where they overhang the band, and the backdrops the review keeps, `stretch`.
-  - `src/mods/hud.c`: a descriptor mod with an `XBOX_SET_ENABLE` setting that defaults on (the user, 2026-10-30). At 4:3 the pad is 0, the active flag is clear, each hooked call costs one branch, and `hud` is absent from `mods=`, so stock and the goldens are byte-identical.
+  - `src/hud_mod.c`: a descriptor mod with an `XBOX_SET_ENABLE` setting that defaults on (the user, 2026-10-30). At 4:3 the pad is 0, the active flag is clear, each hooked call costs one branch, and `hud` is absent from `mods=`, so stock and the goldens are byte-identical.
   - No state gate: menus, the pause panel and movies are not in the table, so they keep the stock 4:3 layout and clip; the stage HUD stays anchored behind the pause panel.
   - Mission complete, which the tracker item could not reach, is located with the framework and added.
 - **BLiNX 1's `hud` mod** (blinx), the first game the framework locates from scratch, once its Hor+ is finished (`hor-cull` tasks 4.1 and 4.2, the seam): a level-0 capture, the same copy, cull, argument and canvas checks, its table, its mod and its ratio check; with no BLiNX 1 goldens, its stock check is an A/B frame comparison on Metal and D3D11.
@@ -88,9 +88,9 @@ So the anchor is applied in guest memory, where the sprite is added, and the ren
   - ctests.
 - **CLI** (`xboxrecomp-cli`): the `hud-map` command group in a `hudmap/` package (capture, propose, review, emit, check), the optional `[hud]` table in `game.toml` with its schema entry in `manifest.py` and a section in `docs/manifest.md`, pytest cases over synthetic captures. Then a CLI release and cat's `[cli]` pin, with `sh notes/build-all.sh`.
 - **cat:**
-  - `game.toml` `[mods] hook_functions` (five VAs) and `[hud]`, then `blinx2 analyze` and `blinx2 recomp`;
-  - `config/hud.toml`, `src/mods/hud.c`, the mod table entry and the build step that embeds the table;
-  - `packaging/config.default.toml`: `[display]` lists the two keys, `[mods]` lists `"hud.enabled" = true`;
+  - `game.toml` `[mods] hook_functions` (six VAs) and `[hud]`, then `blinx2 analyze` and `blinx2 recomp`;
+  - `config/hud.toml`, `src/hud_mod.c`, the mod table entry and the build step that embeds the table;
+  - `packaging/config.default.toml`: `[display]` lists the two keys, `[mods]` lists `"hud.enable" = "on"`;
   - `docs/env.md` rows for the two keys, the trace and the capture key, landing with the toolkit pin bump that brings them;
   - a `scripts/test_*` case checking the table against the analysis xrefs.
 - **blinx (BLiNX 1):** the same set, after its Hor+ seam fix and its locate.

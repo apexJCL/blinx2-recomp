@@ -8,9 +8,11 @@
  * projection, the cull planes and the inverse view, and the game's camera
  * logic never sees the free one (D1). Port 0 is the camera's while it
  * flies: the game reads a released pad (pad_input.c), and the camera reads
- * the merged pad and keyboard the game would have read, saved before that
- * (cat_pad_port0_last). The toolkit's api->input_state pad is not used:
- * it is fed by the toolkit's own pad read, which this title replaces.
+ * its captured controls (api->control_value) from the merged pad and
+ * keyboard the game would have read, which pad_input.c records before that
+ * (xbox_enhance_pad_seen), and from the host keys. The toolkit's
+ * api->input_state pad is not used: it is fed by the toolkit's own pad
+ * read, which this title replaces.
  *
  * The freeze is the event world-stop flag 0xAF0EF4 (spike.md 9.6),
  * kept in three phases (fc_freeze_*):
@@ -22,8 +24,14 @@
  * - on unfreeze and when the freeze is dropped (the pause menu or retry,
  *   leaving the stage, a stage start): the game's value put back.
  *
- * camera.free = off (stock): one log line, nothing registered, so neither
- * a frame callback nor the draw filter exists.
+ * The mod has a descriptor (mod-settings D6): its settings, its four
+ * actions and the fly controls are static data the toolkit reads before
+ * any init, resolves (env, the files, aliases, the defaults) and clamps,
+ * and the Mods page and RECOMP_MODS_DESCRIBE show. The toolkit prints
+ * "[ENHANCE] camera.free=" and inits the mod only when camera.free is on,
+ * or dormant when the menu can turn it on (D4's init rule). A stock run
+ * (camera.free off, the menu off) never inits it: nothing is registered,
+ * so neither a frame callback nor the draw filter exists.
  */
 #include <stdarg.h>
 #include <stddef.h>
@@ -34,21 +42,20 @@
 
 #if defined(RECOMP_ENV_HAVE_ENHANCE_KEYS) && defined(__has_include)
 #  if __has_include("mod.h")
-#    define FREE_CAM_MOD 1
+#    include "mod.h"
+/* control_value reads what pad_input.c records (XBOX_MOD_PAD_SEEN): a
+ * toolkit without the record builds without the camera. */
+#    if XBOX_MOD_API_VERSION >= 6 && defined(XBOX_MOD_PAD_SEEN)
+#      define FREE_CAM_MOD 1
+#    endif
 #  endif
 #endif
 
 #ifdef FREE_CAM_MOD
 
-#include "mod.h"
+#include "enhance_menu.h"
 #include "host_time.h"
-#include "keyboard.h"
-#include "input_names.h"
 #include "xinput_xbox.h"
-
-/* pad_input.c: port 0 as the game's last poll merged it (script, host pad,
- * keyboard), before the neutral pad replaced it. */
-extern int cat_pad_port0_last(XBOX_GAMEPAD *out);
 
 #define CAM_PTR    0x4B271Cu    /* the game camera struct */
 #define RUN_FLAG   0x449F40u    /* 1 while the stage runs */
@@ -59,18 +66,137 @@ extern int cat_pad_port0_last(XBOX_GAMEPAD *out);
 #define HUD_PROG_A 0x5474DB2Au
 #define HUD_PROG_B 0xB2913952u
 
-enum { KEY_TOGGLE, KEY_HUD, KEY_FREEZE, KEY_RESET, KEY_N };
+/* ---- the descriptor (mod-settings D6) ------------------------------------- */
+
+enum {
+    SET_ENABLE, SET_SPEED, SET_LOOK, SET_MOUSE, SET_INVERT_X, SET_INVERT_Y,
+    SET_FAST, SET_SLOW, SET_HUD, SET_N
+};
+enum {
+    CTL_TOGGLE, CTL_HUD, CTL_FREEZE, CTL_RESET,         /* host actions */
+    CTL_MOVE, CTL_LOOK, CTL_RISE, CTL_SINK, CTL_FAST, CTL_SLOW, CTL_MOUSE, CTL_N
+};
+
+static const char *const k_offon[] = { "off", "on", NULL };
+static const char *const k_hud[] = { "keep", "hide", NULL };
+
+/* What the camera holds, and what is a setting (D10; mod-settings D6's
+ * audit, from this file and free_cam_fly.{c,h}). Before adding a knob,
+ * check it is not one of the "no" rows, and why:
+ *
+ *   value                          setting       why
+ *   FC_MOVE_BASE 80 units/s        speed         speed is its multiplier
+ *   FC_LOOK_RATE 1.8 rad/s         look_sens     look_sens is its multiplier
+ *   FC_MOUSE_RATE 0.0025 rad/count mouse_sens    on top of look_sens, so an
+ *                                                old look_sens means the same
+ *   FC_FAST x4, FC_SLOW x0.25      fast, slow    a preference
+ *   pitch and yaw signs            invert_x, _y  a preference
+ *   HUD hidden while flying        hud           already a key
+ *   stick dead zones 7849 / 8689   no            input.pad_deadzone_* apply
+ *                                                first; these are the XInput
+ *                                                floor fc_axis needs
+ *   fast/slow trigger threshold    no            the toolkit's, every button
+ *   FC_PITCH_MAX 1.50 rad          no            past +-pi/2 the view flips
+ *   FC_DT_MAX 0.1 s                no            a hitch guard
+ *   roll, +0x14..+0x1C             no            written 0 (free-camera D2)
+ *   field of view                  no            not a field the mod writes;
+ *                                                a follow-up feature
+ *   the freeze drop rules          no            they keep the game sound (D5)
+ *   guest addresses, HUD hashes    no            game facts
+ *   cam_log lines                  no            diagnostics
+ *
+ * The keys are the ones the camera read before the descriptor, so old
+ * configs and env rows keep working. */
+static const struct xbox_mod_setting k_set[SET_N] = {
+    /* name, key, env, aliases, label, help, unit, kind, live, flags,
+     * def, lo, hi, step, choices */
+    [SET_ENABLE] = { "enable", "camera.free", "RECOMP_CAMERA_FREE", NULL, "Free camera",
+      "A free-flying camera, started and stopped with its toggle. Player 1"
+      " stands still while it flies.",
+      NULL, XBOX_SET_ENUM, ENHANCE_LIVE, XBOX_SET_ENABLE, 0, 0, 0, 0, k_offon },
+    [SET_SPEED] = { "speed", "camera.free_speed", "RECOMP_CAMERA_FREE_SPEED", NULL,
+      "Fly speed", "A multiplier of the fly speed (80 units a second at full stick).",
+      "x", XBOX_SET_FLOAT, ENHANCE_LIVE, 0, 1.0, 0.05, 20, 0.05, NULL },
+    [SET_LOOK] = { "look_sens", "camera.free_look_sens", "RECOMP_CAMERA_FREE_LOOK_SENS", NULL,
+      "Look sensitivity", "A multiplier of the turn rate, for the stick and the mouse.",
+      "x", XBOX_SET_FLOAT, ENHANCE_LIVE, 0, 1.0, 0.05, 10, 0.05, NULL },
+    [SET_MOUSE] = { "mouse_sens", "camera.free_mouse_sens", "RECOMP_CAMERA_FREE_MOUSE_SENS",
+      NULL, "Mouse sensitivity", "The mouse's turn rate, on top of look sensitivity.",
+      "x", XBOX_SET_FLOAT, ENHANCE_LIVE, 0, 1.0, 0.05, 10, 0.05, NULL },
+    [SET_INVERT_X] = { "invert_x", "camera.free_invert_x", "RECOMP_CAMERA_FREE_INVERT_X", NULL,
+      "Invert X", "Turn the other way, with the stick and the mouse.",
+      NULL, XBOX_SET_BOOL, ENHANCE_LIVE, 0, 0, 0, 1, 0, NULL },
+    [SET_INVERT_Y] = { "invert_y", "camera.free_invert_y", "RECOMP_CAMERA_FREE_INVERT_Y", NULL,
+      "Invert Y", "Look up and down the other way, with the stick and the mouse.",
+      NULL, XBOX_SET_BOOL, ENHANCE_LIVE, 0, 0, 0, 1, 0, NULL },
+    [SET_FAST] = { "fast", "camera.free_fast", "RECOMP_CAMERA_FREE_FAST", NULL,
+      "Fast multiplier", "How much faster the camera flies while Fast is held.",
+      "x", XBOX_SET_FLOAT, ENHANCE_LIVE, 0, 4.0, 1, 20, 0.5, NULL },
+    [SET_SLOW] = { "slow", "camera.free_slow", "RECOMP_CAMERA_FREE_SLOW", NULL,
+      "Slow multiplier", "How much slower the camera flies while Slow is held.",
+      "x", XBOX_SET_FLOAT, ENHANCE_LIVE, 0, 0.25, 0.05, 1, 0.05, NULL },
+    [SET_HUD] = { "hud", "camera.free_hud", "RECOMP_CAMERA_FREE_HUD", NULL, "HUD while flying",
+      "Keep or hide the HUD when the camera starts; Toggle HUD flips it in flight.",
+      NULL, XBOX_SET_ENUM, ENHANCE_LIVE_ACTIVATE, 0, 0, 0, 0, 0, k_hud },
+};
+
+static const char *const k_toggle_def[] = { "F6", "guide+y", NULL };
+static const char *const k_hud_def[] = { "F7", NULL };
+static const char *const k_freeze_def[] = { "End", NULL };
+static const char *const k_reset_def[] = { "Home", NULL };
+static const char *const k_toggle_alias[] = { "camera.free_toggle", NULL };
+static const char *const k_hud_alias[] = { "camera.free_hud_key", NULL };
+static const char *const k_freeze_alias[] = { "camera.free_freeze_key", NULL };
+static const char *const k_reset_alias[] = { "camera.free_reset_key", NULL };
+static const char *const k_move_def[] = { "left_stick", NULL };
+static const char *const k_look_def[] = { "right_stick", NULL };
+static const char *const k_rise_def[] = { "rt", "x", NULL };
+static const char *const k_sink_def[] = { "lt", "y", NULL };
+static const char *const k_fast_def[] = { "white", NULL };
+static const char *const k_slow_def[] = { "black", NULL };
+static const char *const k_mouse_def[] = { "Look", NULL };
+
+#define FLYING "while flying"
+
+/* The actions take the old key settings as aliases and keep their env
+ * rows. fly() reads the captured controls through control_value, and the
+ * Mods page rebinds them (mod-settings D). */
+static const struct xbox_mod_control k_ctl[CTL_N] = {
+    /* id, label, help, when, kind, defaults, aliases, env */
+    [CTL_TOGGLE] = { "toggle", "Toggle flight", "Starts and stops the free camera.", NULL,
+      XBOX_CTL_ACTION, k_toggle_def, k_toggle_alias, "RECOMP_CAMERA_FREE_TOGGLE" },
+    [CTL_HUD] = { "hud", "Toggle HUD", "Shows or hides the HUD.", FLYING,
+      XBOX_CTL_ACTION, k_hud_def, k_hud_alias, "RECOMP_CAMERA_FREE_HUD_KEY" },
+    [CTL_FREEZE] = { "freeze", "Freeze game", "Stops and restarts the world.", FLYING,
+      XBOX_CTL_ACTION, k_freeze_def, k_freeze_alias, "RECOMP_CAMERA_FREE_FREEZE_KEY" },
+    [CTL_RESET] = { "reset", "Reset camera", "Puts the camera back on the game's.", FLYING,
+      XBOX_CTL_ACTION, k_reset_def, k_reset_alias, "RECOMP_CAMERA_FREE_RESET_KEY" },
+    [CTL_MOVE] = { "move", "Move", NULL, FLYING, XBOX_CTL_STICK, k_move_def, NULL, NULL },
+    [CTL_LOOK] = { "look", "Look", NULL, FLYING, XBOX_CTL_STICK, k_look_def, NULL, NULL },
+    [CTL_RISE] = { "rise", "Rise", NULL, FLYING, XBOX_CTL_BUTTON, k_rise_def, NULL, NULL },
+    [CTL_SINK] = { "sink", "Sink", NULL, FLYING, XBOX_CTL_BUTTON, k_sink_def, NULL, NULL },
+    [CTL_FAST] = { "fast", "Fast", NULL, FLYING, XBOX_CTL_BUTTON, k_fast_def, NULL, NULL },
+    [CTL_SLOW] = { "slow", "Slow", NULL, FLYING, XBOX_CTL_BUTTON, k_slow_def, NULL, NULL },
+    [CTL_MOUSE] = { "mouse", "Mouse", NULL, FLYING, XBOX_CTL_INFO, k_mouse_def, NULL, NULL },
+};
+
+static const struct xbox_mod_desc k_desc = {
+    XBOX_MOD_DESC_VERSION, sizeof k_desc, "Free camera",
+    "Fly a detached camera around the stage", NULL, "1",
+    k_set, SET_N, k_ctl, CTL_N
+};
+
+enum { ACT_TOGGLE, ACT_HUD, ACT_FREEZE, ACT_RESET, ACT_N };
 
 static const struct xbox_mod_api *s_api;
-static int s_on; /* camera.free=on: the actions do something */
+/* camera.free on: the actions do something. Written on the guest thread
+ * (init, on_enable), read there and by shutdown on the exit thread. */
+static int s_on;
 static int s_flying;                    /* guest thread */
 static struct fc_cam s_cam;
-static struct fc_params s_par;
 static struct fc_freeze s_fz;
-static int s_hud_default_hide;
 static int s_hud_hide_now;              /* render thread reads it */
-static int s_key_vk[KEY_N];
-static int s_key_prev[KEY_N];
+static int s_act[ACT_N] = { -1, -1, -1, -1 };
 static uint64_t s_last_ns;
 
 static const struct xbox_mod s_mod;
@@ -95,16 +221,21 @@ static int mem_ok(void)
 #define G32(va) XBOX_MOD_MEM32(s_api, (va))
 #define GF(va)  XBOX_MOD_MEMF(s_api, (va))
 
-static int key_code(const char *key, const char *def)
+static int on_now(void)
 {
-    const char *name = s_api->cfg_string(key, def);
-    int code = 0, is_mouse = 0;
+    return __atomic_load_n(&s_on, __ATOMIC_ACQUIRE);
+}
 
-    if (xbox_InputNameToCode(name, &code, &is_mouse) && !is_mouse)
-        return code;
-    cam_log("%s=%s is not a key name; using %s", key, name, def);
-    xbox_InputNameToCode(def, &code, &is_mouse);
-    return code;
+/* The settings as they are now: the menu changes them live. */
+static void params_now(struct fc_params *p)
+{
+    p->speed = (float)s_api->setting(&k_desc, SET_SPEED);
+    p->look_sens = (float)s_api->setting(&k_desc, SET_LOOK);
+    p->mouse_sens = (float)s_api->setting(&k_desc, SET_MOUSE);
+    p->fast = (float)s_api->setting(&k_desc, SET_FAST);
+    p->slow = (float)s_api->setting(&k_desc, SET_SLOW);
+    p->invert_x = s_api->setting(&k_desc, SET_INVERT_X) != 0;
+    p->invert_y = s_api->setting(&k_desc, SET_INVERT_Y) != 0;
 }
 
 /* ---- the freeze ---------------------------------------------------------- */
@@ -231,18 +362,19 @@ static void toggle(void)
     }
     s_flying = 1;
     s_last_ns = xbox_HostNowNs();
-    hud_apply(s_hud_default_hide);
+    /* camera.free_hud applies at the next activation: this one. */
+    hud_apply(s_api->setting(&k_desc, SET_HUD) == 1);
     s_api->input_capture(1);
     cam_log("on at (%.1f %.1f %.1f) pitch %.3f yaw %.3f", s_cam.p[0], s_cam.p[1], s_cam.p[2],
             s_cam.pitch, s_cam.yaw);
 }
 
-/* One function per action. The keyboard path below calls them; a later
- * host-action layer (keys, chords, extra pad buttons) calls the
- * same ones. All run on the frame thread, from on_frame. */
+/* One function per action, called by on_frame when the toolkit's host
+ * action fires (its keys, chords and pad buttons). All run on the guest
+ * thread. */
 void free_cam_action_toggle(void)
 {
-    if (s_on && mem_ok())
+    if (on_now() && mem_ok())
         toggle();
 }
 
@@ -271,64 +403,89 @@ void free_cam_action_reset(void)
         cam_log("reset to the game camera");
 }
 
-static void press(int k)
-{
-    static void (*const action[KEY_N])(void) = {
-        [KEY_TOGGLE] = free_cam_action_toggle,
-        [KEY_HUD] = free_cam_action_hud,
-        [KEY_FREEZE] = free_cam_action_freeze,
-        [KEY_RESET] = free_cam_action_reset,
-    };
-
-    action[k]();
-}
 
 static float analog(BYTE v)
 {
     return v > XBOX_ANALOG_BUTTON_THRESHOLD ? (float)v / 255.0f : 0.0f;
 }
 
+/* A STICK control: its axes through the dead zone of the stick it reads,
+ * so swapping Move and Look keeps each stick's own (7849 left, 8689
+ * right, the XInput values the game's pad had). */
+static void fly_stick(uint32_t k, float *x, float *y)
+{
+    struct xbox_ctl_value v;
+    int dead;
+
+    if (!s_api->control_value(&k_desc, k, &v)) {
+        *x = *y = 0.0f;
+        return;
+    }
+    dead = v.src == XBOX_CTL_SRC_RIGHT ? 8689 : 7849;
+    *x = fc_axis(v.raw[0], dead);
+    *y = fc_axis(v.raw[1], dead);
+}
+
+/* A BUTTON control: its largest binding, 0..255 (a key reads 255). */
+static BYTE fly_button(uint32_t k)
+{
+    struct xbox_ctl_value v;
+
+    if (!s_api->control_value(&k_desc, k, &v) || v.raw[0] <= 0)
+        return 0;
+    return v.raw[0] > 255 ? 255 : (BYTE)v.raw[0];
+}
+
+/* One frame of the captured controls. With the default bindings this is
+ * the input the camera read from the merged pad before the controls could
+ * be rebound: the larger of RT and X (E) rises, of LT and Y (Q) sinks,
+ * White (C) is fast and Black (Z) slow. */
+static void fly_input(struct fc_input *in)
+{
+    memset(in, 0, sizeof *in);
+    fly_stick(CTL_MOVE, &in->lx, &in->ly);
+    fly_stick(CTL_LOOK, &in->rx, &in->ry);
+    in->up = analog(fly_button(CTL_RISE));
+    in->down = analog(fly_button(CTL_SINK));
+    in->fast = fly_button(CTL_FAST) > XBOX_ANALOG_BUTTON_THRESHOLD;
+    in->slow = fly_button(CTL_SLOW) > XBOX_ANALOG_BUTTON_THRESHOLD;
+}
+
 static void fly(void)
 {
-    XBOX_GAMEPAD g;
     struct enhance_input_state st;
     struct fc_input in;
+    struct fc_params par;
     uint64_t now = xbox_HostNowNs();
     float dt = (float)(now - s_last_ns) * 1e-9f;
 
     s_last_ns = now;
-    memset(&in, 0, sizeof in);
-    if (cat_pad_port0_last(&g)) {
-        float lt = analog(g.bAnalogButtons[6]), rt = analog(g.bAnalogButtons[7]);
-        float x = analog(g.bAnalogButtons[2]), y = analog(g.bAnalogButtons[3]);
-
-        in.lx = fc_axis(g.sThumbLX, 7849);
-        in.ly = fc_axis(g.sThumbLY, 7849);
-        in.rx = fc_axis(g.sThumbRX, 8689);
-        in.ry = fc_axis(g.sThumbRY, 8689);
-        /* RT or X (E) rises, LT or Y (Q) sinks; white (C) fast, black (Z) slow. */
-        in.up = rt > x ? rt : x;
-        in.down = lt > y ? lt : y;
-        in.fast = g.bAnalogButtons[5] > XBOX_ANALOG_BUTTON_THRESHOLD;
-        in.slow = g.bAnalogButtons[4] > XBOX_ANALOG_BUTTON_THRESHOLD;
-    }
+    fly_input(&in);
     s_api->input_state(&st);
     in.mouse_dx = (float)st.mouse_dx;
     in.mouse_dy = (float)st.mouse_dy;
-    fc_fly_step(&s_cam, &in, &s_par, dt);
+    params_now(&par);
+    fc_fly_step(&s_cam, &in, &par, dt);
 }
 
 static void on_frame(void *user)
 {
+    static void (*const action[ACT_N])(void) = {
+        [ACT_TOGGLE] = free_cam_action_toggle,
+        [ACT_HUD] = free_cam_action_hud,
+        [ACT_FREEZE] = free_cam_action_freeze,
+        [ACT_RESET] = free_cam_action_reset,
+    };
     int k;
 
     (void)user;
-    for (k = 0; k < KEY_N; k++) {
-        int down = xbox_FramebufferKeyDown(s_key_vk[k]) != 0;
-        if (down && !s_key_prev[k])
-            press(k);
-        s_key_prev[k] = down;
-    }
+    /* Dormant (inited off for the menu): the toolkit fires none of the
+     * actions, and nothing here touches the guest. */
+    if (!on_now())
+        return;
+    for (k = 0; k < ACT_N; k++)
+        if (s_act[k] >= 0 && s_api->action_pressed(s_act[k]))
+            action[k]();
     if (s_fz.on && (G32(RUN_FLAG) != 1 || G32(MENU_FLAG) != 0)) {
         uint32_t v = fc_freeze_drop(&s_fz);
 
@@ -409,57 +566,60 @@ static int hud_filter(const struct nv2a_batch_info *b, void *user)
 
 /* ---- the mod --------------------------------------------------------------- */
 
+/* Off, from the Mods page mid-flight or not: the toggle-off path (camera
+ * back to the game, the freeze dropped, the HUD shown, the pad given back).
+ * On: the actions start doing something. On the guest thread, from the
+ * next xbox_mod_frame; it may be told the state it is in already. */
+static void on_enable(int on, void *user)
+{
+    (void)user;
+    if (!on) {
+        if (s_flying)
+            toggle();
+        else if (s_fz.on && mem_ok())
+            freeze_off();
+        hud_apply(0);
+    }
+    if (on == on_now())
+        return;
+    __atomic_store_n(&s_on, on, __ATOMIC_RELEASE);
+    s_api->active(&s_mod, on);
+    cam_log("%s", on ? "on" : "off");
+}
+
 static int init(const struct xbox_mod_api *api)
 {
-    static const char *const onoff[] = { "off", "on", NULL };
-    static const char *const hud[] = { "keep", "hide", NULL };
+    struct fc_params p;
     int on;
 
+    if (api->size < offsetof(struct xbox_mod_api, active) + sizeof api->active)
+        return 1;   /* no v3 settings or v4 active: stay stock */
     s_api = api;
-    api->cfg_bind_env("camera.free", RENV_CAMERA_FREE);
-    api->cfg_bind_env("camera.free_speed", RENV_CAMERA_FREE_SPEED);
-    api->cfg_bind_env("camera.free_look_sens", RENV_CAMERA_FREE_LOOK_SENS);
-    api->cfg_bind_env("camera.free_hud", RENV_CAMERA_FREE_HUD);
-    api->cfg_bind_env("camera.free_toggle", RENV_CAMERA_FREE_TOGGLE);
-    api->cfg_bind_env("camera.free_hud_key", RENV_CAMERA_FREE_HUD_KEY);
-    api->cfg_bind_env("camera.free_freeze_key", RENV_CAMERA_FREE_FREEZE_KEY);
-    api->cfg_bind_env("camera.free_reset_key", RENV_CAMERA_FREE_RESET_KEY);
-    on = api->cfg_choice("camera.free", onoff, 0) == 1;
-    s_par.speed = (float)api->cfg_float("camera.free_speed", 1.0);
-    s_par.look_sens = (float)api->cfg_float("camera.free_look_sens", 1.0);
-    s_hud_default_hide = api->cfg_choice("camera.free_hud", hud, 0) == 1;
-    s_key_vk[KEY_TOGGLE] = key_code("camera.free_toggle", "F6");
-    s_key_vk[KEY_HUD] = key_code("camera.free_hud_key", "F7");
-    s_key_vk[KEY_FREEZE] = key_code("camera.free_freeze_key", "F8");
-    s_key_vk[KEY_RESET] = key_code("camera.free_reset_key", "F5");
-    if (!(s_par.speed >= 0.05f && s_par.speed <= 20.0f)) {
-        cam_log("camera.free_speed=%g out of range 0.05..20; using 1", s_par.speed);
-        s_par.speed = 1.0f;
-    }
-    if (!(s_par.look_sens >= 0.05f && s_par.look_sens <= 10.0f)) {
-        cam_log("camera.free_look_sens=%g out of range 0.05..10; using 1", s_par.look_sens);
-        s_par.look_sens = 1.0f;
-    }
-    /* The golden check reads the game's keys from [ENHANCE] lines
-     * (game.toml golden.enhance_stock), not from the [MOD] ones. */
-    fprintf(stderr, "[ENHANCE] camera.free=%s\n", on ? "on" : "off");
-    /* The init runs off as well (it reads its own key, so no follows), and
-     * a mod that never reports is listed in [ENHANCE] mods= while it runs:
-     * say whether it does anything, so a stock run logs mods=none. */
-#if XBOX_MOD_API_VERSION >= 4
-    if (api->size >= offsetof(struct xbox_mod_api, active) + sizeof api->active && api->active)
-        api->active(&s_mod, on);
-#endif
-    if (!on)
-        return 0;
-    s_on = 1;
+    /* Inited on, or dormant (off, the menu able to turn it on). The toolkit
+     * printed "[ENHANCE] camera.free=" before this, inited or not. */
+    on = api->setting(&k_desc, SET_ENABLE) != 0;
+    __atomic_store_n(&s_on, on, __ATOMIC_RELEASE);
+    s_act[ACT_TOGGLE] = api->control_action(&k_desc, CTL_TOGGLE);
+    s_act[ACT_HUD] = api->control_action(&k_desc, CTL_HUD);
+    s_act[ACT_FREEZE] = api->control_action(&k_desc, CTL_FREEZE);
+    s_act[ACT_RESET] = api->control_action(&k_desc, CTL_RESET);
+    /* The actions fire through the actions hook, which the menu arms when
+     * it is on; with the menu off the camera's switch arms it, and the
+     * toolkit re-evaluates it on a live switch. */
+    api->actions_arm("camera.free");
+    /* A mod that never reports is listed in [ENHANCE] mods= while it runs:
+     * dormant, it does nothing. */
+    api->active(&s_mod, on);
     api->on_frame(on_frame, NULL);
     api->batch_filter(hud_filter, NULL);
-    cam_log("camera.free=on speed %g look %g hud %s keys %s %s %s %s",
-            s_par.speed, s_par.look_sens, s_hud_default_hide ? "hide" : "keep",
-            xbox_InputCodeName(s_key_vk[KEY_TOGGLE], 0), xbox_InputCodeName(s_key_vk[KEY_HUD], 0),
-            xbox_InputCodeName(s_key_vk[KEY_FREEZE], 0),
-            xbox_InputCodeName(s_key_vk[KEY_RESET], 0));
+    api->on_enable(on_enable, NULL);
+    if (on) {
+        params_now(&p);
+        cam_log("on: speed %g look %g mouse %g fast %g slow %g invert x %s y %s hud %s",
+                p.speed, p.look_sens, p.mouse_sens, p.fast, p.slow,
+                p.invert_x ? "on" : "off", p.invert_y ? "on" : "off",
+                api->setting(&k_desc, SET_HUD) == 1 ? "hide" : "keep");
+    }
     return 0;
 }
 
@@ -475,7 +635,8 @@ static void shutdown_mod(void)
     hud_apply(0);
 }
 
-static const struct xbox_mod s_mod = { "camera.free", init, shutdown_mod };
+static const struct xbox_mod s_mod = { "camera.free", init, shutdown_mod, &k_desc,
+                                       XBOX_MOD_NEED_POKE };
 
 const void *free_cam_mod(void)
 {
@@ -496,11 +657,6 @@ void free_cam_frame(void)
     xbox_mod_frame();
 }
 
-int free_cam_pad_neutral(void)
-{
-    return xbox_mod_input_captured();
-}
-
 #else /* no mod API: stock */
 
 const void *free_cam_mod(void) { return NULL; }
@@ -514,6 +670,5 @@ void free_cam_events_pre(void) {}
 void free_cam_events_post(void) {}
 void free_cam_freeze_tick(void) {}
 void free_cam_stage_start(void) {}
-int free_cam_pad_neutral(void) { return 0; }
 
 #endif

@@ -267,13 +267,14 @@ Each change of kind logs one line. ctests in `input_actions` cover:
   |---|---|
   | `STANDARD`, `XBOX360`, `XBOXONE` | `xbox` |
   | `PS3`, `PS4`, `PS5` | `playstation` |
-  | `NINTENDO_SWITCH_*`, `GAMECUBE` | `nintendo` |
+  | `NINTENDO_SWITCH_*` | `nintendo` |
+  | `GAMECUBE` (SDL 3.4) | `gamecube` (A X B Y south, east, west, north, so not the Switch letters) |
   | `STEAM`, or VID:PID 28de:1205 (the Deck's own pad) | `steam` (Deck and Steam Controller glyphs) |
   | `UNKNOWN` | `generic` |
 
   This table is a mapping, not detection, so 28de:1205 is fine here.
 
-`input.glyphs = "auto" | "xbox" | "playstation" | "nintendo" | "steam"` (default `auto`) overrides the family. Until I1.3's probe runs, this is what ships for the Deck and for Proton: `auto` shows Xbox there, and the player can choose `steam`.
+`input.glyphs = "auto" | "xbox" | "playstation" | "nintendo" | "steam" | "generic" | "gamecube"` (default `auto`) overrides the family. Until I1.3's probe runs, this is what ships for the Deck and for Proton: `auto` shows Xbox there, and the player can choose `steam`.
 
 Glyph art (Q7, decided): Kenney's "Input Prompts" (CC0), baked into the overlay atlas at 3E. The audit allow-list names the files, as it does the Atkinson font.
 

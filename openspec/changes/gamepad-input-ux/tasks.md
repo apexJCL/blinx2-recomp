@@ -86,8 +86,10 @@
 
 ## I4. Glyph strip (S-M, about 1 day; after overlay 3E)
 
-- [ ] I4.1 Kenney's CC0 input prompts (Q7) in the overlay atlas, drawn by source name and family. The audit allow-list names the files.
-- [ ] I4.2 An `enhance_menu` ctest that draws a glyph for every family against a reference strip.
+Absorbed by overlay-revamp GL (branch `feat/ovl-glyphs`): the work below ships there and is not done again here.
+
+- [x] I4.1 Kenney's CC0 input prompts (Q7) in the overlay atlas, drawn by source name and family. The audit allow-list names the files. (overlay-revamp GL.2, GL.3, GL.7: `third_party/kenney-input/xbr-input.ttf`, `nv2a_ovl_glyph_src`.)
+- [x] I4.2 An `enhance_menu` ctest that draws a glyph for every family against a reference strip. (overlay-revamp GL.6: the strip is `tests/overlay`'s glyph page through the reference rasteriser, checked per family and source against `glyphs.txt`; the tokens are in `tests/enhance_text`.)
 
 ## I5. Controls page remap (L, about 3 days; after overlay 3D, I2 and I4; folds in overlay 9 / the tracker item)
 

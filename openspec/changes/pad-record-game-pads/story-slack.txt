@@ -1,0 +1,24 @@
+# The tracker item recording script: @story-hub with slack at the steps that wait on
+# the wall clock, so that a flip-timed record of it replays. R0_opening is
+# not skipped: its skip opens 3-9 s in (3.2 s in the recording run), by the
+# movie decoder's clock, so a press at a fixed flip may land before it.
+# tsedit gets 10 s to settle, and two spare A taps follow the save (the hub
+# load ignores them).
+wait open logo_mgs.sfd
+tap START until open blinx2_opening.sfd
+tap START until open title_movie
+wait mem 0x5eb5f4 == 0x5eb620
+wait mem 0x5eb620 == 0
+tap START every 1 until open R0_opening.sfd
+wait open tsedit
+wait 10
+A/30p
+wait polls 476
+tap A every 90p until mem 0x5eb620 == 0xd
+wait polls 416
+tap A every 90p until open blinx2data.bin
+wait polls 90
+A/45p
+wait polls 90
+A/45p
+wait open song_HUBsw

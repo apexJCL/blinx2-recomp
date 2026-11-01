@@ -48,13 +48,14 @@ def env_keys(path):
 def test_launch_env_defaults():
     mac = env_keys(os.path.join(PKG, "launch.env.default.macos"))
     win = env_keys(os.path.join(PKG, "launch.env.default.windows"))
-    # macOS: the runtime keeps host pads off off-Windows, the app turns them on.
+    # macOS: =1 is the runtime default too; the line stays so pads also merge
+    # with an input script the user sets.
     assert mac.get("RECOMP_HOST_PAD") == "1"
     # The keyboard and the mouse are switched in config.default.toml
     # (input.keyboard, input.mouse), not by the launchers.
     assert "RECOMP_KEYBOARD" not in mac
     assert "RECOMP_KEYBOARD" not in win
-    # Windows and steamos get the pad from the runtime's _WIN32 default.
+    # Windows and steamos get the pad from the runtime default (on everywhere).
     assert "RECOMP_HOST_PAD" not in win
     # One Controls section, the same in both of this repo's README parts. The
     # steamos part is xboxrecomp-cli's and still has the old keyboard block

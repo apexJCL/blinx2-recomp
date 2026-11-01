@@ -2,7 +2,7 @@
 
 - [x] 1.1 Burnout 3 race route at 16:9 on Metal with `RECOMP_TRACE=aspect` (the trace line names the target's address and pitch and the stage's pitch). The speed-blur chain and the centred composite are in the proposal table (`runs/hor-plus-fx/b3/`).
 - [x] 1.2 SSX 3 race at 16:9 on Metal (`runs/hor-plus-fx/ssx3/`). No stage samples a render target; the remaining centred batches are HUD and flare sprites. Its Hor+ gaps stay with native-widescreen and a follow-up.
-- [ ] 1.3 JSRF Can boost: no headless route into gameplay yet (the Mac boot waits on vblank in both the stock and fixed builds). Follow-up.
+- [x] 1.3 JSRF Can boost: no headless route into gameplay yet (the Mac boot waits on vblank in both the stock and fixed builds). Followed up and fixed in the tracker item (toolkit 03578754).
 
 ## 2. Toolkit (`fix/hor-plus-fx` off `posix-host/portability`)
 
@@ -19,4 +19,4 @@
 - [x] 3.4 Deck D3D11 golden (`blinx2 bench golden`, Mac-built exe): attract, stage1, story pass, 0/4675 present mismatches (bench-logs 20261022-000028, -000148, -000337).
 - [x] 3.6 After review (rule on the surface format word, A4R4G4B4 dropped, `fs_basic` alpha 1): ctests 93 pass, 0 FAIL; Burnout 3 16:9 Metal race, the same render-target reads, all placed as stretch (`runs/hor-plus-fx/b3/*review-169`); Metal golden pass (bench-logs 20261022-013759-metal-attract, -013825-metal-stage1, -013944-metal-story); Deck D3D11 golden pass, 0 present mismatches (bench-logs 20261022-014857, -015101, -015435).
 - [x] 3.7 `[aspect.rt-reject]` trace (once per distinct pair) on both backends; Deck D3D11 at stock, 0 rejected reads: Burnout 3 race (bench-logs 20261022-020707, rtt reads every flip), JSRF boot (20261022-022032; Mac-built exe on a fresh gen). Known gaps in the proposal.
-- [ ] 3.5 Native D3D11 on the PC: Burnout 3 race at 16:9, installed build (before) against the packaged fix (after). Staged in D:\bench\hor-plus-fx-bench (README.txt); waiting on the PC lock. A no-regression check of the shared rule on D3D11; the fix itself changes only Metal's picture.
+- [x] 3.5 Native D3D11 on the PC: Burnout 3 race at 16:9, installed build (before) against the packaged fix (after). Passed 2026-10-22 (toolkit 430a7560): 0 `[aspect.rt-reject]` lines at 16:9, at stock and at 16:9 scale 3, no speed-blur seam. A no-regression check of the shared rule on D3D11; the fix itself changes only Metal's picture.

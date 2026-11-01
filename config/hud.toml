@@ -1,0 +1,1319 @@
+# BLiNX 2's HUD table for the toolkit's HUD layer (openspec change
+# hud-anchors; schema: the toolkit's docs/runtime/config.md, "HUD table").
+# src/hud_mod.c embeds it at build time. Rows come from `blinx2 hud-map`
+# (capture, propose, review, emit); `blinx2 hud-map emit --check` and
+# scripts/test_hud_table.py check them against the analysis.
+version = 1
+
+# The 2D sprites are in a fixed 640x480 space centred on the screen, y down:
+# the half sizes at 0xA72360 / 0xA10C00 are only ever written 320.0 and
+# 240.0 (0x63022, 0x6302C, 0x746F0, 0x746FA), so nothing to read at run time.
+[canvas]
+w = 640
+h = 480
+origin = "centre"
+y = "down"
+view = [0, 0, 640, 480]
+target = "frame"
+source = "fixed"
+
+# sub_00042190's vertices: {x, y, u, v} f32, quads.
+[layout]
+stride = 16
+x_off = 0
+u_off = 8
+prim = 4
+
+# Their callers name the element: the two sprite helpers build one quad on
+# their own stack and add it; sub_00018030 adds a number's digit quads;
+# sub_00047A00 adds a string's glyph quads, and sub_00048600 calls it five
+# times for one string (its outlined text). The digit helper is a wrapper
+# because its add (0x18216) is shared by all its callers: the gold tally
+# in sub_00092370 (at the left above the radar, not the counter)
+# and two screens of sub_000EA270 that no capture reached,
+# so a row there would move those screens' digits to the right edge too.
+# sub_00018250 counts a number's digits and tail-jumps into the digit
+# helper, so the helper's pre sees the return into sub_00018250's caller;
+# it is a wrapper too so that caller's row follows a call to a wrapper
+# (the item counter's big digit comes this way, from
+# sub_0006B1F0 at stage play, and stayed at 4:3 while the rest of its block
+# moved). sub_000EC630's call (0xEC785) and sub_0006AB30's five
+# (0x6ACE4..0x6AD64, widgets 4 and 5 of sub_0006B1F0, whose text at 0x6AF44
+# and 0x6B0C7 and sprite at 0x6B1DF are unlisted too) stay unlisted until a
+# capture places their screens: keying only the digits would split the widget.
+[[wrapper]]
+va = 0x000177F0
+name = "sprite"
+
+[[wrapper]]
+va = 0x000178C0
+name = "sprite_frame"
+
+[[wrapper]]
+va = 0x00018030
+name = "digits"
+
+[[wrapper]]
+va = 0x00018250
+name = "digits_n"
+
+# sub_00017330 is a sprite helper with 16 callers and one add (0x1740A):
+# the time-control legend at the upper right (REW, PAUSE, ... while a
+# control runs; sub_00072010's return sites 0x7235F and 0x7258A) and the
+# restart dialog among them. As a wrapper, only its legend callers are
+# keyed; the other 14 (one in SRCADV, return site 0x35E42C) stay
+# unlisted, as they were.
+[[wrapper]]
+va = 0x00017330
+name = "sprite_2"
+
+[[wrapper]]
+va = 0x00047A00
+name = "text"
+
+[[wrapper]]
+va = 0x00048600
+name = "text_outlined"
+
+# What the captures found (task 3.3; level 1, D3D11, stage1, pause, the
+# stage 1-2 barricade cutscene, the hub run from the title to stage 1, and
+# the attract demo). A later `hud-map emit` keeps rows but not this:
+# - No capture has a cinematic-bar site through the add, so there is no
+#   `bars` group; the layer's H5 rule covers full-width untextured batches.
+# - Unlisted on purpose: 0x0021703A (sub_00216D70's zero-area quads, every
+#   frame of play) and 0x0005EC43 (text through 0x48691 with no vertex
+#   location, level 0 only).
+# - sub_0006B1F0's font calls: Time is 0x6DCF2 and "/ 5" is 0x6E8FD.
+# - The world markers (0x412A8) spread continuously out to about x +-950
+#   with no far cluster: the game draws them past the 4:3 edge itself and
+#   parks none, so `markers` has no `park` bound.
+# - Menus and the locker room keep 4:3 (centre): their frames (0x1E19DA,
+#   0x2528B) have windows onto pictures drawn by other calls on queue 1
+#   (0x1E1A9A), so stretching or moving one part misaligns the rest.
+# - Where the framework's proposal was corrected to the tracker item's element table:
+#   the markers 0x412A8 stretch -> world; lives, Time 0x6DCF2 and the gauge
+#   0x6C5BA centre -> left (panel); the TS label 0x6EA92/0x6EAD4 centre ->
+#   right (counter); the dialogue A button (0xF0E28/7D, 0xF10A6/DA) right
+#   -> centre and its label (0xF24F9, 0xF253B, 0xF256B) left -> centre; the
+#   pause panel (0x1EE144, 0x1EE30C and the rest) mixed -> centre; the pause
+#   backdrops 0x171CA2/D08/FAF centre -> stretch; sub_0005EB30's loading
+#   bands centre -> stretch; the menus (sub_001E0DF0, sub_001C3AC0,
+#   sub_00022110, 0x1F50CD, ...) right or left -> centre; the boot backdrop
+#   0x1845C and the save dim 0x1FB61 -> stretch.
+[[group]]
+name = "panel"
+kind = "left"
+
+[[group]]
+name = "radar"
+kind = "left"
+
+[[group]]
+name = "counter"
+kind = "right"
+
+[[group]]
+name = "time_control"
+kind = "centre"
+
+[[group]]
+name = "banner"
+kind = "centre"
+
+[[group]]
+name = "dialogue"
+kind = "centre"
+
+[[group]]
+name = "objectives"
+kind = "centre"
+
+[[group]]
+name = "markers"
+kind = "world"
+
+[[group]]
+name = "dim"
+kind = "stretch"
+
+[[group]]
+name = "boot_backdrop"
+kind = "stretch"
+
+[[group]]
+name = "menu_dim"
+kind = "stretch"
+
+[[group]]
+name = "demo_logo"
+kind = "right"
+
+[[group]]
+name = "briefing"
+kind = "centre"
+
+# Stretched: right at 16:9 (1.33x); at 21:9 its rounded panel frame and
+# checker strip stretch 1.75x (sheets v219pause.png, frame 1800), left for
+# the user's eye at the pre-release round.
+[[group]]
+name = "pause_backdrop"
+kind = "stretch"
+
+[[group]]
+name = "loading"
+kind = "stretch"
+
+[[group]]
+name = "pause"
+kind = "centre"
+
+[[group]]
+name = "title"
+kind = "centre"
+
+[[group]]
+name = "menu"
+kind = "centre"
+
+[[group]]
+name = "gold"
+kind = "left"
+
+[[group]]
+name = "goal"
+kind = "right"
+
+# The time-control legend sits alone at the upper right, so it gets its own
+# right group: `counter` is the block at the bottom right, and the legend is
+# drawn only while a control runs. The "+" that sub_00072010
+# draws next to the second legend through the text wrapper is here too, so
+# the two move together.
+[[group]]
+name = "tc_legend"
+kind = "right"
+
+[[site]]
+ret_va = 0x0001350D
+element = "title_01"
+group = "title"
+
+[[site]]
+ret_va = 0x00013E6B
+element = "title_02"
+group = "title"
+
+[[site]]
+ret_va = 0x00013EBB
+element = "title_03"
+group = "title"
+
+[[site]]
+ret_va = 0x00013EFC
+element = "title_04"
+group = "title"
+
+[[site]]
+ret_va = 0x00013F73
+element = "title_05"
+group = "title"
+
+[[site]]
+ret_va = 0x00013F9B
+element = "title_06"
+group = "title"
+
+[[site]]
+ret_va = 0x000140CA
+element = "title_07"
+group = "title"
+
+[[site]]
+ret_va = 0x0001416A
+element = "title_08"
+group = "title"
+
+[[site]]
+ret_va = 0x0001419C
+element = "title_09"
+group = "title"
+
+[[site]]
+ret_va = 0x00016A4A
+element = "title_10"
+group = "title"
+
+[[site]]
+ret_va = 0x00016A7C
+element = "title_11"
+group = "title"
+
+[[site]]
+ret_va = 0x0001845C
+element = "boot_backdrop"
+group = "boot_backdrop"
+note = "full-canvas fill behind the boot logos (frames 3..219), not the title screen, which is the title movie"
+
+[[site]]
+ret_va = 0x0001856F
+element = "boot_logo"
+group = "title"
+
+[[site]]
+ret_va = 0x0001F3FD
+element = "menu_01"
+group = "menu"
+
+[[site]]
+ret_va = 0x0001FB61
+element = "menu_dim"
+group = "menu_dim"
+note = "full-canvas dim behind the save prompt"
+
+[[site]]
+ret_va = 0x000222FB
+element = "menu_02"
+group = "menu"
+
+[[site]]
+ret_va = 0x000224AB
+element = "menu_03"
+group = "menu"
+
+[[site]]
+ret_va = 0x000224F7
+element = "menu_04"
+group = "menu"
+
+[[site]]
+ret_va = 0x00024554
+element = "menu_05"
+group = "menu"
+
+[[site]]
+ret_va = 0x00024597
+element = "menu_06"
+group = "menu"
+
+[[site]]
+ret_va = 0x00024742
+element = "menu_07"
+group = "menu"
+
+[[site]]
+ret_va = 0x000247E5
+element = "menu_08"
+group = "menu"
+
+[[site]]
+ret_va = 0x00025215
+element = "menu_09"
+group = "menu"
+
+[[site]]
+ret_va = 0x00025256
+element = "menu_10"
+group = "menu"
+
+[[site]]
+ret_va = 0x0002528B
+element = "menu_11"
+group = "menu"
+
+[[site]]
+ret_va = 0x000412A8
+element = "world_markers"
+group = "markers"
+
+[[site]]
+ret_va = 0x000548D1
+element = "subtitles"
+group = "dialogue"
+
+[[site]]
+ret_va = 0x00055210
+element = "cutscene_dim"
+group = "dim"
+
+[[site]]
+ret_va = 0x0005ED30
+element = "band_01"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005ED56
+element = "band_02"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005EDD0
+element = "band_03"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005EDFA
+element = "band_04"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005EEEC
+element = "band_05"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005EF44
+element = "band_06"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F002
+element = "band_07"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F05A
+element = "band_08"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F0C7
+element = "band_09"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F107
+element = "band_10"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F144
+element = "band_11"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F17A
+element = "band_12"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F1B1
+element = "band_13"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F1E8
+element = "band_14"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F21F
+element = "band_15"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F25C
+element = "band_16"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F2AB
+element = "band_17"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F2E2
+element = "band_18"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F319
+element = "band_19"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F350
+element = "band_20"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F387
+element = "band_21"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F3BE
+element = "band_22"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F3F5
+element = "band_23"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F42C
+element = "band_24"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F463
+element = "band_25"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F49E
+element = "band_26"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F4DB
+element = "band_27"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F526
+element = "band_28"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F55D
+element = "band_29"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F594
+element = "band_30"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F5CB
+element = "band_31"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F602
+element = "band_32"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F639
+element = "band_33"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F670
+element = "band_34"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F6A7
+element = "band_35"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F6E8
+element = "band_36"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F71F
+element = "band_37"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F75A
+element = "band_38"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F794
+element = "band_39"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F7CF
+element = "band_40"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F82A
+element = "band_41"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F908
+element = "band_42"
+group = "loading"
+
+[[site]]
+ret_va = 0x0005F94E
+element = "band_43"
+group = "loading"
+
+[[site]]
+ret_va = 0x00063801
+element = "round_banner"
+group = "banner"
+
+[[site]]
+ret_va = 0x000688D6
+element = "demo_logo"
+group = "demo_logo"
+note = "attract demo's game logo, top right"
+
+[[site]]
+ret_va = 0x0006B4DD
+element = "notice"
+group = "banner"
+
+[[site]]
+ret_va = 0x0006B671
+element = "notice_2"
+group = "banner"
+
+[[site]]
+ret_va = 0x0006B819
+element = "notice_3"
+group = "banner"
+
+[[site]]
+ret_va = 0x0006C5BA
+element = "gauge_bracket"
+group = "panel"
+
+[[site]]
+ret_va = 0x0006D7E1
+element = "lives"
+group = "panel"
+
+[[site]]
+ret_va = 0x0006D8C9
+element = "lives_2"
+group = "panel"
+
+[[site]]
+ret_va = 0x0006DCF2
+element = "time"
+group = "panel"
+note = "Time: sub_0006B1F0's font call (13 glyphs, top left)"
+
+[[site]]
+ret_va = 0x0006E7D0
+element = "item_big"
+group = "counter"
+note = "item counter's big digit at stage play: sub_0006B1F0's first of five outline passes through sub_00018250 (0x6E7CB); the tracker item"
+
+[[site]]
+ret_va = 0x0006E7F3
+element = "item_big_2"
+group = "counter"
+note = "item counter's big digit at stage play: another outline pass of the same number (sub_0006B1F0)"
+
+[[site]]
+ret_va = 0x0006E816
+element = "item_big_3"
+group = "counter"
+note = "item counter's big digit at stage play: another outline pass of the same number (sub_0006B1F0)"
+
+[[site]]
+ret_va = 0x0006E839
+element = "item_big_4"
+group = "counter"
+note = "item counter's big digit at stage play: another outline pass of the same number (sub_0006B1F0)"
+
+[[site]]
+ret_va = 0x0006E85C
+element = "item_big_5"
+group = "counter"
+note = "item counter's big digit at stage play: another outline pass of the same number (sub_0006B1F0)"
+
+[[site]]
+ret_va = 0x0006E8FD
+element = "item_of"
+group = "counter"
+note = "\"/ 5\": sub_0006B1F0's font call (3 glyphs, bottom right)"
+
+[[site]]
+ret_va = 0x0006EA92
+element = "ts_label"
+group = "counter"
+
+[[site]]
+ret_va = 0x0006EAD4
+element = "ts_label_2"
+group = "counter"
+
+[[site]]
+ret_va = 0x0006F0C2
+element = "yellow_arc"
+group = "time_control"
+
+[[site]]
+ret_va = 0x0007005B
+element = "name"
+group = "panel"
+
+[[site]]
+ret_va = 0x0007009D
+element = "name_2"
+group = "panel"
+
+[[site]]
+ret_va = 0x000700D1
+element = "name_3"
+group = "panel"
+
+[[site]]
+ret_va = 0x00070105
+element = "name_4"
+group = "panel"
+
+[[site]]
+ret_va = 0x00070132
+element = "name_5"
+group = "panel"
+
+[[site]]
+ret_va = 0x00070284
+element = "stick_panel_4"
+group = "panel"
+
+[[site]]
+ret_va = 0x000703F9
+element = "stick_panel_5"
+group = "panel"
+
+[[site]]
+ret_va = 0x00070512
+element = "stick_panel"
+group = "panel"
+
+[[site]]
+ret_va = 0x000705F4
+element = "stick_panel_2"
+group = "panel"
+
+[[site]]
+ret_va = 0x000706C6
+element = "stick_panel_3"
+group = "panel"
+
+[[site]]
+ret_va = 0x000708A9
+element = "health_bar"
+group = "panel"
+
+[[site]]
+ret_va = 0x000730BF
+element = "tc_slots"
+group = "time_control"
+
+[[site]]
+ret_va = 0x00073504
+element = "tc_bars"
+group = "time_control"
+
+[[site]]
+ret_va = 0x00073F7E
+element = "tc_cursor"
+group = "time_control"
+
+[[site]]
+ret_va = 0x00075418
+element = "notice_4"
+group = "banner"
+
+[[site]]
+ret_va = 0x0007547C
+element = "notice_5"
+group = "banner"
+
+[[site]]
+ret_va = 0x000754AE
+element = "notice_6"
+group = "banner"
+
+[[site]]
+ret_va = 0x000926C3
+element = "gold_digits"
+group = "gold"
+note = "gold tally (left, above the radar): sub_00092370's first digits call (0x926BE); sub_00092370's one caller is sub_0006B1F0; the tracker item"
+
+[[site]]
+ret_va = 0x000927FD
+element = "gold_digits_3"
+group = "gold"
+note = "gold tally, alternate (ebp=1, single-total) branch (static, not captured): sub_00092370's call of sub_00018250 (0x927F8), which tail-jumps into the digits helper; one caller, sub_0006B1F0; the tracker items"
+
+[[site]]
+ret_va = 0x000928D3
+element = "gold_digits_2"
+group = "gold"
+note = "gold tally: sub_00092370's second digits call (0x928CE); one caller, sub_0006B1F0; the tracker item"
+
+[[site]]
+ret_va = 0x000F0CB4
+element = "press_a"
+group = "objectives"
+
+[[site]]
+ret_va = 0x000F0E28
+element = "dlg_a_2"
+group = "dialogue"
+
+[[site]]
+ret_va = 0x000F0E7D
+element = "dlg_a"
+group = "dialogue"
+
+[[site]]
+ret_va = 0x000F10A6
+element = "dlg_a_3"
+group = "dialogue"
+
+[[site]]
+ret_va = 0x000F10DA
+element = "dlg_a_4"
+group = "dialogue"
+
+[[site]]
+ret_va = 0x000F2197
+element = "dlg_face"
+group = "dialogue"
+
+[[site]]
+ret_va = 0x000F21CF
+element = "dlg_box"
+group = "dialogue"
+
+[[site]]
+ret_va = 0x000F2241
+element = "dlg_text"
+group = "dialogue"
+
+[[site]]
+ret_va = 0x000F24F9
+element = "dlg_label"
+group = "dialogue"
+
+[[site]]
+ret_va = 0x000F253B
+element = "dlg_label_2"
+group = "dialogue"
+
+[[site]]
+ret_va = 0x000F256B
+element = "dlg_label_3"
+group = "dialogue"
+
+[[site]]
+ret_va = 0x000F269C
+element = "obj"
+group = "objectives"
+
+[[site]]
+ret_va = 0x000F26F2
+element = "obj_2"
+group = "objectives"
+
+[[site]]
+ret_va = 0x000F2776
+element = "obj_3"
+group = "objectives"
+
+[[site]]
+ret_va = 0x000F27B3
+element = "obj_4"
+group = "objectives"
+
+[[site]]
+ret_va = 0x000F2813
+element = "obj_5"
+group = "objectives"
+
+[[site]]
+ret_va = 0x000F2B13
+element = "briefing"
+group = "briefing"
+
+[[site]]
+ret_va = 0x000F2B67
+element = "briefing_2"
+group = "briefing"
+
+[[site]]
+ret_va = 0x0016BC04
+element = "pause_01"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016BC4E
+element = "pause_02"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016BC73
+element = "pause_03"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016BC9D
+element = "pause_04"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016D76B
+element = "pause_05"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016D79C
+element = "pause_06"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016E461
+element = "pause_07"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016E69F
+element = "pause_08"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016E71D
+element = "pause_09"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016E756
+element = "pause_10"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016E784
+element = "pause_11"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016E7B2
+element = "pause_12"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016E7E0
+element = "pause_13"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016E80E
+element = "pause_14"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016E85C
+element = "pause_15"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016EBA6
+element = "pause_16"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016EC53
+element = "pause_17"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016EC8E
+element = "pause_18"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016ECDB
+element = "pause_19"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016ED2F
+element = "pause_20"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016ED67
+element = "pause_21"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016EDA2
+element = "pause_22"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016EDCB
+element = "pause_23"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016EE06
+element = "pause_24"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016EE3E
+element = "pause_25"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016EE6A
+element = "pause_26"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016EEA3
+element = "pause_27"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016EECC
+element = "pause_28"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016F2EF
+element = "pause_29"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016F505
+element = "pause_30"
+group = "pause"
+
+[[site]]
+ret_va = 0x0016F54F
+element = "pause_31"
+group = "pause"
+
+[[site]]
+ret_va = 0x00170C12
+element = "pause_32"
+group = "pause"
+
+[[site]]
+ret_va = 0x00170F3E
+element = "pause_33"
+group = "pause"
+
+[[site]]
+ret_va = 0x001713FC
+element = "pause_34"
+group = "pause"
+
+[[site]]
+ret_va = 0x001714E9
+element = "pause_35"
+group = "pause"
+
+[[site]]
+ret_va = 0x00171520
+element = "pause_36"
+group = "pause"
+
+[[site]]
+ret_va = 0x00171551
+element = "pause_37"
+group = "pause"
+
+[[site]]
+ret_va = 0x00171582
+element = "pause_38"
+group = "pause"
+
+[[site]]
+ret_va = 0x001715B3
+element = "pause_39"
+group = "pause"
+
+[[site]]
+ret_va = 0x001716D2
+element = "pause_40"
+group = "pause"
+
+[[site]]
+ret_va = 0x00171727
+element = "pause_41"
+group = "pause"
+
+[[site]]
+ret_va = 0x00171B86
+element = "pause_42"
+group = "pause"
+
+[[site]]
+ret_va = 0x00171CA2
+element = "pause_backdrop"
+group = "pause_backdrop"
+
+[[site]]
+ret_va = 0x00171D08
+element = "pause_backdrop_2"
+group = "pause_backdrop"
+
+[[site]]
+ret_va = 0x00171FAF
+element = "pause_backdrop_3"
+group = "pause_backdrop"
+
+[[site]]
+ret_va = 0x001A662A
+element = "radar"
+group = "radar"
+
+[[site]]
+ret_va = 0x001A7205
+element = "radar_2"
+group = "radar"
+
+[[site]]
+ret_va = 0x001A7251
+element = "radar_3"
+group = "radar"
+
+[[site]]
+ret_va = 0x001C3BB2
+element = "menu_12"
+group = "menu"
+
+[[site]]
+ret_va = 0x001C3D4F
+element = "menu_13"
+group = "menu"
+
+[[site]]
+ret_va = 0x001E19B0
+element = "menu_14"
+group = "menu"
+
+[[site]]
+ret_va = 0x001E19DA
+element = "menu_15"
+group = "menu"
+
+[[site]]
+ret_va = 0x001E1A9A
+element = "menu_16"
+group = "menu"
+
+[[site]]
+ret_va = 0x001E2D58
+element = "menu_17"
+group = "menu"
+
+[[site]]
+ret_va = 0x001E2D8E
+element = "menu_18"
+group = "menu"
+
+[[site]]
+ret_va = 0x001E70B5
+element = "menu_19"
+group = "menu"
+
+[[site]]
+ret_va = 0x001E7349
+element = "menu_20"
+group = "menu"
+
+[[site]]
+ret_va = 0x001E73AC
+element = "menu_21"
+group = "menu"
+
+[[site]]
+ret_va = 0x001E74AC
+element = "menu_22"
+group = "menu"
+
+[[site]]
+ret_va = 0x001E7544
+element = "menu_23"
+group = "menu"
+
+[[site]]
+ret_va = 0x001E7589
+element = "menu_24"
+group = "menu"
+
+[[site]]
+ret_va = 0x001E7DE7
+element = "menu_25"
+group = "menu"
+
+[[site]]
+ret_va = 0x001EE144
+element = "pause_43"
+group = "pause"
+
+[[site]]
+ret_va = 0x001EE30C
+element = "pause_44"
+group = "pause"
+
+[[site]]
+ret_va = 0x001EEF01
+element = "pause_45"
+group = "pause"
+
+[[site]]
+ret_va = 0x001EEF33
+element = "pause_46"
+group = "pause"
+
+[[site]]
+ret_va = 0x001F4BD8
+element = "menu_26"
+group = "menu"
+
+[[site]]
+ret_va = 0x001F4C41
+element = "menu_27"
+group = "menu"
+
+[[site]]
+ret_va = 0x001F4CAE
+element = "menu_28"
+group = "menu"
+
+[[site]]
+ret_va = 0x001F5252
+element = "menu_29"
+group = "menu"
+
+[[site]]
+ret_va = 0x001F52A4
+element = "menu_30"
+group = "menu"
+
+[[site]]
+ret_va = 0x001F5314
+element = "menu_31"
+group = "menu"
+
+[[site]]
+ret_va = 0x001F5388
+element = "menu_32"
+group = "menu"
+
+[[site]]
+ret_va = 0x001F5A7A
+element = "menu_33"
+group = "menu"
+
+[[site]]
+ret_va = 0x00092715
+element = "gold_text"
+group = "gold"
+note = "gold tally: sub_00092370's text call (0x92710); one caller, sub_0006B1F0; the tracker item"
+
+[[site]]
+ret_va = 0x00092754
+element = "gold_text_2"
+group = "gold"
+note = "gold tally: sub_00092370's text call (0x9274F); one caller, sub_0006B1F0; the tracker item"
+
+[[site]]
+ret_va = 0x000174FB
+element = "gold_icon"
+group = "gold"
+note = "gold tally icon: the add in sub_00017410, whose one caller is sub_00092370 (0x92781); the tracker item"
+
+[[site]]
+ret_va = 0x00092840
+element = "gold_text_3"
+group = "gold"
+note = "gold tally, alternate (ebp=1, single-total) branch (static, not captured): sub_00092370's text call (0x9283B); one caller, sub_0006B1F0; the tracker item"
+
+[[site]]
+ret_va = 0x00092942
+element = "gold_text_4"
+group = "gold"
+note = "gold tally: sub_00092370's text call (0x9293D); one caller, sub_0006B1F0; the tracker item"
+
+[[site]]
+ret_va = 0x000EB65F
+element = "goal_slide"
+group = "goal"
+note = "tutorial goal message (upper right), slide-in: sub_000EB550, one caller sub_000EB840; the tracker item"
+
+[[site]]
+ret_va = 0x000EB69D
+element = "goal_slide_2"
+group = "goal"
+note = "tutorial goal message, slide-in: sub_000EB550, one caller sub_000EB840; the tracker item"
+
+[[site]]
+ret_va = 0x000EB6D3
+element = "goal_slide_3"
+group = "goal"
+note = "tutorial goal message, slide-in: sub_000EB550, one caller sub_000EB840; the tracker item"
+
+[[site]]
+ret_va = 0x000EB80A
+element = "goal_box"
+group = "goal"
+note = "tutorial goal message box with its text (\"Locate the 3 balloons.\"): sub_000EB550, one caller sub_000EB840; the tracker item"
+
+[[site]]
+ret_va = 0x0006EE42
+element = "gun_icon"
+group = "counter"
+note = "gun icon under the counter digits (TOMTOM stage): sub_0006B1F0, one caller; the tracker item"
+
+[[site]]
+ret_va = 0x0006ED21
+element = "trash_stack"
+group = "counter"
+note = "vacuumed-trash stack beside the counter (static, not captured: x 527 px, a loop over the record's items at +0x210): sub_0006B1F0, one caller; the tracker item"
+
+[[site]]
+ret_va = 0x0007235F
+element = "tc_legend"
+group = "tc_legend"
+note = "time-control legend at the upper right (REW, PAUSE, ...): sub_00072010's call of the sprite helper sub_00017330 (0x7235A); the tracker item"
+
+[[site]]
+ret_va = 0x0007258A
+element = "tc_legend_2"
+group = "tc_legend"
+note = "time-control legend at the upper right: sub_00072010's other call of sub_00017330 (0x72585); the tracker item"
+
+[[site]]
+ret_va = 0x00072730
+element = "tc_legend_plus_1"
+group = "tc_legend"
+note = "shadow copy 1 of the \"+\" (0x3D95D0) at x 544, y 78 next to the second legend, drawn through sub_00047A00 while [0xAEB814] is set (gate 0x72362); the tracker item"
+
+[[site]]
+ret_va = 0x00072760
+element = "tc_legend_plus_2"
+group = "tc_legend"
+note = "shadow copy 2 of the \"+\" (0x3D95D0) at x 544, y 78 next to the second legend, drawn through sub_00047A00 while [0xAEB814] is set (gate 0x72362); the tracker item"
+
+[[site]]
+ret_va = 0x0007278A
+element = "tc_legend_plus_3"
+group = "tc_legend"
+note = "shadow copy 3 of the \"+\" (0x3D95D0) at x 544, y 78 next to the second legend, drawn through sub_00047A00 while [0xAEB814] is set (gate 0x72362); the tracker item"
+
+[[site]]
+ret_va = 0x000727B4
+element = "tc_legend_plus_4"
+group = "tc_legend"
+note = "shadow copy 4 of the \"+\" (0x3D95D0) at x 544, y 78 next to the second legend, drawn through sub_00047A00 while [0xAEB814] is set (gate 0x72362); the tracker item"
+
+[[site]]
+ret_va = 0x000727DE
+element = "tc_legend_plus_5"
+group = "tc_legend"
+note = "main copy of the \"+\" (0x3D95D0) at x 544, y 78 next to the second legend, drawn through sub_00047A00 while [0xAEB814] is set (gate 0x72362); the tracker item"

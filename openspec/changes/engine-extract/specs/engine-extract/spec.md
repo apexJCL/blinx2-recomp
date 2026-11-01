@@ -13,7 +13,7 @@
 
 #### Scenario: Report beside the project
 - **WHEN** `extract` writes a stage
-- **THEN** `stages/<name>/report.json` holds its trees, counts, missing textures, unsupported and approximated items, and `report.txt` holds the lines the run printed for every stage in the output directory
+- **THEN** `stages/<name>/report.json` holds its trees, counts, missing textures, unsupported, approximated and supported items, and `report.txt` holds the lines the run printed for every stage in the output directory
 
 #### Scenario: Code-drawn stage geometry
 - **WHEN** `blinx2 extract --stage M13` runs on the owner's dump
@@ -26,6 +26,14 @@
 #### Scenario: Environment-mapped strips
 - **WHEN** a strip has the environment-map flag and no UVs
 - **THEN** it keeps its texture, with UVs from its model-space normals, and is counted as approximated
+
+#### Scenario: Additive glows
+- **WHEN** a strip is drawn with Ninja blend 0x21 (source alpha, one), like M13's lamp glows
+- **THEN** its material is written as alpha blend with the extra `"xbr_blend": "add"`, the project's `stage.gd` (on each stage scene's glTF instance) sets it to Godot's additive blend mode, and the report counts the blend as supported, not unsupported
+
+#### Scenario: Trees drawn again under a transform
+- **WHEN** a stage lists a root again with a `transform` entry, like M13's sky with `{scale = [1, -1, 1]}`
+- **THEN** the second draw is written under a node holding that scale and translation, inside the tree's up turn, and reuses the first draw's meshes. M13's sky then covers the view below the horizon. A malformed `transform` (not one table per root, an unknown key, a zero scale) is refused with a message naming the stage
 
 #### Scenario: Floors face up
 - **WHEN** a stage whose floors have +Y normals in the data is extracted with the default `up`

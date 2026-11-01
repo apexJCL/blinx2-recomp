@@ -139,7 +139,6 @@
 #include "keyboard.h"
 #include "mouse.h"
 #include "pad_slots.h"
-#include "free_camera.h"   /* free_cam_pad_neutral */
 #include "pad_pack.h"
 /* The host actions' pad filter (toolkit mod.h, host_pad.h): a toolkit pin
  * from before it builds without, as the title did. */
@@ -148,10 +147,24 @@
 #    include "host_pad.h"
 #    include "mod.h"
 #    define CAT_HAVE_PAD_FILTER 1
+#    ifdef XBOX_MOD_PAD_SEEN
+#      define CAT_HAVE_PAD_SEEN 1
+#    endif
 #  endif
 #endif
 #ifdef RECOMP_ENV_HAVE_ENHANCE_KEYS
 #include "enhance_cfg.h"
+#endif
+/* The toolkit's RECOMP_PAD_SCRIPT and RECOMP_DEBUG=pad_record run in its USB
+ * pad's report, which this title never asks for: the tap (usb_gamepad.h)
+ * runs them here instead. A toolkit pin from before it builds without. */
+#if defined(__has_include)
+#  if __has_include("usb_gamepad.h")
+#    include "usb_gamepad.h"
+#  endif
+#endif
+#ifdef USB_GAMEPAD_HAVE_GAME_TAP
+#  define CAT_HAVE_GAME_TAP 1
 #endif
 
 extern void (*xbox_FileOpenHook)(const char *guest_path, uint32_t status);
@@ -584,8 +597,6 @@ static double g_t0;
 static XBOX_GAMEPAD g_script;          /* the script's current state */
 static uint32_t g_packet[4];
 static XBOX_GAMEPAD g_last[4];
-static XBOX_GAMEPAD g_port0_seen;    /* port 0 before camera.free's neutral pad */
-static int g_port0_conn;
 static XBOX_GAMEPAD g_host_last[4];    /* the host's last state, per port */
 static uint32_t g_mask_last;           /* the last connected mask logged */
 static double   g_probe_t[4];          /* last host query per slot (now_s) */
@@ -1080,6 +1091,11 @@ static uint32_t connected_mask_now(void)
     }
     m = pad_slots_ports(&g_slots);
     if (g_script_on || keyboard_on()) m |= 1;
+#ifdef CAT_HAVE_GAME_TAP
+    /* The ports a toolkit pad script names, so a replayed pad_record has a
+     * pad to press on with no other source. */
+    m |= usb_gamepad_game_pads();
+#endif
     return m;
 }
 
@@ -1127,20 +1143,17 @@ static void init_once(void)
     /* Who may drive the pad. RECOMP_HOST_PAD=0 always keeps host devices
      * out, =1 always lets them in (merged with a script). Unset: a script
      * keeps them out, so scripted and golden runs cannot see a pad left
-     * plugged into the machine; with no script they are in where the host
-     * has a backend the default trusts (Windows/Proton today; macOS still
-     * needs =1 until its SDL path is verified). */
+     * plugged into the machine; with no script they are in on every host,
+     * macOS and Linux included (the user, 2026-10-31: a pad does not get in
+     * the way of the keyboard and mouse, and a player who plugs one in
+     * expects it to work; BLiNX 1 has always done this). */
     h = recomp_env(RENV_HOST_PAD);
     if (h && *h)
         g_host_on = *h != '0';
     else if (v && *v)                   /* set, even if it failed to load */
         g_host_on = 0;
     else
-#ifdef _WIN32
         g_host_on = 1;
-#else
-        g_host_on = 0;
-#endif
     h = recomp_env(RENV_RUMBLE);
     g_rumble_on = !(h && *h == '0');
     if (v && *v)                        /* set, even if it failed to load */
@@ -1480,19 +1493,6 @@ static void watch_activity(double t)
     fflush(stderr);
 }
 
-/* Port 0 as the last poll merged it, before camera.free's neutral pad;
- * 0 when that poll found no source. */
-int cat_pad_port0_last(XBOX_GAMEPAD *out)
-{
-    int c;
-
-    LOCK();
-    *out = g_port0_seen;
-    c = g_port0_conn;
-    UNLOCK();
-    return c;
-}
-
 int cat_pad_get_state(uint32_t port, uint8_t out[18], uint32_t *packet)
 {
     XBOX_GAMEPAD g;
@@ -1595,15 +1595,32 @@ int cat_pad_get_state(uint32_t port, uint8_t out[18], uint32_t *packet)
         g = st.Gamepad;
     }
 #endif
-    /* camera.free: the camera reads port 0 as merged here, and while it
-     * has the port the game reads it connected and released (free-camera
-     * D3), so nothing the player does to fly also moves Blinx. */
-    if (port == 0) {
-        g_port0_seen = g;
-        g_port0_conn = connected;
-        if (connected && free_cam_pad_neutral())
-            memset(&g, 0, sizeof g);
+#ifdef CAT_HAVE_GAME_TAP
+    /* RECOMP_PAD_SCRIPT, RECOMP_PAD_LIVE and RECOMP_PAD_PRESS, on top of the
+     * sources as on the USB pad, flip-timed by the walker. */
+    if (usb_gamepad_game_pads() & (1u << port)) {
+        usb_gamepad_game_press((int)port, &g);
+        connected = 1;
     }
+#endif
+#ifdef CAT_HAVE_PAD_SEEN
+    /* A mod that captures port 0 (camera.free in flight) reads it as merged
+     * here, after the filter took a consumed chord out (so Guide+Y never
+     * reaches Sink), through the toolkit's record (control_value). Meanwhile
+     * the game reads it connected and released (free-camera D3), so nothing
+     * the player does to fly also moves Blinx; the packet number below moves
+     * as the state turns to zero and back. A poll with no source records a
+     * pulled pad and stays disconnected. */
+    if (port == 0 && xbox_enhance_pad_seen(0, &g, connected) && connected)
+        memset(&g, 0, sizeof g);
+#endif
+#ifdef CAT_HAVE_GAME_TAP
+    /* RECOMP_DEBUG=pad_record: the state the title gets, script and person
+     * alike, as flip-timed RECOMP_PAD_SCRIPT steps. Every poll, a
+     * disconnected port's too: its zeros end a hold the pad dropped in, and
+     * a port never pressed writes nothing. */
+    usb_gamepad_game_record((int)port, &g);
+#endif
     /* The packet number moves only when the state does, as on hardware. */
     if (memcmp(&g, &g_last[port], sizeof g)) {
         g_last[port] = g;

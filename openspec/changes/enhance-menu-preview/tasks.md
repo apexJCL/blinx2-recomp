@@ -228,6 +228,10 @@ The review's F13 re-estimate, up from 3 days. If the D3D11 renderer cannot be ve
 
 ### 5B. Free camera onto actions (R3), 0.5 day, after the tracker item merges and 3A
 
+Moved to mod-settings C (overlay-revamp MC, 2026-10-31): the free camera
+mod gets a descriptor and its actions there; 5B.1 to 5B.4 are done by
+C.1 to C.6.
+
 - [ ] 5B.1 `src/free_camera.c`: register `camera.free.toggle`, `.hud`, `.freeze` and `.reset` through API v2 with defaults `F6`, `F7`, `End` (orchestrator, 2026-10-22, follows from the user's F8 choice; the user may override) and `Home` (the user, 2026-10-22; F5 is the quick save), plus `guide+y` for `camera.free.toggle` (the user, 2026-10-22, a rule-7 modifier chord: Guide first). `on_frame` polls `action_pressed` and drops its own rising-edge code. `camera.free_toggle`, `free_hud_key`, `free_freeze_key` and `free_reset_key` stay as aliases with one log line.
 - [ ] 5B.2 Register `on_frame` and `batch_filter` only when `camera.free` or `menu.enabled` is on, so a stock run keeps today's never-taken branch. Once registered they are gated on an atomic. The actions arm the filter only when `camera.free` is on (R3 rule 6). `on_enable` (called on the guest thread at the next frame) runs the toggle-off path (camera restored, freeze dropped, HUD shown). `free_speed` and `free_look_sens` become relaxed atomics, with Mods-page items for both (3D).
 - [ ] 5B.3 `packaging/config.default.toml` `[input.actions]` rows for the four actions. `docs/env.md` and README free-camera paragraph. `scripts/test_*` cases. The `key` script step keeps working, because scripted keys reach `xbox_FramebufferKeyDown` and the actions read the same table. Confirm this or route the step through the action.

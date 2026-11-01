@@ -344,9 +344,9 @@ environment settings, `KEY=value` per line, read after the bundle's
 Controllers work as player 1 on every target, and so do the keyboard and
 the mouse (`input.keyboard` and `input.mouse` in `config.default.toml`; the
 keys are in the bundle's README.txt and `docs/input.md`, and
-`[input.bindings]` in `config/config.toml` changes them). On macOS the app
-also turns host pads on (`RECOMP_HOST_PAD=1`); the keyboard and the mouse do
-not need it.
+`[input.bindings]` in `config/config.toml` changes them). Host pads are on
+by default on every host; the macOS app still sets `RECOMP_HOST_PAD=1`,
+which is now the default.
 
 `BLINX2_DATA_DIR` moves the user-data folder for the macOS app and the
 Windows launcher. It exists for tests, which must never touch your real

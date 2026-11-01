@@ -46,6 +46,13 @@
 #include <stdio.h>
 #include "enhance_menu.h"
 
+/* A row's help, where the toolkit has the field (overlay-revamp D5). */
+#ifdef ENHANCE_MENU_HELP
+#  define ROW_HELP(h) , h
+#else
+#  define ROW_HELP(h)
+#endif
+
 enum { SET_ENABLE, SET_N };
 enum { CTL_OPEN, CTL_N };
 
@@ -238,13 +245,13 @@ static const char *status_get(const struct enhance_item *it, char *buf, size_t n
 static const struct enhance_item k_open_row = {
     "mods.debug_menu.open_now", "Open the debug menu", NULL, ENHANCE_ITEM_ACTION,
     NULL, 0, 0, 0, "at PRESS START", open_set, NULL, ENHANCE_LIVE, ENHANCE_ITEM_NOSAVE,
-    NULL, NULL
+    NULL, NULL ROW_HELP("Opens the game's own debug menu at the PRESS START screen")
 };
 
 static const struct enhance_item k_status_row = {
     "mods.debug_menu.status", "Status", NULL, ENHANCE_ITEM_INFO,
     NULL, 0, 0, 0, NULL, NULL, status_get, ENHANCE_LIVE, ENHANCE_ITEM_NOSAVE,
-    NULL, NULL
+    NULL, NULL ROW_HELP("Whether the debug menu can open now, and why not")
 };
 
 static int init(const struct xbox_mod_api *api)

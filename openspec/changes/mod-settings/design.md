@@ -305,8 +305,9 @@ struct xbox_ctl_value {   /* control_value's answer */
   - **The neutral pad.** While a mod holds `input_capture`, the guest reads
     port 0 connected and released, so nothing the player does to fly also
     moves the character.
-    - In cat's glue this stays as it is (`free_cam_pad_neutral`, now asking
-      the toolkit's capture state).
+    - In cat's glue, `xbox_enhance_pad_seen`'s return value says when:
+      pad_input.c zeroes a connected port 0 while it returns 1, so
+      `free_cam_pad_neutral` is gone (as built in D.4).
     - **input_core applies it too**, right after the record: with a mod
       holding capture and the poll successful, it zeroes `Gamepad` and
       bumps `dwPacketNumber` when the neutral pad starts and when it ends.

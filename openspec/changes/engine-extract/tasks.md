@@ -28,3 +28,9 @@ Implementation goes in an `xboxrecomp-cli` worktree off `main`, plus a cat and a
 - [ ] 4.3 Screenshots of one stage per game in Godot, on the tracker item only.
 - [ ] 4.4 Review before merge; fixes go back to the implementing agent.
 - [ ] 4.5 After merge: notes to `notes/engine-extract/`, worktrees removed through `benchdb`, branches kept; the `[cli]` pin move rides the next push round with `notes/build-all.sh`.
+
+## 5. Fidelity follow-ups
+
+- [x] 5.1 Additive blend 0x21: material extra `xbr_blend = add`, applied by the project's `stage.gd`; counted as supported. CLI tests; M13 before/after shots on the tracker item.
+- [x] 5.2 Transformed repeat draws: optional per-root `transform` (scale, translation) in `[[extract.stage]]`, with CLI tests. M13 lists the sky again mirrored in Y. M13 before/after shots are on the tracker item. The M54 scaled roots are a follow-up, and the reflection rule is the tracker item's.
+- [x] 5.3 Planar reflections beyond M111: per-root `backdrop` (the render target's clear colour, black) and two texture_alpha fixes (an opacity of 1 keeps the alpha mode; names no strip draws with go to `report.json` as `texture_alpha_unmatched` and print a warning), with CLI tests. M34 gets its reflection; M111's mirror translation sign is fixed. The water stages (M11, M14, M53, M91) and M44 are left out (design.md).

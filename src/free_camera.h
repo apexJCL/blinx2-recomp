@@ -10,7 +10,8 @@
  *                               in for the event system, read back after
  *   sub_00161120                free_cam_freeze_tick: the freeze re-assert
  *   sub_000606F0 (stage start)  free_cam_stage_start: the freeze dropped
- * and pad_input.c asks free_cam_pad_neutral for the game's port 0.
+ * and pad_input.c hands port 0 to the toolkit's record
+ * (xbox_enhance_pad_seen), which gives the game a released pad in flight.
  *
  * Without the layer, or with a toolkit that has no mod.h, every call is a
  * constant: the wrappers run the generated bodies and nothing else.
@@ -31,9 +32,9 @@ int free_cam_view(struct fc_cam *c);
 /* Once per guest frame, after the game's pad poll (the mod frame). */
 void free_cam_frame(void);
 
-/* The four actions (toggle, HUD, freeze, reset), as the hotkeys run them;
- * call them on the frame thread (a mod's on_frame). Gamepad bindings come
- * through the host-action layer, which calls these. */
+/* The four actions (toggle, HUD, freeze, reset), as the mod's on_frame
+ * runs them when the toolkit's host actions camera.free.toggle, .hud,
+ * .freeze and .reset fire; call them on the guest thread. */
 void free_cam_action_toggle(void);
 void free_cam_action_hud(void);
 void free_cam_action_freeze(void);
@@ -50,8 +51,5 @@ void free_cam_freeze_tick(void);
 
 /* The stage started or restarted (sub_000606F0). */
 void free_cam_stage_start(void);
-
-/* 1 while the camera has port 0: the game reads a released pad. */
-int free_cam_pad_neutral(void);
 
 #endif

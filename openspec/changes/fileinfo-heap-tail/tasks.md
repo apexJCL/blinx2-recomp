@@ -16,7 +16,7 @@
 - [x] 3.2 BLiNX 2 Metal golden against the branch toolkit
 - [x] 3.3 Deck golden (`blinx2 bench golden`)
 - [x] 3.4 `sh notes/build-all.sh` with `TOOLKIT=wt/ITEM/xboxrecomp`
-- [x] 3.5 KUF with `RECOMP_HEAP_RECLAIM=1` headless on Metal: no `unhandled class`, no `out of memory`, battle frames (`runs/kuf-v013/20-ITEM/`)
+- [x] 3.5 KUF with `RECOMP_HEAP_RECLAIM=1` headless on Metal: no `unhandled class`, no `out of memory`, battle frames (`runs/kuf-v013/20-ITEM/`, archived to the NAS xboxrecomp-archive/runs/kuf-v013 on 2026-10-31)
 - [x] 3.6 Review before merge (fixes below)
 
 ## 4. Review fixes
@@ -25,4 +25,4 @@
 - [x] 4.2 L1: check 3b folds two merged 4 MB blocks for a 9 MB request; README row
 - [x] 4.3 L2: class 6 short buffer sets the status block (Win32, POSIX, RAM cache), with test checks
 - [x] 4.4 L3: fold comment wording; L4: no tracker id in the ram cache test comment
-- [x] 4.5 Gates again: Mac build, POSIX ctests, KUF run `runs/kuf-v013/23-ITEM-r2` (repeat `23-ITEM-r2b`), BLiNX 2 Metal golden, BLiNX 2 native Windows golden (the Deck was reserved)
+- [x] 4.5 Gates again: Mac build, POSIX ctests, KUF run `runs/kuf-v013/23-ITEM-r2` (repeat `23-ITEM-r2b`; both archived to the NAS xboxrecomp-archive/runs/kuf-v013), BLiNX 2 Metal golden, BLiNX 2 native Windows golden (the Deck was reserved)

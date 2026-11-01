@@ -40,7 +40,7 @@ void fc_basis(float pitch, float yaw, float fwd[3], float right[3])
 void fc_fly_step(struct fc_cam *c, const struct fc_input *in,
                  const struct fc_params *pr, float dt)
 {
-    float fwd[3], right[3], v, look;
+    float fwd[3], right[3], v, look, mouse, sx, sy;
     int i;
 
     if (!(dt > 0.0f))
@@ -48,8 +48,14 @@ void fc_fly_step(struct fc_cam *c, const struct fc_input *in,
     if (dt > FC_DT_MAX)
         dt = FC_DT_MAX;
     look = pr->look_sens;
-    c->yaw -= (in->rx * FC_LOOK_RATE * dt + in->mouse_dx * FC_MOUSE_RATE) * look;
-    c->pitch += (in->ry * FC_LOOK_RATE * dt - in->mouse_dy * FC_MOUSE_RATE) * look;
+    /* mouse_sens rides on top of look_sens, so a look_sens set before it
+     * existed still turns the mouse as it did. At the defaults every factor
+     * is 1 and the result is the same float as before. */
+    mouse = FC_MOUSE_RATE * pr->mouse_sens;
+    sx = pr->invert_x ? -1.0f : 1.0f;
+    sy = pr->invert_y ? -1.0f : 1.0f;
+    c->yaw -= sx * (in->rx * FC_LOOK_RATE * dt + in->mouse_dx * mouse) * look;
+    c->pitch += sy * (in->ry * FC_LOOK_RATE * dt - in->mouse_dy * mouse) * look;
     if (c->pitch > FC_PITCH_MAX)
         c->pitch = FC_PITCH_MAX;
     if (c->pitch < -FC_PITCH_MAX)
@@ -59,9 +65,9 @@ void fc_fly_step(struct fc_cam *c, const struct fc_input *in,
 
     v = FC_MOVE_BASE * pr->speed * dt;
     if (in->fast)
-        v *= FC_FAST;
+        v *= pr->fast;
     if (in->slow)
-        v *= FC_SLOW;
+        v *= pr->slow;
     fc_basis(c->pitch, c->yaw, fwd, right);
     for (i = 0; i < 3; i++)
         c->p[i] += (fwd[i] * in->ly + right[i] * in->lx) * v;

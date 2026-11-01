@@ -111,6 +111,9 @@ analysis/golden/*
 !analysis/enhancements/
 analysis/enhancements/*
 !analysis/enhancements/hor-plus.md
+# The texture-upscaler spike: names, hashes, sizes and timings,
+# no texels; the grids stay in runs/.
+!analysis/enhancements/texture-upscalers.md
 # The developer's own options (the game reads config/config.toml from the
 # working directory over the build's config.default.toml); never committed.
 config/config.toml

@@ -144,8 +144,8 @@ treatment:
 |---|---|---|---|---|---|---|---|
 | `font` (1) | `[enhance.hud] font_atlas`, or `[enhance.textures.classes] font` patterns | 4 | the atlas fit when the game names a font, else `xbr` (`alpha_edge`) | split | clamp | none | raw |
 | `text` (2) | a picked language's archives, `text` patterns | 2 | `xbr` | split | clamp | none | bc3 |
-| `ui` (0) | `ui` patterns (cat: today's `[enhance.hud] textures`), or a dump fact: drawn only by pre-transformed (2D) batches | 4 | `xbr` | split | clamp | none | raw |
-| `world` (3) | everything else that is packable | 2 (4 with a CNN) | `lanczos` built in; a CNN preset when the owner has one | split | the recorded wrap mode | full | auto (bc1 opaque, bc3 with alpha) |
+| `ui` (0) | `ui` patterns (cat: today's `[enhance.hud] textures`), or a dump fact: drawn only by pre-transformed (2D) batches | `clamp(R, 2, 4)` | `xbr` | split | clamp | none | raw |
+| `world` (3) | everything else that is packable | 2 with `lanczos`; `clamp(R, 2, 4)` with a CNN | `lanczos` built in; a CNN preset when the owner has one | split | the recorded wrap mode | full | auto (bc1 opaque, bc3 with alpha) |
 
 Facts and what they do:
 
@@ -160,9 +160,20 @@ Facts and what they do:
 | `grid` | a font atlas, or a `ui` texture the owner marks as a sprite sheet | `edges = cells` with the cell size: each cell is padded and upscaled on its own so no stroke crosses a cell border |
 
 The defaults are the spike's to confirm (0.4): the table is what the
-GUI shows and the owner edits. World gets `lanczos` at 2x by default
-because it needs nothing installed, is reproducible, and halves the
-pack of a 4x choice; a CNN at 4x is the owner's upgrade from the GUI.
+GUI shows and the owner edits. The tracker item (2026-11-01, "Measured" below)
+confirmed the upscaler per class at 3x and set **the default-scale
+rule**: with `R` the config's `render_scale`, a class whose cell reads
+`clamp(R, 2, 4)` defaults to `R` bounded to 2..4 (2 at `R = 1` and 2,
+3 at `R = 3`, 4 at `R >= 4`); `font` stays 4 (the atlas fit) and
+`text` stays 2 (it is the largest class; 3 is the owner's choice where
+the budget allows). The reason: a 4x entry drawn at render scale 3
+holds 16 texels per source texel where the screen shows 9, so 7/16
+(about 44%) of its texels only feed minification. World keeps
+`lanczos` at 2x by default because it needs nothing installed, is
+reproducible, and halves the pack of a 4x choice; picking a CNN for
+world (the GUI or `pick`) switches its default scale to `clamp(R, 2,
+4)`. A scale of 3 needs the fractional sampler shift of D4; until 1.2
+lands, a 3x entry is only safe for unmipped textures (`mips = none`).
 
 **Coverage presets** are a game's named sets over classes and rules
 (`game.toml [enhance.textures.presets]`): `hud` (= today's `[enhance.hud]`
@@ -222,16 +233,25 @@ count and apply `lod_min`/`lod_max` as absolute levels
 texture with a full pack chain is sampled without mips and aliases
 worse than stock, and on a mipped guest the last `log2(s)` levels of the
 new chain can never be reached. The GPU computes the LOD against the
-entry's real size, so guest level `k` is entry level `k + shift` with
-`shift = log2(entry_w / guest_w)`: the entry's levels `0 .. shift-1` are
-the new detail, reached only at magnification. Toolkit task 1.2
+entry's real size, so guest level `k` is entry LOD `k + shift` with
+`shift = log2(entry_w / guest_w)`: the entry's LODs below `shift` are
+the new detail, reached only at magnification. **The shift is
+fractional at 3x** (`log2 3 ≈ 1.585`): both APIs take float clamps
+(`lodMinClamp`/`lodMaxClamp`, D3D11 `MinLOD`/`MaxLOD`), so the clamps
+below are floats, and the sampler key carries the entry's integer
+scale `s` (2, 3 or 4; 1 for stock) rather than the float, which
+quantises the shift by construction. A 3x chain's levels fall between
+the guest's (guest level `k` is entry LOD `k + 1.585`), so with linear
+mip filtering the GPU blends two entry levels where the guest read one;
+nearest-level filtering picks the closer. Toolkit task 1.2
 therefore, for pack entries only: shifts **`lod_max`** by `+shift`
 (the far end follows the guest's clamp into the longer chain); leaves
 **`lod_min` at 0** when the guest's is 0, shifting it by `+shift` only
 when the guest sets it above 0 (a guest that already clamps away its
 own level 0 keeps that intent, in entry levels); and for a one-level
 guest with a pack chain turns mip filtering on (nearest-level) with
-`min 0, max shift` (the full chain when the entry has one). Shifting
+`min 0, max shift` (the full chain when the entry has one; `max
+1.585` at 3x). Shifting
 `lod_min` to `shift` would have blocked the upscaled levels outright,
 and on a one-level guest left `min = max = shift`, the pack doing
 nothing: the first draft's mistake. The shift is part of the sampler
@@ -291,11 +311,18 @@ D3D11 path.
   thread is a follow-up if the trace shows stalls; the design keeps the
   lazy read.
 - **Build time.** Per texture the costs add: decode, pad, upscale
-  (built-in ~1 s per 256x256 at 4x per core in pure Python; ncnn tools
-  0.1-1 s per 256x256 on a GPU and 10-20x that on a CPU), chain, encode
-  (same order as xBR in pure Python). `estimate` multiplies per-megatexel
+  (measured by the tracker item in seconds per source megatexel on an M4 Max:
+  `xbr` 8.2, the CLI's pure-Python kernel; ncnn tools 1-12; spandrel on
+  MPS 0.3-8.3, the CPU 6.5-11x slower; "Measured" below; the spike's
+  `lanczos`, `nearest` and `epx` were numpy/Pillow stand-ins and its
+  pad, alpha split and down-to-scale were numpy/Pillow outside the
+  timed call, so the CLI's pure-Python versions of all of them are
+  still to be timed in 3.1, and a CNN's figure grows by a down-to-scale
+  over its 16x output), chain, encode (same order as xBR in pure
+  Python; timed in 3.4). `estimate` multiplies per-megatexel
   figures from a calibration cache (`build-logs/timings.json`, seeded by
-  0.3 and refreshed by every build) by the preset's texels, divided by
+  0.3's CNN rows and 3.1's and 3.4's pure-Python rows, refreshed by
+  every build) by the preset's texels, divided by
   the job count `resources` allows, and the wizard shows minutes per
   preset. The built-ins run one texture per process task (deterministic
   whatever the job count, as today); command and service backends run
@@ -319,7 +346,9 @@ params) -> images` over `(w, h, rgba bytes)` tuples.
 2. **Command** (`[upscaler.<name>] command = "..."`): a template over
    PNG files in a temporary directory, `{in}`/`{out}` per texture or
    `{in_dir}`/`{out_dir}` per batch, `{scale}`, `{model}`, `{tile}`,
-   `{gpu}`; the template is `shlex.split` first and the placeholders
+   `{gpu}` (an ncnn tool's `-g` index: `0`, `1`, or `-1` for its CPU
+   mode) and `{device}` (the torch plugin's `auto|cuda|mps|cpu`), each
+   from the local file per upscaler; the template is `shlex.split` first and the placeholders
    substituted into the resulting argv list, so the tool runs without a
    shell and a texture name or model can never become a command; a
    timeout; the tool's sha256 and `--version`/first line recorded in
@@ -330,11 +359,25 @@ params) -> images` over `(w, h, rgba bytes)` tuples.
    models `realesrgan-x4plus`, `realesrgan-x4plus-anime`,
    `realesr-animevideov3`; scales 2-4), waifu2x ncnn-vulkan (`-i -o -n -s
    -t -m -g -j -x -f`, MIT; `-g -1` is its documented CPU mode; scales
-   1/2/4/8+), Upscayl's `upscayl-bin` (AGPL-3.0, the same ncnn family),
-   chaiNNer `chainner run chain.chn --override overrides.json`
+   1/2/4/8+), Upscayl's `upscayl-bin` (AGPL-3.0, the same ncnn family; its bundled
+   models, or an owner's ncnn model with `-m DIR -n NAME`, whose input
+   blob must be named `data`), chaiNNer `chainner run chain.chn --override overrides.json`
    (experimental per its wiki; the owner exports a chain whose input and
    output directory nodes the template overrides), and Real-ESRGAN's
-   Python `inference_realesrgan.py -n -i -o -s -t` (BSD-3). Each preset
+   Python `inference_realesrgan.py -n -i -o -s -t` (BSD-3), Real-CUGAN
+   ncnn-vulkan (MIT; `-n -s -m models-se|models-pro`, native 2/3/4x; on
+   macOS the preset runs **one file per process and pads a side under
+   128 by the edge**, since the 20220728 build segfaults on wide thin
+   inputs such as 512x64 and a directory batch dies with it), and the
+   PyTorch plugin of D7.4 (`xbr-upscale-torch upscale --model {model}
+   --scale {scale} --in-dir {in_dir} --out-dir {out_dir} --device
+   {device} --tile {tile} --dtype fp32`). **Model presets** name a model file the
+   owner downloads (homepage, licence, sha256 to expect), never a URL
+   the CLI fetches; the GUI and `compare` show a licence flag on any
+   model whose licence is non-commercial (CC-BY-NC*), custom with
+   restrictions (HDcube), or disputed between its repository and
+   OpenModelDB. Packs are never distributed, so a flag informs; it
+   does not refuse. Each preset
    has a found-on-PATH probe (`shutil.which`, plus the GUI's path field),
    its licence and homepage shown, and a line that the model files are
    the tool's own and come with it. The CLI runs nothing it did not find
@@ -370,20 +413,87 @@ params) -> images` over `(w, h, rgba bytes)` tuples.
    poll `GET /history/{id}`, fetch `GET /view`); the ComfyUI adapter is
    phase 4's last task because every workflow differs. `xbr enhance
    serve` is the reference server of the contract over any registered
-   backend (so the Mac that builds the pack can use the Windows PC's
-   GPU across the room), bound to `127.0.0.1` unless `--host` is given.
+   backend, the torch plugin included through its `worker` mode (D7.4),
+   so the Mac that builds the pack can use the Windows PC's GPU across
+   the room; bound to `127.0.0.1` unless `--host` is given.
    A remote or paid service is the owner's URL and responsibility; the
    GUI says so beside the field, and nothing in the CLI's defaults names
    a network host.
-4. **A Python backend is a later option, not built here** (the user,
-   2026-10-18: command and service backends only). The shape, should it
-   come: an entry point in a group `xbr.upscalers` from a package the
-   owner installs outside the CLI's per-tag `.venv` (a backend installed
-   into that environment is lost on every re-pin), `spandrel` (MIT; its
-   core architectures are permissive, `spandrel_extra_arches` is not and
-   would not be loaded) with PyTorch on CUDA, ROCm, MPS or the CPU. Until
-   then a PyTorch model runs through `command` (chaiNNer `run`, Real-
-   ESRGAN's script) or behind a service.
+4. **PyTorch backend** (the user, 2026-11-01: "Let's allow PyTorch
+   backend", reversing 2026-10-18's command-and-service-only). It ships
+   as **a separate optional package, `xbr-upscale-torch`**, in the CLI
+   repository under `plugins/torch/` with its own `pyproject.toml`,
+   never a dependency or an extra of the CLI: an extra would land in the
+   per-tag `.venv` that every re-pin replaces and pull torch (0.7 GB on
+   the Mac, a few GB with CUDA wheels) onto every player's machine.
+   - **Install.** The package is not on PyPI. `xbr enhance textures
+     backend install torch` prints, and never runs, one `uv tool
+     install` line per platform: the source is the CLI repository at the
+     CLI's own tag with `#subdirectory=plugins/torch` (or a local path
+     to a clone); torch comes from PyPI on macOS (MPS) and CPU-only
+     hosts, and from the PyTorch CUDA index (`--index
+     https://download.pytorch.org/whl/cu<NN>`, the ROCm index on AMD
+     Linux) where a GPU is wanted, since PyPI's Windows torch is
+     CPU-only. `uv tool install` ignores the plugin's `uv.lock`, so
+     `plugins/torch/pyproject.toml` pins `torch` and `spandrel` to exact
+     versions (the line passes the same pins as constraints).
+   - **Contract version.** The plugin outlives the CLI's re-pins. Its
+     JSON line (and `--version`) reports `contract = <major>.<minor>`;
+     the CLI refuses a plugin whose major differs from its own, with the
+     install line for its tag, and warns on a newer minor.
+   - **Driven as a command** backend (2) with a fixed argv (`upscale
+     --model PATH --scale S --in-dir --out-dir --device
+     auto|cuda|mps|cpu --tile N --dtype fp32`), batch = a directory per
+     call, so the CLI's process never imports torch and its
+     stdlib-first default stays dependency-free.
+   - **No `serve` of its own** (the review; the choice and
+     its reason): remote use goes through `xbr enhance serve --backend
+     torch` (3), so the network surface and its hardening (loopback
+     bind, the token, the caps, the allowlists, the timeout) exist once,
+     in the CLI, tested once. The cost is torch's start-up per process:
+     measured on the M4 Max at ~0.85 s to import torch and spandrel,
+     0.01-0.06 s to load a Compact model, and 0.02-0.4 s for the first
+     inference (MPS warm-up), about 1.3 s per call at worst. A local
+     build pays it once per batch directory (a few hundred textures),
+     which on a world pass is seconds against minutes of upscaling. A
+     process per request behind `serve` would pay it per texture (about
+     2 h over the 5,481 world hashes), so `serve` keeps one plugin
+     process alive in a `worker` mode instead: length-prefixed JSON
+     headers and PNG bodies over its stdin and stdout, no socket, each
+     model loaded once. The plugin never listens on a port.
+   - **Model loading.** `--model` takes `.safetensors` (preferred, no
+     code in the file), `.pth` or `.ckpt`, loaded **only** through
+     `spandrel.ModelLoader` (MIT), whose pickle path is its
+     `RestrictedUnpickle` (spandrel 0.4.2, checked), never a raw
+     `torch.load`; core architectures only: `spandrel_extra_arches` is
+     never installed, its architectures carry non-commercial licences.
+     When a model preset names an expected sha256, the plugin hashes the
+     file before loading and refuses a mismatch unless
+     `--allow-model-mismatch` (the record then says so); an owner's own
+     file has no expectation and is hashed for the record. A test feeds
+     a pickle with a forbidden global (`os.system`) and asserts the
+     refusal.
+   - The plugin reports the architecture, native scale and the model
+     file's sha256; a 4x-only model reaches 3x through the down-to-scale
+     step below.
+   - **Determinism**: the tracker item found every model byte-identical run to
+     run on MPS and on the CPU, and MPS against the CPU within 1 LSB on
+     a few texels. The pack record (`textures-pack.toml`) therefore
+     stores `backend = "torch"`, `model_sha256`, `arch`, native scale,
+     torch and spandrel versions, `device`, `dtype`, `tile`,
+     `reproducible = false`, and `reproducible_scope = "host"` for
+     `--device cpu` with `torch.use_deterministic_algorithms(True)`
+     (equal bytes expected again on the same host, versions and tile),
+     else `"none"`. `reproducible` stays a boolean everywhere; a pack of
+     built-ins records `reproducible_scope = "any"`. Goldens never load
+     packs.
+
+**Down to scale**: an upscaler whose native scale differs from the
+class's (a 4x model for a 3x class) is followed by the premultiplied
+`lanczos` to the target size, inside the padded image before the crop;
+under `alpha = binary` the threshold is applied after this downscale,
+so the coverage check sees the final size; the record names both
+steps.
 
 **Alpha** (all kinds): a model trained on RGB sees a transparent texel's
 colour as data. `split` (default): the colour is edge-extended under
@@ -412,7 +522,7 @@ Two files, so the tracked one never carries an owner's machine:
 - `config/enhance-textures.local.toml`, **untracked** (gitignored by
   `xbr new`'s template and cat's `.gitignore`; the export refuses it):
   per upscaler the program `path`, model directory, service `url`,
-  `token_env`, `allow_plain_http`, `gpu`. The GUI writes the two files
+  `token_env`, `allow_plain_http`, `gpu` (ncnn), `device` (torch). The GUI writes the two files
   from one form and says which key goes where; `build` merges them
   (local over tracked) and records in `textures-pack.toml` only the
   identities (sha256, version, `info`), never the paths or URLs.
@@ -481,7 +591,7 @@ model = "realesrgan-x4plus"
 tile = 0
 
 [upscaler.remote]                   # a service; its url is in the local file
-model = "4x-UltraSharp"
+model = "realesr-general-x4v3"      # BSD-3; a CC-BY-NC* model works too, flagged in the GUI
 
 [budget]                            # defaults from the phase 0 spike
 pack_mb = 0                         # 0: no warning
@@ -509,8 +619,9 @@ when present, the local file beside it) applies, per entry: the class
 defaults, then the class table, then matching rules in order; records
 the tracked config's path and sha256, each upscaler's identity (built-in
 name and CLI version; a command's sha256 and version line; a service's
-`info`) and `reproducible = true` only when every upscaler used is built
-in, in `textures-pack.toml` beside `textures.pack`. Without a config the `hud`
+`info`), `reproducible = true` only when every upscaler used is built
+in, and `reproducible_scope` (`any`, `host` or `none`, D7.4), in
+`textures-pack.toml` beside `textures.pack`. Without a config the `hud`
 preset is what `enhance hud` makes today (a test pins the art and font
 payloads byte for byte; the header is v3).
 
@@ -714,10 +825,12 @@ every pipeline). The atomic max on a subsample is the smallest change
 that gives the real number on both backends.
 
 **What the tool does with it.** With `coverage.mode = "traced"` and the
-owner's `render_scale` `R`, each traced entry's proposed scale is the
-smallest of {skip, 2, 4} at or above `mag_scale1 * R` (so a texture at
-most 1.3 pixels per texel at 1x is skipped for `R = 1`, gets 2x for
-`R = 2`, 4x for `R = 3`); untraced entries get the class default or are
+owner's `render_scale` `R`, each traced entry's proposed scale is
+skip when `mag_scale1 * R <= 1` (never magnified), else the smallest of
+{2, 3, 4} at or above `mag_scale1 * R`, capped at 4 (a texture at most
+0.9 pixels per texel at 1x is skipped for `R = 1`, gets 2x for `R = 2`
+and 3x for `R = 3`; one at 1.3 gets 2x, 3x and 4x); a 3x proposal on a
+mipped entry waits for D4's fractional shift (1.2); untraced entries get the class default or are
 skipped (`coverage.untraced`). The GUI shows the table (name, class,
 `mag` at 1x, the proposal at `R`, the bytes saved against the class
 default) and the owner overrides per entry; the result is written as
@@ -759,12 +872,13 @@ The real check stays the game: a Metal window shot with the pack
 | Backend | macOS (Apple Silicon) | Windows | SteamOS/Linux | CPU fallback | Licence |
 |---|---|---|---|---|---|
 | built-in filters | yes (CPU) | yes | yes | they are CPU | the CLI's |
-| realesrgan-ncnn-vulkan | runs through MoltenVK; the project's macOS build is labelled Intel/AMD/NVIDIA, Apple Silicon to verify (0.3) | Vulkan GPU | Vulkan GPU (the Deck's too, but the Deck never builds) | `-g -1` per ncnn, undocumented in its README (verify) | MIT (the port); Real-ESRGAN BSD-3; model licences as published with the tool |
+| realesrgan-ncnn-vulkan | runs through MoltenVK; Apple Silicon verified on an M4 Max (20220424) | Vulkan GPU | Vulkan GPU (the Deck's too, but the Deck never builds) | `-g -1` per ncnn, undocumented in its README (verify) | MIT (the port); Real-ESRGAN BSD-3; model licences as published with the tool |
 | waifu2x-ncnn-vulkan | prebuilt Apple Silicon binaries | yes | yes | `-g -1` documented | MIT |
-| upscayl-bin | arm64 build documented (MoltenVK) | not documented on the repo page | yes | as ncnn | AGPL-3.0 (invoked as a program; never linked or vendored) |
+| realcugan-ncnn-vulkan | MoltenVK, verified; segfaults on wide thin inputs (D7.2's preset works around it) | Vulkan GPU | Vulkan GPU | `-g -1` | MIT: the ncnn port (nihui) and Real-CUGAN with its weights (`bilibili/ailab` `Real-CUGAN/LICENSE`; no separate model terms) |
+| upscayl-bin | arm64 build verified (MoltenVK) | not documented on the repo page | yes | as ncnn | AGPL-3.0 (invoked as a program; never linked or vendored) |
 | chaiNNer `run` | yes | yes | yes | per backend | GPL-3.0 (invoked); PyTorch, NCNN, ONNX, TensorRT backends |
 | HTTP service / a1111 / ComfyUI | any host | any | any | the server's | the server's |
-| Python (spandrel + PyTorch) | a later option, not built here (D7.4) | | | | spandrel MIT; models per OpenModelDB page |
+| `xbr-upscale-torch` (spandrel + PyTorch, D7.4) | MPS, verified | CUDA | CUDA, ROCm | `--device cpu` (6.5-11x slower than MPS: 6.5-7.3x the compact models, 11x x4plus) | spandrel MIT, PyTorch BSD-3; each model its own licence, flagged when restricted |
 
 The Deck installs packs; builds happen on the Mac or a PC (the standing
 rule). An owner on a Mac without a GPU tool uses the built-ins, or
@@ -801,7 +915,8 @@ never leave the owner's machines.
   printed before the build and the wizard shows it; batches, processes
   and the optional vectorised encoder bound it.
 - **Reproducibility.** Only built-ins give one pack from two hosts;
-  `textures-pack.toml` says `reproducible = false` otherwise and the
+  `textures-pack.toml` says `reproducible = false` otherwise (with
+  `reproducible_scope = "host"` for a deterministic CPU torch run) and the
   incremental packaging treats the pack by sha as it does today.
 - **The dump is game data.** Gitignored, flagged by the audit, kept in
   `runs/` in this workspace; the inventory JSON holds no texels.
@@ -825,7 +940,8 @@ never leave the owner's machines.
 2. CLI: sources, inventory, classes, estimates.
 3. CLI: the upscaler interface with built-ins and the command backend,
    alpha, edges, mips, BC1, the config, `build`, `enhance hud` as the
-   preset, `package --texture-pack`.
+   preset, `package --texture-pack`; the `compare` grid and `pick`
+   (3.6a) and the optional `xbr-upscale-torch` plugin (3.2a).
 4. CLI: the HTTP contract with its hardening, the a1111 and ComfyUI
    adapters, `enhance serve`.
 5. CLI: the preview GUI's Textures tab (absorbs enhance-menu-preview
@@ -842,6 +958,69 @@ under their `RECOMP_DEBUG` entry and `RECOMP_TRACE` name, never by
 default; a v3 pack on an older runtime is refused whole with its one
 line and the run stays stock.
 
+## Measured (phase 0 in part, 2026-11-01)
+
+From `analysis/enhancements/texture-upscalers.md` (cat; names, hashes,
+sizes and timings only).
+
+- **Inventory (archives only)**: 22,931 entries (22,056 DXT, 874
+  non-DXT, 1 skipped archive), 8,926 unique DXT hashes; unique source texels world 158.5 M (5,481 hashes, 2,959
+  mipped), text 161.4 M (3,048; an upper bound), ui 13.7 M (294), font
+  0.13 M (2), effects 0.8 M (101); 874 non-DXT entries (829 TGA8) need
+  the dump. World entries repeat ~3.2x across stage archives: the hash
+  join is what keeps the build linear.
+- **Pack bytes**, BC1 for DXT1 sources and BC3 otherwise, full chains
+  for mipped sources: all classes 1.1 GiB at 2x, 2.4 GiB at 3x, 4.3 GiB
+  at 4x; world alone 456 MiB / 1.0 GiB / 1.8 GiB; raw RGBA world at 3x
+  would be 6.1 GiB, so world and text are BC-only. VRAM per scene
+  waits for the dump (0.1).
+- **Seconds per source megatexel** (M4 Max; the upscaler call only,
+  over the padded and split inputs; the pad, the alpha split and the
+  down-to-scale ran in numpy/Pillow outside the timed call):
+  `nearest`/`epx` 0.01 and `lanczos` 0.27 (numpy/Pillow stand-ins,
+  spike only: the CLI's integer versions are pure Python and of
+  `xbr`'s order, timed in 3.1), `xbr` 3x 8.2 (the CLI's pure-Python
+  kernel, per job); realesr-animevideov3 x3 (ncnn) 1.07,
+  realesrgan-x4plus (ncnn) 11.7, x4plus-anime 4.1, waifu2x cunet 2.6,
+  Real-CUGAN se 3x 9.6 (one process per file), upscayl-bin + 2xHDCube
+  1.0; spandrel on MPS: realesr-general-x4v3 0.57, 4xHDCube4Compact
+  0.34, 4x-PBRify SPANV4 0.51, PBRify RPLKSRd 3.6, RealESRGAN_x4plus
+  8.3; the CPU 2.2-91 (6.5-7.3x MPS for the compact models, 11x for
+  x4plus). The ncnn figures include each tool's start-up (one process
+  per batch, or per file for Real-CUGAN); the torch figures exclude the
+  import and model load (the harness kept the model in-process), which
+  a cold process adds at ~1.3 s per call (D7.4), so `compare` (3.6a)
+  times the plugin as a subprocess. A world pass at 3x (158 M texels):
+  about a minute on MPS (HDCube4 54 s, realesr-general 90 s) to 31 min
+  on a GPU (ncnn x4plus; Real-CUGAN 25 min), 22 min for `xbr` per job,
+  and 4 h for x4plus on the CPU; every CNN figure is optimistic by the
+  down-to-scale over its 4x output, still untimed.
+- **Determinism**: every upscaler byte-identical on two runs; torch MPS
+  against the CPU within 1 LSB.
+- **Per class at 3x** (the grids, kept in `runs/`): world gains from a
+  restrained CNN (realesr-general-x4v3, realesr-animevideov3,
+  PBRify RPLKSRd, HDCube4) and is repainted by x4plus/x4plus-anime;
+  ui, text and font are best with `xbr` (CNNs halo strokes and invent
+  a grid from DXT blocks in translucent panels); effects with
+  `lanczos` (CNNs flatten glow cores and invent leaf veins). D2's
+  upscalers stand; its scales follow the render-scale rule now written
+  into the table (`clamp(R, 2, 4)` for ui, and for world with a CNN).
+- **Presets to ship**: the built-ins; command presets for
+  realesrgan-ncnn-vulkan (`realesr-animevideov3` as the world CNN
+  default for ncnn, x4plus offered with a "repaints" note),
+  waifu2x-ncnn-vulkan, realcugan-ncnn-vulkan (per-file workaround),
+  upscayl-bin with an owner model, chaiNNer `run`; the torch plugin with
+  model presets `realesr-general-x4v3` (BSD-3, the world default when
+  torch is present), `4x-PBRify_RPLKSRd_V3` and `_UpscalerSPANV4`
+  (CC0), `RealESRGAN_x4plus` (BSD-3), `4xHDCube4Compact` (flagged:
+  custom licence, OpenModelDB lists the HDCube versions as CC0,
+  CC-BY-4.0 and CC-BY-NC-SA-4.0).
+- **Still open in phase 0**: 0.1 (the dump and the trace), the BC1/BC3
+  encoder timings (moved to 3.4) and the pure-Python built-in timings
+  (moved to 3.1), VRAM in 0.4, and in-game 3x frames (a
+  hand-made v2 pack can carry the 2,522 unmipped world hashes; the
+  mipped ones need 1.2's sampler shift, fractional at 3x).
+
 ## Decided (the user, 2026-10-18)
 
 The five open questions of the first draft, answered the same day:
@@ -850,16 +1029,19 @@ The five open questions of the first draft, answered the same day:
    HUD-only case is the `hud` preset (D12).
 2. **Budgets** are left to the phase 0 inventory spike: the config ships
    `pack_mb = 0`, `vram_mb = 0` (no warning) until 0.4 sets them (D6).
-3. **Command and HTTP service backends only.** No spandrel/PyTorch
-   package; the Python backend is recorded as a later option (D7.4).
+3. ~~Command and HTTP service backends only.~~ **Reversed by the user,
+   2026-11-01: "Let's allow PyTorch backend".** The spandrel/PyTorch
+   backend ships as the optional `xbr-upscale-torch` package, driven as
+   a command and outside the CLI's dependencies (D7.4).
 4. **The wizard offers the presets with their estimates, plus
    Configure…** (D11).
 5. **`xbr enhance serve` ships** (D7.3), with the hardening above.
 
 ## Still open
 
-Nothing. The spike's numbers (0.4) fill D2's defaults and D6's budgets
-without a further question.
+No design question. The measurements still owed are listed under
+"Measured" ("Still open in phase 0"); they fill D2's defaults and D6's
+budgets without a further question to the user.
 
 ## Sources
 

@@ -81,19 +81,26 @@ VRAM, opt-in surface and privacy) and absorbs the upscale half of
     maps) are skipped unless opted in with renormalisation; `grid`
     atlases are upscaled cell by cell. Coverage runs from the game's
     presets (HUD-only to everything) to **`traced`**, where the trace
-    proposes skip, 2x or 4x per texture for the render scale the owner
+    proposes skip, 2x, 3x or 4x per texture for the render scale the owner
     plays at and the owner tunes the table;
   - a **pluggable upscaler interface**: built-in deterministic integer
     filters (`nearest`, `xbr` 2/3/4 with parameters, `epx`, `lanczos`,
     `box`), a **command** backend (a template over PNG files in a
     temporary directory, per texture or per batch, with presets for
     local open-source tools the owner installs: Real-ESRGAN
-    ncnn-vulkan, waifu2x ncnn-vulkan, Upscayl's CLI, chaiNNer's `run`),
+    ncnn-vulkan, waifu2x ncnn-vulkan, Real-CUGAN ncnn-vulkan, Upscayl's
+    CLI, chaiNNer's `run`),
     and an **HTTP service** backend with a small documented contract
     (hardened: allowlisted model and scale, size caps, no bearer token
     over plain http off loopback) plus adapters for the AUTOMATIC1111
-    and ComfyUI APIs; a Python/PyTorch backend is recorded as a later
-    option (the user, 2026-10-18: command and service only). Alpha is
+    and ComfyUI APIs; a **PyTorch backend** (spandrel loading the
+    owner's `.safetensors`/`.pth` models through its restricted loader on
+    CUDA, MPS or the CPU) ships as a separate optional package driven as
+    a command, never a CLI dependency, with no network server of its own
+    (`xbr enhance serve` hosts it remotely) (the user, 2026-11-01, reversing 2026-10-18's "command
+    and service only"). A `compare` step writes a per-class grid of
+    every configured upscaler so a builder picks one before the GUI
+    exists. Alpha is
     split from colour before a model
     sees it, texture edges are padded by the sampler's wrap mode the
     dump recorded, mip chains are regenerated from the upscaled base,
@@ -105,7 +112,8 @@ VRAM, opt-in surface and privacy) and absorbs the upscale half of
     `enhance-textures.local.toml` for the owner's program paths and
     service URLs, both consumed by `build` and written by the GUI; the build
     is reproducible when every upscaler is built-in, and says so in
-    `textures-pack.toml` otherwise;
+    `textures-pack.toml` otherwise (`reproducible` false, with
+    `reproducible_scope = "host"` for a deterministic CPU torch run);
   - `xbr enhance hud` stays as the `hud` coverage preset of `build`;
     `package --texture-pack [DIR]` stages the pack and `--texture-preset
     NAME` builds it, with `--keep-texture-pack` and `--clear-texture-pack`

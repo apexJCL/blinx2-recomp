@@ -127,6 +127,20 @@ note = "Walks the 0x34-byte Ninja object node (model +4, child +0x2C, sibling +0
 source = "engine-bridge-assessment design.md S1, the tracker item; engine-extract design.md"
 
 [[symbol]]
+addr = 0x000322F0
+name = "stage_emitter_placements_load"
+kind = "function"
+note = "loads the effect emitter tables 0x492788 and 0x492878 (no model) at [stage], and at an area's first stage [stage + 1] and [stage + 4] too, each through stage_emitter_placements_spawn"
+source = "placements-spike design.md (feat/placements-models), the tracker item"
+
+[[symbol]]
+addr = 0x000327F0
+name = "stage_emitter_placements_spawn"
+kind = "function"
+note = "spawns every record of one effect emitter placement table"
+source = "placements-spike design.md (feat/placements-models), the tracker item"
+
+[[symbol]]
 addr = 0x000348A0
 name = "gfx_pass_setup_348a0"
 kind = "function"
@@ -351,6 +365,13 @@ note = "zone type 3 test (shape not decoded)"
 source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
 
 [[symbol]]
+addr = 0x0004E020
+name = "ent_crystal_drop"
+kind = "function"
+note = "enemy death crystal drop: the drop word's colour nibbles weight the six crystal types (10 each when its low 24 bits are 0) and its top nibbles set the count plus a random extra; builds {type, count} pairs in ent_crystal_drop_list (types 0x2A, 0x2E, 0x2F, 0x2C, 0x2B, 0x2D) and spawns each through ent_item_spawn; another path spawns type 0x36 + rand % 3"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
+
+[[symbol]]
 addr = 0x0004E700
 name = "ent_enemy_update_all"
 kind = "function"
@@ -396,15 +417,15 @@ source = "entity-system-spike design.md part B (spike/entity 9770730), the track
 addr = 0x0004EE20
 name = "ent_enemy_spawn"
 kind = "function"
-note = "cdecl(placement*), EAX = list 0xAF0E88; takes a pool slot and a node, copies pos/rot, runs the class init (switch on class & 0xFF); the class init links the enemy at the tail and bumps the count, so an unknown class leaks its slot and node; refuses once count > 0x21, after the slot and node are taken, so a refused spawn leaks them too; returns the node (object at node+8)"
-source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; the tracker item review"
+note = "cdecl(placement*), EAX = list 0xAF0E88; takes a pool slot and a node, copies pos/rot, runs the class init (switch on class & 0xFF); the class init links the enemy at the tail and bumps the count, so an unknown class leaks its slot and node; refuses once count > 0x21, after the slot and node are taken, so a refused spawn leaks them too; returns the node (object at node+8); callers (static, no data pointers): stage_enemy_placements_load, ent_class9_nest_spawn and ent_enemy_init_spawner only; the switch takes (class & 0xFF) - 1 <= 0x85 through the index bytes at 0x4F538 and the jump table at 0x4F4D8, and its default 0x4F475 runs no init (the leak); the classes the stage tables spawn (& 0xFF): 01 02 04 05 06 07 08 09 0A 0D 0E 10 12 14 21 81-86"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; the tracker item review; entity-mod-api design.md, the tracker item static audit"
 
 [[symbol]]
 addr = 0x0004F5C0
 name = "stage_enemy_placements_load"
 kind = "function"
-note = "spawns every record of a placement table through ent_enemy_spawn (caller 0x4FA98); registers each in 0xADA9B0 first"
-source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; src/recomp/gen, the tracker item"
+note = "spawns every record of a placement table through ent_enemy_spawn (caller 0x4FA98); registers each in 0xADA9B0 first; callers stage_enemy_init (0x4FA98, 0x4FABB) and stage_enemy_extra_load only, at area setup on a list just reset, so it needs no count check; the only caller of ent_placement_registry_find and _add"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; src/recomp/gen, the tracker item; entity-mod-api design.md, the tracker item static audit"
 
 [[symbol]]
 addr = 0x0004F890
@@ -417,15 +438,15 @@ source = "the tracker item review; src/recomp/gen, the tracker item"
 addr = 0x0004F910
 name = "ent_placement_registry_find"
 kind = "function"
-note = "looks up the 0xADA9B0 entry for a position (EDX = pos*)"
-source = "the tracker item review; src/recomp/gen, the tracker item"
+note = "looks up the 0xADA9B0 entry for a position (EDX = pos*); called only from stage_enemy_placements_load: no reader of 0xADA9B0 outside the loader chain"
+source = "the tracker item review; src/recomp/gen, the tracker item; entity-mod-api design.md, the tracker item static audit"
 
 [[symbol]]
 addr = 0x0004F970
 name = "stage_enemy_init"
 kind = "function"
-note = "stage init: loads 0x4921E8[stage] through stage_enemy_placements_load; an index with idx % 5 == 3 uses idx - 2"
-source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+note = "stage init: loads 0x4921E8[stage] through stage_enemy_placements_load; an index with idx % 5 == 3 uses idx - 2; clears ent_placement_registry before loading"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item; entity-mod-api design.md, the tracker item static audit"
 
 [[symbol]]
 addr = 0x0004FEE0
@@ -683,6 +704,20 @@ note = "Called by the stage frame after sub_00055220; returns early only while t
 source = "free-camera spike.md 9.6, the tracker item"
 
 [[symbol]]
+addr = 0x00071680
+name = "tc_player_use"
+kind = "function"
+note = "player time-control use, cdecl(team): takes one held control (tc_team_record +0xAE + c*8 + id) and sets +0x5B0 = id; a combo (Rank-4 badge, bit 0x40 of 0xEC4C3C) takes one of each id and sets +0x5B0 = second << 8 | id; then tc_player_activate with ecx = combo << 8 | id"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
+
+[[symbol]]
+addr = 0x00072010
+name = "hud_time_controls_draw"
+kind = "function"
+note = "time-control HUD, called from stage_render: reads held (tc_team_record +0xAE), capacity (+0xC6) and the selected control (+0x5AC) and draws through hud_sprite_add_text"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
+
+[[symbol]]
 addr = 0x00075210
 name = "stage_area_init"
 kind = "function"
@@ -695,6 +730,13 @@ name = "stage_snapshot_restore"
 kind = "function"
 note = "Restores a stage snapshot that includes the world-stop flag 0xAF0EF4 (at 0x761B4)"
 source = "free-camera spike.md 9.6, the tracker item; src/free_camera.c"
+
+[[symbol]]
+addr = 0x000783B0
+name = "stage_item_setup"
+kind = "function"
+note = "item stage setup: loads 0x491C18[stage] as the item set; 0x491D08[stage] instead when 0xB22E3C == 2 and stage_team_mode 0xB21CB4 is 0 or 1 (the 2P set, see stage_item_set_select); 0x492968[(0xEC4CE8 or 0xEC4CE4) << 4] in the hub drills (0xEC4CF8 != 0, or 0xEC4CE0 set and stage_current == 0xB871AC); then, outside the hub drills, spawns every record of 0x491DF8[stage] (the collectibles: time stones 0x2A-0x35, coins 0x36-0x41, medals 0x42-0x47, Tom Tom medals 0x48-0x4D) through ent_item_spawn; outside M64 (0x1C) both loops skip records when team mode 0xB21CB4 >= 2 or 0xB21C9C != 0; on M14 in Sweepers the item loop (0x784C4-0x784F7) spawns only records whose class dword is 0x23"
+source = "placements-spike design.md (feat/placements-models), the tracker item"
 
 [[symbol]]
 addr = 0x000794D0
@@ -725,6 +767,34 @@ note = "per-frame item update, second pass"
 source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
 
 [[symbol]]
+addr = 0x00086A80
+name = "ent_item_draw"
+kind = "function"
+note = "draws an item: builds 0x400528 + type * 0x38 (at 0x87156) and reads the object at +0 and the texlist at +4; the entry also holds the scale (+0x28), count (+0x2C) and debris object and texlist (+0x30/+0x34)"
+source = "placements-spike design.md (feat/placements-models), the tracker item review"
+
+[[symbol]]
+addr = 0x00089600
+name = "ent_item_draw_89600"
+kind = "function"
+note = "item draw helper: EAX = item type; reads the texlist at +4 of 0x400528 + type * 0x38"
+source = "placements-spike design.md (feat/placements-models), the tracker item review"
+
+[[symbol]]
+addr = 0x0008BF60
+name = "tc_crystal_overflow_gold"
+kind = "function"
+note = "a completed crystal set whose control is at capacity: pays gold through sub_00092240, the amount from the table at 0x3FD78C by control id"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
+
+[[symbol]]
+addr = 0x0008BFD0
+name = "tc_crystal_collect"
+kind = "function"
+note = "crystal pickup, cdecl(item, flag), player in eax: slot k = (item type - 0x2A) % 6 (k0 PAUSE, k1 REC, k2 FF, k3 RETRY, k4 REW, k5 SLOW; the jump table at 0x8C4F8); count + 1 below 3 is stored; at 3, if held < cap the held count goes up, a stamp and the crystal words are stored and the count resets, else tc_crystal_overflow_gold and the count stays 2; then sound 0xB, the flash sub_000441E0, and frees the item; called from sub_0007A460 and sub_000835F0; has a VS/Tom Tom player branch on 0xB22E3C == 2"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
+
+[[symbol]]
 addr = 0x0008C530
 name = "tc_player_activate"
 kind = "function"
@@ -747,6 +817,13 @@ source = "entity-system-spike design.md part B (spike/entity 9770730), the track
 conflict = "the tracker item named it tc_request_800, a stage effect"
 
 [[symbol]]
+addr = 0x0008F750
+name = "ent_item_debris_draw"
+kind = "function"
+note = "draws an item's debris piece: the item type is the entity's +0xF byte; reads the {object, texlist} pair at 0x400558/0x40055C + type * 0x38 (the debris pair at +0x30/+0x34 of the 0x400528 entry), and 0x402098 in +0x11 modes 1 and 3"
+source = "placements-spike design.md (feat/placements-models), the tracker item review"
+
+[[symbol]]
 addr = 0x00092370
 name = "hud_gold_draw"
 kind = "function"
@@ -754,11 +831,39 @@ note = "draws the gold counter; reads each player's cam_state +0x78 through cam_
 source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; src/recomp/gen, the tracker item"
 
 [[symbol]]
+addr = 0x00093EA0
+name = "ent_gun_buy_ammo"
+kind = "function"
+note = "a gun's ammo per purchase or pickup: the gun table's +0xC for its id, the code's default for a gun not listed"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
+
+[[symbol]]
+addr = 0x00098E30
+name = "stage_item_set_read_98e30"
+kind = "function"
+note = "reads the item set like stage_item_setup: 0x491D08[stage] when 0xB22E3C == 2, else 0x491C18[stage]"
+source = "placements-spike design.md (feat/placements-models), the tracker item"
+
+[[symbol]]
 addr = 0x000BAC40
 name = "nj_bone_palette_caller_bac40"
 kind = "function"
 note = "Calls the bone-palette writer sub_00039100 outside the hooked model draw"
 source = "free-camera spike.md; engine-bridge-assessment design.md (S4), the tracker item"
+
+[[symbol]]
+addr = 0x000C1D20
+name = "stage_gimmick_placements_load"
+kind = "function"
+note = "loads the gimmick placement set 0x491EE8 at [stage] (it reads 0x491FD8 and 0x4920C8 too), and in Sweepers with one player at an area's first stage [stage + 1] and [stage + 4] too; called from 0x606F0"
+source = "placements-spike design.md (feat/placements-models), the tracker item"
+
+[[symbol]]
+addr = 0x000E0760
+name = "stage_ambient_placements_load"
+kind = "function"
+note = "loads the ambient placement set 0x4922D8 (gulls, and class 0x02 d_hikari_blue light sprites through ent_ambient_light_init)"
+source = "placements-spike design.md (feat/placements-models), the tracker item"
 
 [[symbol]]
 addr = 0x000E2180
@@ -938,6 +1043,20 @@ note = "Projects a sphere (y+5, r 10) to a 640x480 screen radius, picks LOD from
 source = "lod-scale design.md, the tracker item; src/lod_scale.c"
 
 [[symbol]]
+addr = 0x0019FFB7
+name = "ent_player_fire_gate"
+kind = "label"
+note = "the fire gate's switch on the gun id: the busy threshold of the fire timer +0x178 (3, 10, 13 or 29 frames; tables 0x1A0228/0x1A0238)"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
+
+[[symbol]]
+addr = 0x001A0260
+name = "ent_player_gun_fire"
+kind = "function"
+note = "fires player*'s weapon: takes one ammo, picks shot type, speed and count by gun id (tables 0x1A1C18/0x1A1C5C), spawns the shots into the item pool (type 0x25, 0x24 for gun 32) with velocity +0x2C and life +0x12; shop API hook slot"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
+
+[[symbol]]
 addr = 0x001A8D80
 name = "tc_frame_copy"
 kind = "function"
@@ -1002,6 +1121,13 @@ note = "Reads a file (used by the edit_char .edt loader)"
 source = "free-camera spike.md"
 
 [[symbol]]
+addr = 0x001BFB10
+name = "menu_story_shop_build"
+kind = "function"
+note = "builds the story shop's stock at 0xE42600 from its four price lists (0x4938D0, 0x494598, 0x494C20, 0x4952F8) and the status's unlock bytes at +0x74; caps gold at 99999 and points 0xE4257C at it; called on entering the shop (sub_00062FB0)"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
+
+[[symbol]]
 addr = 0x001CFCA0
 name = "sys_jump_table_1cfca0"
 kind = "function"
@@ -1028,6 +1154,13 @@ name = "menu_shop"
 kind = "function"
 note = "shop screen over the catalogue at 0x4AACE0"
 source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item"
+
+[[symbol]]
+addr = 0x00210F90
+name = "menu_shop_price_of"
+kind = "function"
+note = "the catalogue price now of the record with a category and id; the refund of a replaced weapon, jetpack or barrier"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
 
 [[symbol]]
 addr = 0x00215A40
@@ -1100,18 +1233,46 @@ note = "Game input module rumble (XInputSetState)"
 source = "archive/2026-10-13-input-real-devices design.md; src/recomp_manual.c"
 
 [[symbol]]
+addr = 0x00221270
+name = "ent_class9_nest_update"
+kind = "function"
+note = "the class 9 nest's update (+0x98, set by ent_class9_nest_init); at 0x2212CE it checks count < 0x22 before its state calls through the table at 0x4ACC1C, which reach ent_class9_nest_init"
+source = "entity-mod-api design.md, the tracker item static audit"
+
+[[symbol]]
 addr = 0x002243A0
 name = "ent_class9_nest_spawn"
 kind = "function"
-note = "class 9 nest spawner: spawns a new enemy with the nest's own placement while a child slot is empty (count < 0x22, at most 3 children), else reuses the child; not the respawn path"
-source = "the tracker item review; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+note = "class 9 nest spawner: spawns a new enemy with the nest's own placement while a child slot is empty (count < 0x22, at most 3 children), else reuses the child; not the respawn path; called only from ent_class9_nest_init, behind ent_class9_nest_update's count check, so the entity API's cap needs no reserve (0)"
+source = "the tracker item review; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item; entity-mod-api design.md, the tracker item static audit"
+
+[[symbol]]
+addr = 0x00224800
+name = "ent_class9_nest_init"
+kind = "function"
+note = "a class 9 nest state, reached only through the data pointer at 0x4ACD0C (ent_class9_nest_update's table); calls ent_class9_nest_spawn, then sets +0x98 = ent_class9_nest_update"
+source = "entity-mod-api design.md, the tracker item static audit"
 
 [[symbol]]
 addr = 0x00258AB0
 name = "ent_enemy_init_spawner"
 kind = "function"
-note = "a class init in ent_enemy_spawn's switch (case at 0x4F24C) that spawns one more enemy through ent_enemy_spawn with the static placement record 0x4AED00"
-source = "the tracker item review; src/recomp/gen, the tracker item"
+note = "a class init in ent_enemy_spawn's switch (case at 0x4F24C) that spawns one more enemy through ent_enemy_spawn with the static placement record 0x4AED00; checks no count before its spawn (placement 0x4AED00, class 0x10F), so a copy of a class-0x14 spawner could pass the cap and the game's refusal would leak: class 0x14 is not on the entity API's allowlist"
+source = "the tracker item review; src/recomp/gen, the tracker item; entity-mod-api design.md, the tracker item static audit"
+
+[[symbol]]
+addr = 0x00276580
+name = "ent_enemy10_init"
+kind = "function"
+note = "enemy class 0x10 init: shares class 1's state tables; an id (MEM32(esi)) other than 0x310 draws through ent_enemy10_draw"
+source = "placements-spike design.md (feat/placements-models), the tracker item"
+
+[[symbol]]
+addr = 0x00277CF0
+name = "ent_enemy10_draw"
+kind = "function"
+note = "enemy class 0x10 draw: rigid object 0x02BE0690 with texlist 0x02BD4A68 (p_hod_asi01_cp)"
+source = "placements-spike design.md (feat/placements-models), the tracker item"
 
 [[symbol]]
 addr = 0x00279D20
@@ -1126,6 +1287,20 @@ name = "ent_class1_state_dead"
 kind = "function"
 note = "class 1's state 0xA handler (seen on class 0x201): calls ent_respawn_gate (which counts +0xAC); on a pass ent_enemy_init_class1 resets the same object in place"
 source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x002835A0
+name = "ent_ambient_light_init"
+kind = "function"
+note = "ambient class 0x02 init: a d_hikari_blue light sprite, no model"
+source = "placements-spike design.md (feat/placements-models), the tracker item"
+
+[[symbol]]
+addr = 0x002836E0
+name = "ent_ambient_light_draw"
+kind = "function"
+note = "ambient class 0x02 draw: the d_hikari_blue light sprite"
+source = "placements-spike design.md (feat/placements-models), the tracker item"
 
 [[symbol]]
 addr = 0x00293B30
@@ -1848,6 +2023,20 @@ note = "vblanks the main loop waits per frame (1 menus, 2 in 3D)"
 source = "archive/2026-10-17-fps-pacing design.md; archive/2026-10-13-input-real-devices design.md"
 
 [[symbol]]
+addr = 0x004022E0
+name = "ent_shot_table"
+kind = "global"
+note = "30 shot types x 0x24; +0xC power (damage x 10), +0x18 probably the hit radius, +0x1C the blast flag"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
+
+[[symbol]]
+addr = 0x00402860
+name = "ent_gun_table"
+kind = "global"
+note = "20 guns x 0x10 {id, capacity, kind 0-3, ammo per purchase}, ended by id -1"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
+
+[[symbol]]
 addr = 0x0040D180
 name = "stage_map_table"
 kind = "global"
@@ -1887,8 +2076,8 @@ source = "entity-system-spike design.md part B (spike/entity 9770730), the track
 addr = 0x004923C8
 name = "stage_enemy_extra_table_1p"
 kind = "global"
-note = "extra placement sets, 1P"
-source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+note = "extra placement sets, 1P; every record is class 0x21, which ent_enemy_spawn's switch sends to its default (no init): not on the allowlist"
+source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item; entity-mod-api design.md, the tracker item static audit"
 
 [[symbol]]
 addr = 0x004925A8
@@ -1896,6 +2085,34 @@ name = "stage_enemy_extra_table_2p"
 kind = "global"
 note = "extra placement sets, 2P"
 source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
+
+[[symbol]]
+addr = 0x004938D0
+name = "menu_story_shop_arms"
+kind = "global"
+note = "43 records x 0x4C: the story shop's gun list (record 1 TS-2000); +0x30 price, +0x34 the record's index; the shop buys back at half the price"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
+
+[[symbol]]
+addr = 0x00494598
+name = "menu_story_shop_list1"
+kind = "global"
+note = "22 records x 0x4C, price +0x30; contents not named yet"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
+
+[[symbol]]
+addr = 0x00494C20
+name = "menu_story_shop_list2"
+kind = "global"
+note = "23 records x 0x4C, price +0x30; contents not named yet"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
+
+[[symbol]]
+addr = 0x004952F8
+name = "menu_story_shop_list3"
+kind = "global"
+note = "38 records x 0x4C, price +0x30; contents not named yet"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
 
 [[symbol]]
 addr = 0x004AACE0
@@ -1929,8 +2146,8 @@ source = "the tracker item review; src/recomp/gen, the tracker item"
 addr = 0x004AFCD8
 name = "ent_class1_variants"
 kind = "global"
-note = "class 1's variant records, 0x20 each, indexed by class byte 1 (hp short at +0xC; 0x4AFD04 is class 0x101's hp); not a table for every class"
-source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; the tracker item review; src/recomp/gen, the tracker item"
+note = "class 1's variant records, 0x20 each, indexed by class byte 1 (hp short at +0xC; 0x4AFD04 is class 0x101's hp); not a table for every class; four variants, indices 1..4 (0x4AFCF8, 0x4AFD18, 0x4AFD38, 0x4AFD58), each hp 1; index 0 and 5 on hold code pointers, not variants; a class-1 enemy uses class byte 1, plus 2 when class byte 3 is set"
+source = "entity-system-spike design.md part B (spike/entity 9770730), the tracker item; the tracker item review; src/recomp/gen, the tracker item; entity-mod-api design.md, the tracker item static audit"
 
 [[symbol]]
 addr = 0x004AFD18
@@ -2190,11 +2407,18 @@ note = "index into the matrix stack 0x885E20"
 source = "free-camera spike.md"
 
 [[symbol]]
+addr = 0x00ADA950
+name = "ent_crystal_drop_list"
+kind = "global"
+note = "ent_crystal_drop's {type, count} pairs"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
+
+[[symbol]]
 addr = 0x00ADA9B0
 name = "ent_placement_registry"
 kind = "global"
-note = "128 entries x 0x18 {used, ?, pos[3], arg}; add sub_0004F890, find sub_0004F910; its dedupe plausibly never runs (the loader appears to pass 1)"
-source = "the tracker item review; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item; src/recomp/gen, the tracker item"
+note = "128 entries x 0x18 {used, ?, pos[3], arg}; add sub_0004F890, find sub_0004F910; its dedupe plausibly never runs (the loader appears to pass 1); touched only by stage_enemy_init (clear) and stage_enemy_placements_load (find, add); the range ends at 0xADB5B0: the entity API does not write it"
+source = "the tracker item review; entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item; src/recomp/gen, the tracker item; entity-mod-api design.md, the tracker item static audit"
 
 [[symbol]]
 addr = 0x00ADC738
@@ -2228,8 +2452,15 @@ source = "analysis/research/hot-threads-macos.md"
 addr = 0x00ADCA58
 name = "stage_checkpoint_src"
 kind = "global"
-note = "checkpoint snapshot source: sub_001A95A0 copies 0x5DC dwords to 0xAE4780"
-source = "analysis/research/blinx2-menu-flow.md"
+note = "checkpoint snapshot source: sub_001A95A0 copies 0x5DC dwords to 0xAE4780; it begins with the per-team tc_team_record array (0x5DC bytes apart), so held controls and crystals are checkpointed"
+source = "analysis/research/blinx2-menu-flow.md; src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
+
+[[symbol]]
+addr = 0x00ADCB06
+name = "tc_held_controls"
+kind = "global"
+note = "team 0, character 0 held time controls (tc_team_record +0xAE), a byte per id: 1 RETRY, 2 PAUSE, 3 SLOW, 4 FF, 5 REW, 6 REC; 0xADCB07 is 1P RETRY, 2P (team 1) at 0xADD0E3"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
 
 [[symbol]]
 addr = 0x00ADE1C8
@@ -2339,6 +2570,13 @@ note = "pad index per menu player, i*4; START sets it"
 source = "analysis/research/blinx2-menu-flow.md; src/pad_input.c"
 
 [[symbol]]
+addr = 0x00AEB80C
+name = "tc_duration_override"
+kind = "global"
+note = "one-shot duration in seconds for the next tc_player_activate (0 = the default 10 s, so 300 frames); cleared when used"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
+
+[[symbol]]
 addr = 0x00AEB818
 name = "tc_duration"
 kind = "global"
@@ -2402,6 +2640,13 @@ name = "stage_world_frozen"
 kind = "global"
 note = "derived: pause != 0 || world-stop != 0, computed in sub_000649B0 at 0x652DC"
 source = "free-camera spike.md 9.6"
+
+[[symbol]]
+addr = 0x00B1C78C
+name = "tc_control_stamp"
+kind = "global"
+note = "counter that tc_crystal_collect stamps into tc_team_record +0xDE for each control it grants"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
 
 [[symbol]]
 addr = 0x00B21CB4
@@ -2562,6 +2807,13 @@ note = "time-record ring: 10 frames of 0x16B0C; header +0xC region count, +0x10 
 source = "entity-system-spike design.md part C (spike/enemy-respawn 4da65a8), the tracker item"
 
 [[symbol]]
+addr = 0x00E42600
+name = "menu_story_shop_stock"
+kind = "global"
+note = "the story shop's stock: [list*0x46 + i] records of 0x4C copied from the price lists on entering the shop; the shop reads prices here"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
+
+[[symbol]]
 addr = 0x00E95E58
 name = "menu_edit_param_ts"
 kind = "global"
@@ -2581,6 +2833,41 @@ name = "menu_edit_param_cache"
 kind = "global"
 note = "cache of the loaded .edt (0x6C bytes)"
 source = "free-camera spike.md 9.4"
+
+[[symbol]]
+addr = 0x00E97F68
+name = "menu_shop_lineup"
+kind = "global"
+note = "per player 40 catalogue indices the shop shows: [0xE97F68 + (p*40 + slot)*4]"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
+
+[[symbol]]
+addr = 0x00E9DA40
+name = "ent_player_status"
+kind = "global"
+note = "per player 0x2A4: +0x14 gold, characters at +0x40 + k*0x98 (+0x50 weapon id, +0x53 ammo); what the shop buys into"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
+
+[[symbol]]
+addr = 0x00EAE7D4
+name = "ent_player_char_count"
+kind = "global"
+note = "a byte per player: its character count"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
+
+[[symbol]]
+addr = 0x00EB3AF0
+name = "menu_shop_state"
+kind = "global"
+note = "per player 0x38: +0 state (nine, jump table 0x210F28), +0x10 cursor, +0x18 the character chosen"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
+
+[[symbol]]
+addr = 0x00EB3BF8
+name = "menu_shop_lineup_count"
+kind = "global"
+note = "per player the lineup's record count (int)"
+source = "shop-api design.md Findings (feat/shop-api), the tracker item"
 
 [[symbol]]
 addr = 0x00EBD278
@@ -2949,3 +3236,75 @@ struct = "pad_state"
 offset = 0x88
 note = "open handle; 0 = port closed"
 source = "src/pad_input.c; archive/2026-10-13-input-real-devices tasks.md"
+
+[[symbol]]
+name = "tc_team_record_last_set"
+kind = "field"
+struct = "tc_team_record"
+offset = 0x8
+note = "id of the last crystal set converted (byte; likely the HUD flash)"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
+
+[[symbol]]
+name = "tc_team_record_crystals"
+kind = "field"
+struct = "tc_team_record"
+offset = 0xC
+note = "crystal count per character c and slot k at +0xC + c*6 + k (byte, 0..2)"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
+
+[[symbol]]
+name = "tc_team_record_crystal_words"
+kind = "field"
+struct = "tc_team_record"
+offset = 0x1E
+note = "the item +0xE word of each collected crystal at +0x1E + ((c*6 + k)*4 + n)*2"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
+
+[[symbol]]
+name = "tc_team_record_held"
+kind = "field"
+struct = "tc_team_record"
+offset = 0xAE
+note = "held time controls at +0xAE + c*8 + id (byte)"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
+
+[[symbol]]
+name = "tc_team_record_cap"
+kind = "field"
+struct = "tc_team_record"
+offset = 0xC6
+note = "capacity (time bowl) per control at +0xC6 + c*8 + id (byte, at most 5)"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
+
+[[symbol]]
+name = "tc_team_record_stamps"
+kind = "field"
+struct = "tc_team_record"
+offset = 0xDE
+note = "tc_control_stamp value per held control at +0xDE + ((id + 8c)*5 + n)*2"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
+
+[[symbol]]
+name = "tc_team_record_held_words"
+kind = "field"
+struct = "tc_team_record"
+offset = 0x1CE
+note = "the crystal words behind each held control at +0x1CE + (((id + 8c)*5 + n)*4 + m)*2"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
+
+[[symbol]]
+name = "tc_team_record_selected"
+kind = "field"
+struct = "tc_team_record"
+offset = 0x5AC
+note = "selected control (dword)"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"
+
+[[symbol]]
+name = "tc_team_record_last_used"
+kind = "field"
+struct = "tc_team_record"
+offset = 0x5B0
+note = "last-used id in the low byte, the combo's second id in the high byte; -1 none"
+source = "src/recomp/gen, the tracker item (crystal spike, spike/crystals)"

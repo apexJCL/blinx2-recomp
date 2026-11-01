@@ -31,14 +31,21 @@ struct fc_input {
 struct fc_params {
     float speed;            /* camera.free_speed, a multiplier of FC_MOVE_BASE */
     float look_sens;        /* camera.free_look_sens, a multiplier of the rates */
+    float mouse_sens;       /* camera.free_mouse_sens, on top of look_sens, the mouse only */
+    float fast, slow;       /* camera.free_fast, _slow: the speed with White, Black */
+    int invert_x, invert_y; /* camera.free_invert_x, _y: yaw, pitch sign (stick and mouse) */
 };
+
+/* Each default gives the flight the camera had before the settings
+ * existed (mod-settings D6). */
+#define FC_PARAMS_DEFAULT { 1.0f, 1.0f, 1.0f, FC_FAST, FC_SLOW, 0, 0 }
 
 #define FC_MOVE_BASE   80.0f    /* world units a second at full stick (the
                                  * stage-1 camera rides about 35 above Blinx) */
 #define FC_LOOK_RATE   1.8f     /* rad a second at full stick */
 #define FC_MOUSE_RATE  0.0025f  /* rad a count */
-#define FC_FAST        4.0f
-#define FC_SLOW        0.25f
+#define FC_FAST        4.0f     /* camera.free_fast's default */
+#define FC_SLOW        0.25f    /* camera.free_slow's default */
 #define FC_PITCH_MAX   1.50f    /* short of straight up or down */
 #define FC_DT_MAX      0.1f     /* a hitch never throws the camera */
 

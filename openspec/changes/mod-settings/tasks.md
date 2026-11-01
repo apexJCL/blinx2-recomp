@@ -225,21 +225,21 @@ These are the phases of design.md "Migration Plan".
 End and Home are confirmed as the freeze and reset defaults (the user,
 2026-10-27), so C can start once A lands.
 
-- [ ] C.1 `src/free_camera.c`: add a static descriptor with the D6 tables.
+- [x] C.1 `src/free_camera.c`: add a static descriptor with the D6 tables.
   - Delete the hand-written range checks, the key polling and the
     `[ENHANCE] camera.free=` printf (the toolkit prints it now).
   - `on_frame` polls `action_pressed` on the ids from `control_action`.
   - `fc_params` reads `api->setting`.
   - This takes over enhance-menu-preview 5B.1. Mark 5B "moved to
     mod-settings C" there.
-- [ ] C.2 5B.2 as written there.
+- [x] C.2 5B.2 as written there.
   - `on_frame` and `batch_filter` are registered only when the mod is
     inited (D4's init rule), and gated on an atomic.
   - `init` calls `actions_arm("camera.free")`. The toolkit re-evaluates
     that key on a live switch (A.6).
   - `on_enable` runs the toggle-off path: camera restored, freeze dropped,
     HUD shown.
-- [ ] C.3 The new settings (D6, D10): `mouse_sens`, `invert_x`,
+- [x] C.3 The new settings (D6, D10): `mouse_sens`, `invert_x`,
   `invert_y`, `fast` and `slow`.
   - `fc_params` gains them. `fc_fly_step` flips the yaw sign for
     `invert_x` and the pitch sign for `invert_y` (stick and mouse),
@@ -253,7 +253,7 @@ End and Home are confirmed as the freeze and reset defaults (the user,
     table, so the next change to the mod sees what was left out and why.
   - The four key env rows stay, bound to the actions; `docs/env.md` says
     so and gives the new defaults.
-- [ ] C.4 `packaging/config.default.toml`:
+- [x] C.4 `packaging/config.default.toml`:
   - `[input.actions]` rows for `camera.free.toggle`, `.hud`, `.freeze` and
     `.reset`;
   - `camera.free_mouse_sens = 1.0`, `camera.free_invert_x = false`,
@@ -261,7 +261,7 @@ End and Home are confirmed as the freeze and reset defaults (the user,
     `camera.free_slow = 0.25` under `[camera]`;
   - the alias keys removed, with a comment that they are still read.
   The README's free-camera paragraph lists the controls.
-- [ ] C.5 `scripts/test_free_camera.py`:
+- [x] C.5 `scripts/test_free_camera.py`:
   - `KEYS` keeps all eight env rows with the new defaults (End, Home) and
     adds the five new settings;
   - `test_config_default_is_stock` follows the new `[camera]` and
@@ -273,7 +273,17 @@ End and Home are confirmed as the freeze and reset defaults (the user,
   - the clamp lines in place of the old messages.
   The `key` script step still reaches the actions (5B.3): confirm it, or
   route the step through the action.
-- [ ] C.6 Gates.
+- [x] C.6 Gates. Done on the PC per the overlay-revamp wave-1 brief (no
+  Mac game build; disk): `uv run pytest scripts` 186 passed, ruff clean;
+  bench host-win build of c3b45d6 on toolkit ef8635e2, D3D11 goldens attract
+  pass-with-known, stage1 pass, story pass-with-known, with
+  `[ENHANCE] camera.free=off`, the mod not inited and `hook=off`. A
+  `kbm_script` run with the camera on fired toggle (F6), hud (F7), reset
+  (Home) and freeze (End) as `camera.free.*` and logged the clamp lines.
+  Flight in a stage, Guide+Y, the Mods page and rebinding are the user's
+  hand check. Not run: the Mac build and the Metal goldens (PC rule, no
+  Mac game builds between rounds); they wait for the next push round's
+  Mac pass.
   - `uv run pytest scripts`, ruff, and the Mac build.
   - Stock Metal goldens unchanged: `[ENHANCE] camera.free=off` still in the
     log, `hook=off`.
@@ -287,7 +297,7 @@ End and Home are confirmed as the freeze and reset defaults (the user,
 
 ## D. Captured controls and fly rebinding (D3), 2.5 days, after B, C and the tracker item
 
-- [ ] D.1 The recorded state, on its own.
+- [x] D.1 The recorded state, on its own.
   - `xbox_enhance_pad_seen(port, &gamepad, connected)` in the toolkit,
     behind a seqlock, recording only while a mod holds `input_capture`.
   - Called by `input_core.c` `xbox_InputGetState` directly, after `FILTER`
@@ -308,13 +318,13 @@ End and Home are confirmed as the freeze and reset defaults (the user,
       leaves no Y);
     - a pulled pad reads not connected;
     - a reader concurrent with a writer never sees a torn state.
-- [ ] D.2 `control_value(desc, idx, out)`.
+- [x] D.2 `control_value(desc, idx, out)`.
   - STICK: the raw axes and `src`.
   - BUTTON: the largest analog value over its bindings; a host key reads
     255.
   - Bindings from `[input.controls]` `<id>.<control>`, defaults from the
     descriptor, env row if set.
-- [ ] D.3 The menu's R_CTL capture.
+- [x] D.3 The menu's R_CTL capture.
   - It runs through the tracker item's capture phases and quiet mode.
   - 400 ms hold for chords.
   - A host pad source is mapped through the active pad setup to its guest
@@ -326,14 +336,14 @@ End and Home are confirmed as the freeze and reset defaults (the user,
   - D3's conflict rules 1 to 5 live in `enhance_actions.c` beside the tracker item's
     check.
   - X clears, but a control must keep one binding.
-- [ ] D.4 cat: `fly()` takes `control_value` in place of
+- [x] D.4 cat: `fly()` takes `control_value` in place of
   `cat_pad_port0_last`.
   - It keeps `fc_axis` with each source stick's dead zone (7849 left, 8689
     right), `analog()` and the White and Black threshold.
   - A cat test (a `free_cam_fly.h` harness under `scripts/`, or a ctest)
     proves the same `fc_input` as today with the default bindings, and
     the right dead zones with the sticks swapped.
-- [ ] D.5 ctests in `tests/input_actions` and `tests/enhance_menu`:
+- [x] D.5 ctests in `tests/input_actions` and `tests/enhance_menu`:
   - each conflict rule, both directions of rule 2;
   - a captured key that `report_unknown`, `classify` and `build` never see
     (no "no action named" warning, no refusal of `rt`);
@@ -342,13 +352,17 @@ End and Home are confirmed as the freeze and reset defaults (the user,
   - a paddle refused;
   - stick swap;
   - Y alone sinks while Guide+Y toggles, through the consumed-chord mask.
-- [ ] D.6 Docs. In `docs/runtime/config.md` "Host actions": the
+- [x] D.6 Docs. In `docs/runtime/config.md` "Host actions": the
   `[input.controls]` table, the guest source names and the capture rules.
 - [ ] D.7 Gates: as C.6, plus the Mac `@stage1` run:
   - rebind rise to Space;
   - swap the sticks;
   - check that the game never sees the fly input (the trace shows the
     neutral pad).
+  - Status (ovl-modset-d, 2026-10-31): the ctests, cat pytest and ruff and
+    the PC D3D11 goldens ran; the Mac `@stage1` run needs a full game
+    build on the Mac, which the wave-1 brief rules out, so it stays a hand
+    check for the orchestrator to schedule.
 
 ## E. Hosts, parity and docs, 1 day, on the orchestrator's slots
 

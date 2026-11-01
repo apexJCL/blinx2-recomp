@@ -16,7 +16,7 @@
 #ifndef RECOMP_ENV_HAVE_FOLDER_ROWS
 #define CAT_ENV_FOLDER_KEYS(X) \
     X(GAME_FILES,        CONFIG, "RECOMP_GAME_FILES",        NULL, "game files directory (default: game_files/ in the working directory)") \
-    X(HDD_DIR,           CONFIG, "RECOMP_HDD_DIR",           NULL, "emulated hard disk: partition images, saves, caches (default: the toolkit's save root)")
+    X(HDD_DIR,           CONFIG, "RECOMP_HDD_DIR",           NULL, "emulated hard disk: partition images, saves, caches (default: the toolkit's save root, <data>/xboxrecomp/<title id>)")
 #else
 #define CAT_ENV_FOLDER_KEYS(X)
 #endif
@@ -46,16 +46,34 @@
     X(CAMERA_FREE,       CONFIG, "RECOMP_CAMERA_FREE",       NULL, "enhancements: camera.free, off|on (a hotkey toggles a free-flying camera)") \
     X(CAMERA_FREE_SPEED, CONFIG, "RECOMP_CAMERA_FREE_SPEED", NULL, "enhancements: camera.free_speed, 0.05..20, a multiplier of the fly speed (1)") \
     X(CAMERA_FREE_LOOK_SENS, CONFIG, "RECOMP_CAMERA_FREE_LOOK_SENS", NULL, "enhancements: camera.free_look_sens, 0.05..10, a multiplier of the look rate (1)") \
+    X(CAMERA_FREE_MOUSE_SENS, CONFIG, "RECOMP_CAMERA_FREE_MOUSE_SENS", NULL, "enhancements: camera.free_mouse_sens, 0.05..10, a multiplier of the mouse look rate on top of camera.free_look_sens (1)") \
+    X(CAMERA_FREE_INVERT_X, CONFIG, "RECOMP_CAMERA_FREE_INVERT_X", NULL, "enhancements: camera.free_invert_x, true|false, turn the free camera the other way (false)") \
+    X(CAMERA_FREE_INVERT_Y, CONFIG, "RECOMP_CAMERA_FREE_INVERT_Y", NULL, "enhancements: camera.free_invert_y, true|false, pitch the free camera the other way (false)") \
+    X(CAMERA_FREE_FAST,  CONFIG, "RECOMP_CAMERA_FREE_FAST",  NULL, "enhancements: camera.free_fast, 1..20, the speed multiplier while Fast is held (4)") \
+    X(CAMERA_FREE_SLOW,  CONFIG, "RECOMP_CAMERA_FREE_SLOW",  NULL, "enhancements: camera.free_slow, 0.05..1, the speed multiplier while Slow is held (0.25)") \
     X(CAMERA_FREE_HUD,   CONFIG, "RECOMP_CAMERA_FREE_HUD",   NULL, "enhancements: camera.free_hud, keep|hide (the HUD while the free camera flies)") \
-    X(CAMERA_FREE_TOGGLE, CONFIG, "RECOMP_CAMERA_FREE_TOGGLE", NULL, "enhancements: camera.free_toggle, the key that turns the free camera on and off (F6)") \
-    X(CAMERA_FREE_HUD_KEY, CONFIG, "RECOMP_CAMERA_FREE_HUD_KEY", NULL, "enhancements: camera.free_hud_key, the key that shows or hides the HUD while flying (F7)") \
-    X(CAMERA_FREE_FREEZE_KEY, CONFIG, "RECOMP_CAMERA_FREE_FREEZE_KEY", NULL, "enhancements: camera.free_freeze_key, the key that stops and restarts the world while flying (F8)") \
-    X(CAMERA_FREE_RESET_KEY, CONFIG, "RECOMP_CAMERA_FREE_RESET_KEY", NULL, "enhancements: camera.free_reset_key, the key that puts the free camera back on the game's (F5)") \
+    X(CAMERA_FREE_TOGGLE, CONFIG, "RECOMP_CAMERA_FREE_TOGGLE", NULL, "enhancements: the bindings of action camera.free.toggle (alias camera.free_toggle), comma-separated; start and stop the free camera (F6,guide+y)") \
+    X(CAMERA_FREE_HUD_KEY, CONFIG, "RECOMP_CAMERA_FREE_HUD_KEY", NULL, "enhancements: the bindings of action camera.free.hud (alias camera.free_hud_key); show or hide the HUD while flying (F7)") \
+    X(CAMERA_FREE_FREEZE_KEY, CONFIG, "RECOMP_CAMERA_FREE_FREEZE_KEY", NULL, "enhancements: the bindings of action camera.free.freeze (alias camera.free_freeze_key); stop and restart the world while flying (End)") \
+    X(CAMERA_FREE_RESET_KEY, CONFIG, "RECOMP_CAMERA_FREE_RESET_KEY", NULL, "enhancements: the bindings of action camera.free.reset (alias camera.free_reset_key); put the free camera back on the game's (Home)") \
     X(LOD,               CONFIG, "RECOMP_LOD",               NULL, "enhancements: mods.lod.enable, off|on (character detail levels follow the render scale)") \
     X(LOD_FOLLOW_SCALE,  CONFIG, "RECOMP_LOD_FOLLOW_SCALE",  NULL, "enhancements: mods.lod.follow_scale, true|false (divide the detail thresholds by the render scale)") \
     X(LOD_DISTANCE,      CONFIG, "RECOMP_LOD_DISTANCE",      NULL, "enhancements: mods.lod.distance, 0.5..4 step 0.25, how far detail holds (1)") \
     X(DEBUG_MENU,        CONFIG, "RECOMP_DEBUG_MENU",        NULL, "enhancements: mods.debug_menu.enable, off|on (the title's debug menu and stage select, opened from the in-game menu at PRESS START)") \
     X(DEBUG_MENU_KEY,    CONFIG, "RECOMP_DEBUG_MENU_KEY",    NULL, "enhancements: [input.actions] debug_menu.open, the bindings that open the debug menu at PRESS START (unbound)") \
+    X(HUD,               CONFIG, "RECOMP_HUD",               NULL, "enhancements: mods.hud.enable, off|on (the HUD at the edges of a wide display.aspect; on by default)") \
+    X(ENTITIES,          CONFIG, "RECOMP_ENTITIES",          NULL, "enhancements: mods.entities.enable, off|on (the entity API and the menu's enemy spawn, defeat and hp rows)") \
+    X(ENTITIES_HP_SCALE, CONFIG, "RECOMP_ENTITIES_HP_SCALE", NULL, "enhancements: mods.entities.hp_scale, 1..10, class-1 enemy hp times this from the next area setup (1)") \
+    X(ENTITIES_SPAWN_KEY, CONFIG, "RECOMP_ENTITIES_SPAWN_KEY", NULL, "enhancements: [input.actions] entities.spawn, the bindings that spawn a copy of the nearest enemy (unbound)") \
+    X(ENTITIES_KILL_KEY, CONFIG, "RECOMP_ENTITIES_KILL_KEY", NULL, "enhancements: [input.actions] entities.kill, the bindings that defeat the nearest enemy (unbound)") \
+    X(CRYSTALS,          CONFIG, "RECOMP_CRYSTALS",          NULL, "enhancements: mods.crystals.enable, off|on (BLiNX 1-style crystal sets in Sweepers stages)") \
+    X(WALLS,             CONFIG, "RECOMP_WALLS",             NULL, "enhancements: mods.walls.enable, off|on (the player's sphere no longer slides through walls thinner than twice its radius)") \
+    X(SHOP,              CONFIG, "RECOMP_SHOP",              NULL, "enhancements: mods.shop.enable, off|on (the shop API and the menu's price and gun stat percents)") \
+    X(SHOP_PRICE_PCT,    CONFIG, "RECOMP_SHOP_PRICE_PCT",    NULL, "enhancements: mods.shop.price_pct, 10..500 step 10, every shop price in percent, rounded to 10 (100)") \
+    X(SHOP_AMMO_PCT,     CONFIG, "RECOMP_SHOP_AMMO_PCT",     NULL, "enhancements: mods.shop.ammo_pct, 50..500 step 10, every gun's capacity and ammo per purchase in percent, 1..99 (100)") \
+    X(SHOP_POWER_PCT,    CONFIG, "RECOMP_SHOP_POWER_PCT",    NULL, "enhancements: mods.shop.power_pct, 50..500 step 10, every gun shot's power in percent (100)") \
+    X(SHOP_SPEED_PCT,    CONFIG, "RECOMP_SHOP_SPEED_PCT",    NULL, "enhancements: mods.shop.speed_pct, 50..300 step 10, every gun shot's speed in percent (100)") \
+    X(SHOP_INTERVAL_PCT, CONFIG, "RECOMP_SHOP_INTERVAL_PCT", NULL, "enhancements: mods.shop.interval_pct, 25..100 step 5, the frames a gun stays busy after a shot in percent (100)") \
     X(INPUT_TRACE,       TRACE, "input",           "RECOMP_INPUT_TRACE",       "pad handles and states") \
     X(UNIMPL_BUDGET,     TRACE, "unimpl_budget",   NULL,                       "=n: [UNIMPL] lines per address before only hits 10, 100, ... (3)") \
     X(CAM_LOG,           DEBUG, "cam_log",         NULL,                       "=n: game camera, view, projection and cull planes every n-th view build") \
@@ -63,6 +81,10 @@
     X(APU_FAULT_BENCH,   DEBUG, "apu_fault_bench", "RECOMP_APU_FAULT_BENCH",   "=n: time n trapped APU accesses") \
     X(MEM_DUMP,          DEBUG, "mem_dump",        "RECOMP_MEM_DUMP",          "=va,bytes,prefix: guest memory dumps") \
     X(MEM_DUMP_EVERY,    DEBUG, "mem_dump_every",  "RECOMP_MEM_DUMP_EVERY",    "=s: mem_dump period, default 20") \
+    X(ENTITIES_PROOF,    DEBUG, "entities_proof",  NULL,                       "=steps (+ separated): spawn:f, fill:f, kill:f, rew:f, spawnrew:f, tc:f, tcreq:r, tcdur:n, rewarea:n, setuponly:1, from:id, keep:1, atsrc:1, killany:1, out:file; the entity API's live proof and per-frame list log") \
+    X(CRYSTALS_PROOF,    DEBUG, "crystals_proof",  NULL,                       "=steps (+ separated): seq:digits (| waits for a mission change), at:f, every:n, dup:n, rew:f, out:file; the crystals mod's live proof and record log") \
+    X(SHOP_PROOF,        DEBUG, "shop_proof",      NULL,                       "=steps (+ separated): log:1, out:file, gun:id, fire:f, every:n, shots:k, gold:n, goldat:f; the shop API's live proof and per-frame shop and gun log") \
+    X(WALLS_TRACE,       DEBUG, "walls_trace",     NULL,                       "=opts (+ separated): out:file, fix:0|1, probe:f, samples:n, rad:cr, wmax:cr, tp:k, at:f, depth:pct, for:n; the walls mod's collision trace and A/B probes (mod on)") \
     X(PAD_PEEK,          DEBUG, "pad_peek",        NULL,                       "=va:n[:x],...: guest dwords on every scripted pad poll") \
     X(THREAD_DUMP,       DEBUG, "thread_dump",     "RECOMP_THREAD_DUMP",       "dump every thread: SIGUSR1 (macOS), touch thread_dump.trigger (Windows)")
 

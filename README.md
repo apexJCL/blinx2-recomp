@@ -166,17 +166,19 @@ takes `KEY=value` lines for any `RECOMP_*` variable.
 |---|---|---|---|---|
 | Render scale | `render.scale` | `RECOMP_RENDER_SCALE` | `1`, `2`, `3`, `4` | Draws the 3D at a multiple of the stock 640x480. Metal and Direct3D 11; the CPU renderer ignores it. |
 | Anisotropic filtering | `render.aniso` | `RECOMP_RENDER_ANISO` | `0` (off), `2` to `16` | Sharper ground and walls seen at a slant. A small change in this game, most visible at render scale 1. Metal and Direct3D 11. |
-| Aspect | `display.aspect` | `RECOMP_DISPLAY_ASPECT` | `"4:3"`, `"16:9"`, `"16:10"`, `"21:9"` or another wider `"W:H"` | Hor+ widescreen: a wider aspect shows more of the world at the sides instead of stretching it, see [below](#widescreen). The HUD keeps its 4:3 layout. Metal and Direct3D 11. |
-| Movies in widescreen | `display.movie` | `RECOMP_DISPLAY_MOVIE` | `"black"`, `"fit"`, `"fill"` | With a wide aspect, how the cutscene movies fill the frame: pillarboxed, stretched to the width, or scaled to cover it (top and bottom cropped). |
+| Aspect | `display.aspect` | `RECOMP_DISPLAY_ASPECT` | `"4:3"`, `"16:9"`, `"16:10"`, `"21:9"` or another wider `"W:H"` | Hor+ widescreen: a wider aspect shows more of the world at the sides instead of stretching it, see [below](#widescreen). The HUD moves to the edges (the HUD mod below). Metal and Direct3D 11. |
+| Movies in widescreen | `display.movie` | `RECOMP_DISPLAY_MOVIE` | `"fill"`, `"black"`, `"fit"` | With a wide aspect, how the movies fill the frame: scaled to cover it (top and bottom cropped, so the title movie fills the width), pillarboxed, or stretched to the width. Nothing at 4:3. |
+| HUD at the edges | `mods."hud.enable"` | `RECOMP_HUD` | `"on"`, `"off"` | On by default. With a wide aspect, the radar, the time panel and the counters move out to the screen's edges, as on a 4:3 TV; menus, dialogue and the pause panel stay centred. `display.hud_aspect` and `display.hud_margin` set where the edges are. Nothing at 4:3. Also on the menu's Mods page. Metal and Direct3D 11. |
 | Overscan | `display.overscan` | `RECOMP_DISPLAY_OVERSCAN` | `0` to `64` | Crops this many pixels of the 640-wide frame from the left and right edges (top and bottom in proportion, so it stays 4:3) and zooms the rest. BLiNX 2 needs none; ignored with a wide aspect. Metal and Direct3D 11. |
 | Fullscreen | `present.fullscreen` | `RECOMP_PRESENT_FULLSCREEN` | `false`, `true` | Opens the window borderless fullscreen (no mode change). |
 | Scaling filter | `present.filter` | `RECOMP_PRESENT_FILTER` | `"nearest"`, `"linear"`, `"integer"` | How the 4:3 frame fills the window: letterboxed nearest, letterboxed bilinear, or the largest whole multiple that fits, centred. |
 | Frame pacing | `present.pacing` | `RECOMP_PRESENT_PACING` | `"sleep"`, `"spin"` | `sleep` lets the game's frame wait sleep until the next vblank: less heat and battery on a laptop or a Deck, the same frames. `spin` is the console-original timing, where the wait holds a CPU core as it did on the Xbox. |
 | Shader | `present.shader` | `RECOMP_PRESENT_SHADER` | `"none"`, `"crt-lottes"`, `"crt-lottes-fast"`, `"crt-hyllian"`, `"fsr"`, a `.slangp` path | A CRT look (shadow mask, scanlines) on the final picture, run by librashader on Metal and Direct3D 11; `fsr` is AMD's upscaler instead. Also on the menu's Shaders page, with the preset's settings (`present.shader_params`). Nothing extra to install: on Windows the bundle ships a build that needs no Visual C++ runtime or D3DX9. Without the library the game says so in its log and looks stock. |
+| Shader profile | `present.profile` | `RECOMP_PRESENT_PROFILE` | `"none"`, a profile name | A chain of up to 8 shaders with their settings, built and saved on the menu's Shaders page (*Add shader*, then Save) as `config/shader-profiles/<name>.toml`, for example `fsr` then `crt-lottes`. When set it wins over `present.shader`. |
 | Present surface | `present.surface` | `RECOMP_PRESENT_SURFACE` | `"auto"`, `"window"`, `"internal"` | `internal` hands the compositor the frame at its own size to scale (gamescope's FSR on a Deck needs it, at `scale = 1`); `window` draws at the window's size. `auto` picks `internal` under the SteamOS launcher in gamescope, `window` elsewhere. |
 | HUD texture pack | `textures.pack` | `RECOMP_TEXTURES_PACK` | none, a path | Your own 4x HUD and font pack, see [below](#hud-texture-pack). A relative path is taken from the executable's folder. |
 | Glow | `fx.glow`, `fx.glow_intensity` | `RECOMP_GLOW`, `RECOMP_GLOW_INTENSITY` | `"on"`/`"off"`; `1.0` (0.0 to 2.0) | Turns the game's screen glow pass off, or scales it. |
-| Free camera | `camera.free` and `camera.free_*` | `RECOMP_CAMERA_FREE` and `RECOMP_CAMERA_FREE_*` | `"off"`, `"on"` | F6 starts and stops a camera you fly anywhere in the stage while Blinx stands still: left stick moves, right stick or mouse looks, RT/X up, LT/Y down, White fast, Black slow. F7 hides the HUD, F8 stops the world, F5 goes back to the game's camera. Keys, speed and look rate are in `config.default.toml`. Metal and Direct3D 11; see [below](#free-camera). |
+| Free camera | `camera.free` and `camera.free_*` | `RECOMP_CAMERA_FREE` and `RECOMP_CAMERA_FREE_*` | `"off"`, `"on"` | F6 (or Guide+Y) starts and stops a camera you fly anywhere in the stage while Blinx stands still: left stick moves, right stick or mouse looks, RT/X up, LT/Y down, White fast, Black slow. F7 hides the HUD, End stops the world, Home goes back to the game's camera. Speed, look and mouse sensitivity, the fast and slow multipliers and both inverts are on the menu's Mods page and in `config.default.toml`; the keys are under `[input.actions]`. Metal and Direct3D 11; see [below](#free-camera). |
 | In-game menu | `menu.enabled` | `RECOMP_MENU` | `true`, `false` | On by default. F10 (or Guide+A, an Elite's P1, or Back+L3 held 0.4 s) opens a menu over the game to change these options while it runs, rebind the host actions and turn mods on or off; Save keeps only what you changed in `config/config.toml`. The game keeps running behind it and sees no input. |
 | Stats strip | `overlay.stats` | `RECOMP_OVERLAY_STATS` | `false`, `true` | fps, frame time, pacing, scale and backend in the window's corner; F3 (while the menu is on) or the menu's Stats page toggles it while you play. |
 | Window size | (none) | `RECOMP_WINDOW_SCALE` | `2` | Initial window size, 640x480 times this (the SDL window on macOS). |
@@ -205,8 +207,9 @@ at 1x):
 
 `aspect = "16:9"` (or `"16:10"`, `"21:9"`) widens the view instead of
 stretching it: the game keeps its vertical field of view and draws more of
-the stage at the sides (Hor+). The HUD keeps its 4:3 layout in the middle,
-and the movies follow `display.movie`. The pair is the same moment of stage
+the stage at the sides (Hor+). The HUD mod moves the radar, the time panel
+and the counters to the edges, menus and dialogue stay centred, and the
+movies fill the width (`display.movie`). The pair is the same moment of stage
 1 at 4:3 and at 16:9 (Metal, render scale 2; the timers differ because they
 are two runs):
 
@@ -219,9 +222,23 @@ aspect = "16:9"
 
 ### Free camera
 
-With `camera.free = "on"`, F6 detaches the camera from Blinx and lets you
-fly it anywhere in the stage; F8 stops the world and F7 hides the HUD, for a
-clean shot. Controls are in the [table above](#options).
+With `camera.free = "on"` (or Free camera on the menu's Mods page), F6 or
+Guide+Y detaches the camera from Blinx and lets you fly it anywhere in the
+stage; End stops the world and F7 hides the HUD, for a clean shot, and Home
+puts the camera back on the game's.
+
+| Control | Default |
+|---|---|
+| Toggle flight | F6, Guide+Y |
+| Toggle HUD, Freeze game, Reset camera | F7, End, Home (while flying) |
+| Move, look | left stick, right stick or the mouse |
+| Rise, sink | RT or X, LT or Y |
+| Fast, slow | White, Black |
+
+The four keys are host actions (`camera.free.toggle`, `.hud`, `.freeze`,
+`.reset` under `[input.actions]`), rebound on the menu's Controls page or the
+camera's Mods page. The old `camera.free_toggle`, `_hud_key`, `_freeze_key`
+and `_reset_key` keys are still read.
 
 ![Stage 1 from the game's camera, and the same stage from the free camera high above the cliffs with the world stopped and the HUD hidden](docs/images/free-camera.png)
 
@@ -435,15 +452,15 @@ Running the development build:
 
 ```sh
 # macOS (Metal); RECOMP_PB_BACKEND unset is the slow CPU rasteriser
-RECOMP_PB_BACKEND=metal RECOMP_HOST_PAD=1 ./build/cat_recomp
+RECOMP_PB_BACKEND=metal ./build/cat_recomp
 ```
 
 Run it from this directory: the game files are looked up in `game_files/`
 (or wherever `RECOMP_GAME_FILES` points), and saves go to the toolkit's
-default save root unless `RECOMP_HDD_DIR` says otherwise. The macOS
-development build leaves host pads off (and any build does while an input
-script is set, so scripted and golden runs never see one); the packaged app
-sets `RECOMP_HOST_PAD=1`. The keyboard and the mouse come from
+default save root unless `RECOMP_HDD_DIR` says otherwise. Host pads are on
+in every build on every host, except while an input script is set (unless `RECOMP_HOST_PAD=1`), so
+scripted and golden runs never see one (`RECOMP_HOST_PAD=0` keeps them out).
+The keyboard and the mouse come from
 `build/config.default.toml` in every build, with or without host pads. Under
 Proton, run `build-win/cat_recomp.exe` with `umu-run` and
 `RECOMP_PB_BACKEND=d3d11`; host pads are on there by default.
@@ -463,8 +480,8 @@ reports what is in use and whether it is the pin.
 
 | Component | Pinned at | Where | Notes |
 |---|---|---|---|
-| xboxrecomp-cli (`xbr`) | tag `v0.17.0`, commit `af5649d` | `game.toml` `[cli]` | The commit locks the tag: a tag moved to another commit is refused. |
-| xboxrecomp toolkit (fork) | tag `blinx2-v0.10.0`, commit `a0c51a5`, branch `blinx2/portability` | `game.toml` `[toolkit]` | Cloned into `external/xboxrecomp` by `setup`. |
+| xboxrecomp-cli (`xbr`) | tag `v0.19.0`, commit `70c9856` | `game.toml` `[cli]` | The commit locks the tag: a tag moved to another commit is refused. |
+| xboxrecomp toolkit (fork) | tag `blinx2-v0.12.0`, commit `1551c42`, branch `blinx2/portability` | `game.toml` `[toolkit]` | Cloned into `external/xboxrecomp` by `setup`. |
 | llvm-mingw | `20260922` (clang 23.1.2) | `game.toml` `[toolchain]`, hashes in `config/setup-pins.json` | Cross-compiles the Windows build on every host. |
 | NSIS | `3.13` | `game.toml` `[toolchain]` | Fetched on Windows; Homebrew or the distribution elsewhere. |
 | umu-launcher | `1.4.4` | the CLI | What the SteamOS installer offers to download on a stock Deck. |
@@ -529,7 +546,7 @@ behaviour). The ones you meet first:
 | `RECOMP_PB_BACKEND` | `cpu`, `metal`, `d3d11`, `null` | the renderer |
 | `RECOMP_GAME_FILES` | `game_files/` in the working directory | where the dump is |
 | `RECOMP_HDD_DIR` | the toolkit's save root | the emulated hard disk: saves, caches |
-| `RECOMP_HOST_PAD` | unset: on on Windows/Proton, off on macOS and in scripted runs; the macOS bundle sets `1` | host gamepads in or out (`0`/`1`) |
+| `RECOMP_HOST_PAD` | unset: on, except in scripted runs | host gamepads in or out (`0`/`1`) |
 | `RECOMP_KEYBOARD` | `input.keyboard`: on in `config.default.toml`, off with `RECOMP_CONFIG=none` and in scripted runs | the keyboard as pad 1 |
 | `RECOMP_MOUSE` | `input.mouse`: as `RECOMP_KEYBOARD` | the mouse as pad 1 (motion is the right stick) |
 | `RECOMP_AC97_READY` | on (x86-64 Windows/Proton; arm64 macOS and Linux); off on native x86-64 Linux | audio; `=0` turns it off |

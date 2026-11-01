@@ -26,6 +26,8 @@
 #include <stdint.h>
 #include "glow.h"       /* fx.glow: the sub_0005B7D0 wrapper below */
 #include "free_camera.h"  /* camera.free: the view builders, pad poll and freeze below */
+#include "ent_api.h"      /* entities: the sub_000606F0 wrapper below */
+#include "ent_api_logic.h"  /* ENTL_SETUP_STAGE_START, ENTL_CONTIG_* */
 #include "nv2a_backend_common.h"  /* nv2a_host_opts: display.aspect, the sub_0003B180 wrapper */
 /* The pacer's interlocked epoch. Before recomp_types.h, whose register
  * macros (eax, esp, ...) would otherwise reach the system headers. */
@@ -838,7 +840,17 @@ void sub_0021B1F0(void)
  *
  * sub_000606F0 starts a stage (sub_00062FB0's state entry, 0x63248) and
  * writes 0 to 0xAF0EF4 itself: a freeze ends there, and the game's value
- * is put back before the stage's own write, so a stale 1 never survives. */
+ * is put back before the stage's own write, so a stale 1 never survives.
+ * The entity API (ent_api.c) needs the same function, which a mod hook
+ * slot cannot have while it is defined here: class-1 hp goes in before the
+ * stage loads its placements and the API's placement records are marked
+ * after (entity-mod-api D5, D6). Both return at once while the entities
+ * mod is off and never spawned. */
+
+/* ent_api_logic.c reads guest_alloc's block through its own copy of the
+ * contiguous window, being free of toolkit headers for its tests. */
+_Static_assert(ENTL_CONTIG_BASE == XBOX_CONTIG_BASE && ENTL_CONTIG_SIZE == XBOX_CONTIG_SIZE,
+               "ent_api_logic.h's contiguous window differs from kernel.h's");
 
 extern void sub_0005C930_gen(void);
 extern void sub_000EEB40_gen(void);
@@ -864,10 +876,16 @@ void sub_00161120(void)
     free_cam_freeze_tick();
 }
 
+/* The caller's return address tells a stage start from a retry: only a
+ * stage start may free the entity API's retired records (design D5). */
 void sub_000606F0(void)
 {
+    int stage_start = MEM32(g_esp) == ENTL_SETUP_STAGE_START;
+
     free_cam_stage_start();
+    ent_api_area_setup(0, stage_start);
     RECOMP_ABI_CALL(0x000606F0u, sub_000606F0_gen);
+    ent_api_area_setup(1, stage_start);
 }
 
 

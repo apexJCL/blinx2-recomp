@@ -142,8 +142,13 @@ composed into one `.slangp`:
    `filter_linear`, `scale_type`, `scale_type_x/y`, `scale`, `scale_x/y`,
    `wrap_mode`, `mipmap_input`, `float_framebuffer`, `srgb_framebuffer`,
    `frame_count_mod`, `alias`), its `textures` with their per-texture keys,
-   its preset-level `parameters = "a;b;..."` list, and the values of the
-   names in that list.
+   its preset-level `parameters = "a;b;..."` list, and every preset-level
+   `name = value` line that is not a pass, texture or list key. The
+   bundled wrappers set values with no list (`crt-lottes.slangp` has
+   `warpX`, `warpY`; `crt-lottes-fast.slangp` has `CURVATURE`), and probe
+   1.1 showed librashader honours such a line with or without the list
+   (same pixels on both backends), so the reader takes the value lines,
+   not only the listed names.
 3. The composite numbers passes in stage order (`shaders = total`), writes
    every shader and texture path absolute (each was relative to the file
    that named it), merges the textures list, and writes the preset-level
@@ -180,9 +185,15 @@ composed into one `.slangp`:
   whole chain: two passes that declare `MASK_INTENSITY` read one value
   (crt-lottes-fast declares it 0..1 step 0.05, crt-hyllian 0..1 step 0.1).
   v1 keeps that rule: one value per name, its range, step and default as
-  `libra_preset_get_runtime_params` reports them for the composed preset (a
-  probe in task 1.1 records which declaration wins; the menu shows what the
-  library says). The value is saved under the preset key of its *owner*,
+  `libra_preset_get_runtime_params` reports them for the composed preset
+  (the menu shows what the library says). Probe 1.1, identical on Metal
+  and D3D11: the name is listed once, at its first pass, but its
+  description, range, step and default come from the *last* pass that
+  declares it (`crt-lottes-fast` + `crt-hyllian` reports step 0.1,
+  the reverse order 0.05); a preset-level value replaces the default; and
+  `set_param` on the name moves every pass that declares it (a render
+  with the name split in two matched the shared render to the pixel only
+  when both halves held the value). The value is saved under the preset key of its *owner*,
   the first stage that declares the name. A reorder can change the owner,
   so on load a shared value is accepted from any stage's table: the
   owner's table first, else the first other stage's table that sets it in
@@ -213,15 +224,31 @@ composed into one `.slangp`:
   `fsr` it computes its scanlines from the game frame's height while it
   samples the scaled picture. This is how RetroArch behaves with appended
   presets and it is allowed; the reader flags a later stage whose source
-  uses `Original` and the menu adds the dim note "reads the game frame"
-  next to "sees the scaled picture". Probe 1.1 records how crt-hyllian
-  after `fsr` looks on both backends.
+  uses `Original` and the menu adds a dim note next to "sees the scaled
+  picture". Probe 1.1, both backends: crt-hyllian
+  after `fsr` does not just draw finer scanlines, it looks broken. Its
+  aperture mask turns irregular (uneven stripe widths) and, on Metal, the
+  picture takes a strong magenta cast, while `fsr` + `crt-lottes` looks
+  right. The combination stays allowed (it is the user's choice and
+  RetroArch allows it), but the dim note reads "reads the game frame; may
+  look wrong" so the result is not a surprise.
+  Group 2 found that every bundled shader declares `vec4 OriginalSize;` in
+  its uniform block, used or not (fsr does not use it), so the scan counts
+  a use, not a declaration: a name right after a type (`vec2`..`vec4`,
+  `float`, `int`, `uint`, `mat4`, `sampler2D`) and before `;` is skipped.
+  `fsr` after crt-hyllian is not flagged; crt-hyllian after `fsr` is.
 - *Scale.* A stage whose last pass scales to the viewport hands the next
   stage an output-sized picture. CRT presets draw scanlines per source line,
   so one after `fsr`, or after another CRT, draws them per output line.
   This is allowed (RetroArch allows it), and the menu says so on the later
   stage: a dim note "sees the scaled picture". The check is the earlier
   stage's last-pass `scale_type`.
+  An unset `scale_type` on a preset's last pass means viewport only at the
+  end of a chain; anywhere else librashader reads it as source x1. Group 2
+  therefore writes `scale_type<N> = "viewport"` on the last pass of every
+  stage but the final one when that stage leaves it unset, so a stage keeps
+  the output size it has on its own (the bundled presets set it, a user
+  preset may not), and such a stage counts as viewport for the note.
 
 Why compose ourselves rather than ask librashader: 0.12 has no API to
 append presets or passes, and the preset file is its documented input. The
@@ -407,6 +434,36 @@ No file is rewritten at start. The request is resolved in this order:
 A chosen profile that is missing or broken logs one line and presents
 stock: it never falls through to `present.shader`, so a typo cannot
 silently pick an older look.
+
+*Implementation note.* The titles call `xbox_enhance_init`
+before `xbox_path_init` (cat `main.c`), so the shader cache folder does not
+exist yet when the request is resolved. The start reads the one profile
+file and requests it as pending (`nv2a_present_chain_request_pending`),
+one stage or eight: describing a stage loads librashader, which only a
+presenter that runs a chain should load. The first
+`nv2a_present_chain_gen()` after it, the backend's present, describes the
+stages, composes a chain and makes the real request, or requests stock with
+the profile error. That request applies only while the chain's generation
+is the one the pending request left (`request_profile_at`), so a menu
+request made before or during it wins; the menu counts the start's values
+as loaded only once it ran (`shader_profile_start_loaded`). A chain of
+two or more stages also waits for the path module: while
+`xbox_path_shader_cache` has no folder (cat can present before
+`xbox_path_init` runs on guest-main), that read checks the stages once,
+logs one "waiting for the shader cache folder" line and rearms the pending
+request at the same generation (`nv2a_present_chain_request_rearm`, which
+holds only for the pending request's own empty preset), so every present
+retries until the folder appears. While a start is pending,
+`nv2a_present_chain_failed()` ignores the waiting generation: the backend
+finds no preset there yet, and clearing wanted would stop the reads that
+run the wait. A missing stage fails at the first present, and a real
+build failure after the wait still clears wanted and sets the error.
+The path module publishes its roots with a release store of its
+ready flag, read with acquire, since the present thread polls it. No title
+changes its init order, and the backends are unchanged. The resolution itself is `shader_profile_start`
+(`src/enhance/shader_profile_req.c`). `RECOMP_PRESENT_PROFILE=none` leaves
+the choice to the files (step 2 reads "not `none`"); only
+`RECOMP_PRESENT_SHADER=none` forces stock from the environment.
 
 A player with `present.shader = "crt-lottes"` and tuned
 `[present.shader_params.crt-lottes]` sees the built-in *crt-lottes* active

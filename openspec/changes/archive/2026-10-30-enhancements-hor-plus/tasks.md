@@ -111,7 +111,7 @@ Worktrees: `wt/hor-plus/xboxrecomp` (branch `feat/hor-plus` off `posix-host/port
   - `display.aspect` must be the whole value (`enhance_cfg` case for `16:9x`).
   - Documented in design.md Risks: the present crop for an extent narrower than the target, and the CPU backend's padded window (both TASKS follow-ups), Burnout 3's 640x464 frame (no pad), the `black` pads, occlusion counts and the w test.
   - Gates: posix_ctest 78 pass, 0 FAIL. Mac build and Windows cross-build clean (no new warnings). Metal stock `@attract` golden passes with no hor+ line (`runs/hor-plus/golden-fix`). A Metal 16:9 stage1 window shot at flip 1800 has the same placement as before the fix (`runs/hor-plus/fix169`); only the timer and the animation differ.
-- [ ] 6.2 Squash-merge both branches; copy notes to `notes/hor-plus/`; remove the worktrees.
+- [x] 6.2 Squash-merge both branches; copy notes to `notes/hor-plus/`; remove the worktrees. Merged 2026-10-17 (toolkit f98fc579, cat 09e260b).
 
 ## 7. Deck artefacts at the old 4:3 edge
 

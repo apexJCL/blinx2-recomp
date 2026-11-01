@@ -105,15 +105,15 @@ sha256 = [
 # commit locks the tag: a tag that names another commit (moved, re-pushed)
 # is refused.
 [cli]
-tag = "v0.17.0"
-commit = "af5649d15fedb09eac8fd76f05f55edd39816e42"
+tag = "v0.19.0"
+commit = "70c985656f22b34f34b3bd553d47688281cf328c"
 url = "https://github.com/apexJCL/xboxrecomp-cli.git"
 
 [toolkit]
 url = "https://github.com/apexJCL/xboxrecomp.git"
-tag = "blinx2-v0.10.0"
+tag = "blinx2-v0.12.0"
 branch = "blinx2/portability"
-commit = "a0c51a5c2db4ce0d2dcc4091552fc2d0a0e56f99"
+commit = "1551c42daeaa0a124ed9cc38ccae94aa64e224e0"
 
 [toolchain]
 llvm_mingw = "20260922"
@@ -134,6 +134,38 @@ ghidra = true
 [pipeline.disasm]
 text_only = true
 extra_sections = ["D3D", "D3DX", "XGRPH", "DSOUND", "PSFD_I", "PSFD_B", "PSFD_P", "PSFD00", "SRCADV", "SRCED", "SRCAC", "XPP"]
+
+# Functions the hud mod hooks (openspec change hud-anchors, section 3):
+# sub_00042190 adds a 2D sprite to the draw queue and copies its vertices,
+# so a pre hook may move them and a post hook restore them. The three
+# sprite helpers, the digit helper sub_00018030, sub_00018250 (which counts
+# a number's digits and tail-jumps into it), the sprite helper sub_00017330
+# (the time-control legend) and the font routine are
+# wrappers in config/hud.toml, so a sprite is keyed by its call site in the
+# HUD code, not inside a helper.
+# The entities mod (openspec change entity-mod-api, D9): sub_0004E700
+# (ent_enemy_update_all) runs the queued spawns and kills in its pre hook.
+# Its two callers (0x673A4, 0x673BB) pop its argument and read no float,
+# which the x87 walk cannot see through its calls. stage_area_setup
+# (sub_000606F0) is the free camera's wrapper in src/recomp_manual.c, which
+# calls the entity API itself.
+# The crystals mod (openspec change crystal-sets, D1): sub_0008BFD0
+# (tc_crystal_collect) gets a pre and a post, neither of which skips. It
+# returns 0 or 1 in eax (an item taken or not) and never a float; the x87
+# walk cannot see through its calls.
+# The shop mod (openspec change shop-api, D3, D8): sub_001A0260
+# (plr_gun_fire) scales the shots each call made and the gun's fire timer in
+# its post hook. Its two callers (0x1A005E, 0x1A012D) pop the FPU stack
+# before the call and read no float after it.
+# The walls mod (openspec change collision-spike, task 1.7): sub_00165630
+# (the collision triangle test) gets a pre and a post that may rewrite its
+# contact outputs, sub_001636C0 (the sphere query) a pre and a post that
+# tell the player's queries apart by return address, and sub_00163160 (the
+# dynamic objects' query) a post for the trace. None skips; all three
+# return 0 or 1 in eax and never a float.
+[mods]
+hook_functions = ["0x00042190", "0x000177F0", "0x000178C0", "0x00018030", "0x00018250", "0x00017330", "0x00047A00", "0x00048600", "0x0004E700", "0x0008BFD0", "0x00163160", "0x001636C0", "0x00165630", "0x001A0260"]
+no_st0 = ["0x0004E700", "0x0008BFD0", "0x001A0260"]
 
 [build]
 exe = "cat_recomp"
@@ -180,7 +212,7 @@ frames = "analysis/golden/frames"
 audio = "analysis/golden/audio.json"
 # The game's own enhancement keys at their stock values (docs/env.md): a
 # golden run showing another value is not a stock run.
-enhance_stock = { "camera.free" = "off", "fps.mode" = "lock30", "fx.glow" = "on", "fx.glow_intensity" = "1", "mods.lod.enable" = "off", "mods.debug_menu.enable" = "off" }
+enhance_stock = { "camera.free" = "off", "fps.mode" = "lock30", "fx.glow" = "on", "fx.glow_intensity" = "1", "mods.lod.enable" = "off", "mods.debug_menu.enable" = "off", "mods.entities.enable" = "off", "mods.crystals.enable" = "off", "mods.shop.enable" = "off", "mods.walls.enable" = "off", "present.profile" = "none" }
 
 [package]
 app = "BLiNX2"
@@ -257,6 +289,13 @@ hint_link = { text = "Get PT Sans Narrow (free, Google Fonts)", url = "https://f
 kind = "bool"
 default = false
 flag = "--hud-pack"
+
+# The HUD table for the toolkit's HUD layer and what `blinx2 hud-map`
+# captures and checks it on (openspec change hud-anchors, section 3).
+[hud]
+table = "config/hud.toml"
+scenarios = ["@stage1", "@stage1-2-barricade", "@attract", "@story-hub"]
+mod = "hud"
 
 # The owner's HUD texture pack (blinx2 enhance hud; openspec change
 # enhancements-hud-pack). The UI set is the HUD, menu, icon and font
@@ -384,97 +423,191 @@ vertex_header = 8
 angles = "radians"
 texname_size = 36
 textures = "ipk:media:dds/{name}.dds"
+# The chunk drawer (sub_00039100, sub_00044900, sub_00045A50) colours a UV
+# strip (65) and any env-mapped strip (flag 0x40, kind 64 too) with the
+# constant at 0xAD7FEC (white unless a fade sets it, alpha included) and
+# keeps the material diffuse for other untextured strips (64), so M121's
+# black-diffuse materials draw fully textured. It knows no other
+# strip kind; none occur in the 21 stages.
+textured_colour = "white"
+# Collision (extract --collision): each area's collision tree is the first
+# column of the stage map table (.data 0x40d180; sub_000E2180 copies it to
+# 0xB8B840 + area * 4). sub_001642A0 bakes every tree into world triangles
+# and an octree at load; sub_00165630 tests a sphere against them. The
+# material diffuse is the surface class; sub_00165630 skips 0x00FFFF,
+# 0x0000FF, 0x7F7F00 and 0xFF00FF while a global of its own is set, and
+# never tests 0xFFFFFF. openspec/changes/collision-spike/design.md.
+collision_skip = [0xFFFFFF]
+# Placements (extract --placements, [[extract.placement_set]] below) live in
+# the stage data turned a half turn about X: M21's items sit on its
+# collision floors at (x, -y, -z) of their records.
+placement_world = "-y"
+# A stage's placements key is its stage_current (0xB87168) index, from the
+# section switch in sub_00169D10 (table 0x169F78): area a's stages are
+# 5a..5a+4 (M11 0, M13 2, M14 3, M21 5, ... M64 28, M91 40, M93 42, M111
+# 50, M121 55); 5a+1 and 5a+4 load no section of their own. At an
+# area's first stage the sets' layers ([s], [s+1], [s+4]) are what it
+# loads in Sweepers, one player. The other stages load layer 0 only
+# (placement_layers), the x-4 boss stages their enemies from [s-2] and M44
+# no emitters at all (openspec/changes/placements-spike/design.md).
 
 # Stages: one per M section. Roots are the stage map table's rows (.data
 # 0x40d180 and the parallel rows at 0x40d454, by area) plus the parts in
 # each area record's second part list; the first list is the mirrored
-# reflection and part lists outside area records are runtime-placed
-# gimmicks, both left out. Each root draws with its own texlist. Method
+# reflection (drawn into a render target, kept only for M111 and M34, whose
+# floors show it) and part lists outside area records are runtime-placed
+# gimmicks, both otherwise left out. Each root draws with its own texlist. Method
 # and the S4 check: openspec/changes/engine-extract/design.md.
+#
+# Reflections: sub_00219940 draws an area's first part
+# list (area +0xDC, when area +0xAC bit 3 is set) into a render target made
+# by sub_002161C0, cleared to opaque black (sub_002E5630; the clear colour's
+# floats at 0xF2A878 are only ever zeroed), and sub_00219DC0 blends that
+# target over a grid at the area's height. sub_000E4440 draws each part
+# (root, texlist, f) under a scale of (1, -1, 1) after a (0, -f, 0)
+# translation, so the copy lands at y' = f - y: transform scale [1, -1, 1],
+# translation [0, f, 0], with the target's black as the backdrop. The method
+# fits where the grid lies on a floor mesh, which then shows the copy
+# through (texture_alpha). In M11, M14, M53 and M91 the grid is the water
+# surface itself, with no mesh of its own, and the copy would sit under an
+# opaque sea or pool bed; M44's reflective area (0x4B3430, at x, z = 5000)
+# holds only runtime-placed parts. Those are left out.
 
 [[extract.stage]]
 name = "M11"
 section = "M11"
+placements = 0
+collision = [0x0195FC48, 0x01996174, 0x019FAAC8]
 root = [0x01A091DC, 0x019F6C80, 0x0198C064, 0x01A22DC8, 0x01A3A8B8, 0x01A5BEC8, 0x01A2C418, 0x01A52BE8, 0x01A53040]
 texlist = [0x01A093C0, 0x019F739C, 0x0198C878, 0x01A1FFE0, 0x01A35F18, 0x01A574BC, 0x01A2B8D4, 0x01A52308, 0x01A52D40]
 
 # M13 adds the roots its stage code draws outside the tables: the glass
 # floor over the mirror pit (0x018F4858), the lamp glows (0x018F9450, both
-# from sub_000E61A0's M13 case), the sky (0x018FEA0C, drawn there a second
-# time mirrored in Y, which is left out) and the grass (0x018F6128, drawn by
-# sub_000E6FA0). The two 4,600-wide planes (0x01903248, 0x019069E0, drawn by
+# from sub_000E61A0's M13 case), the sky (0x018FEA0C) and the grass
+# (0x018F6128, drawn by sub_000E6FA0). sub_000E61A0 draws the sky a second
+# time: it pushes the matrix (sub_0003F980), scales it by (1, -1, 1) about
+# the world origin (sub_0003FF50), flips the cull mode and draws again. That
+# draw is the half below the horizon, so the last root is the sky again with
+# that scale. The two 4,600-wide planes (0x01903248, 0x019069E0, drawn by
 # sub_0021A830) take a texlist set at runtime and are left out.
 [[extract.stage]]
 name = "M13"
 section = "M13"
-root = [0x018BD8A8, 0x018E3220, 0x018F4858, 0x018F9450, 0x018FEA0C, 0x018F6128]
-texlist = [0x018BE174, 0x018DFFE4, 0x018F42C4, 0x018F61A8, 0x018FC110, 0x018F48B0]
+placements = 2
+placement_layers = {gimmick = [0], emitter = [0], emitter2 = [0]}
+collision = [0x017FB3F0]
+root = [0x018BD8A8, 0x018E3220, 0x018F4858, 0x018F9450, 0x018FEA0C, 0x018F6128, 0x018FEA0C]
+texlist = [0x018BE174, 0x018DFFE4, 0x018F42C4, 0x018F61A8, 0x018FC110, 0x018F48B0, 0x018FC110]
+transform = [{}, {}, {}, {}, {}, {}, {scale = [1, -1, 1]}]
 
 [[extract.stage]]
 name = "M14"
 section = "M14"
+placements = 3
+placement_layers = {gimmick = [0], emitter = [0], emitter2 = [0], enemy = [-2]}
+collision = [0x02387608]
 root = [0x02420798, 0x023D09D4, 0x02475208]
 texlist = [0x02420C2C, 0x023D0E40, 0x0246F8FC]
 
 # Table rows only: the area's second part list is in BSS, filled at runtime.
+# The floor reflects the room: the area's first part list (0x4AC2A8: root
+# 0x02A739AC, texlist 0x02A5F5FC, f = -0.1) mirrored to y' = -0.1 - y, and
+# sub_00219DC0 blends the target over the floor. The mirrored copy stands in
+# for the target; the centre disc lets it show through at 0.4, which brings
+# the dark marble to the teal the game's floor averages. The copy's
+# walls end at y = 0, so they meet the floor's underside a tenth below it.
 [[extract.stage]]
 name = "M111"
 section = "M111"
-root = [0x02A58A6C]
-texlist = [0x02A58D70]
+placements = 50
+collision = [0x02A3342C]
+root = [0x02A58A6C, 0x02A739AC]
+texlist = [0x02A58D70, 0x02A5F5FC]
+transform = [{}, {scale = [1, -1, 1], translation = [0, -0.1, 0], backdrop = [0, 0, 0]}]
+texture_alpha = {h_b2_tf_yuka0002 = 0.4}
 
 [[extract.stage]]
 name = "M121"
 section = "M121"
+placements = 55
+collision = [0x0278FC0C]
 root = [0x027F0E80]
 texlist = [0x027F1260]
 
 [[extract.stage]]
 name = "M21"
 section = "M21"
+collision = [0x021C9DF0, 0x0223CCE8, 0x022E1AFC]
+placements = 5
 root = [0x023128EC, 0x022DED4C, 0x0223657C, 0x0234BB68]
 texlist = [0x02313220, 0x022DFB00, 0x02237018, 0x0234AA18]
 
 [[extract.stage]]
 name = "M23"
 section = "M23"
+placements = 7
+placement_layers = {gimmick = [0], emitter = [0], emitter2 = [0]}
+collision = [0x020D99B0]
 root = [0x0217E934]
 texlist = [0x0217F6A0]
 
 [[extract.stage]]
 name = "M24"
 section = "M24"
+placements = 8
+placement_layers = {gimmick = [0], emitter = [0], emitter2 = [0], enemy = [-2]}
+collision = [0x01C2470C]
 root = [0x01C80320, 0x01C5CEBC]
 texlist = [0x01C80868, 0x01C5D5B0]
 
 [[extract.stage]]
 name = "M31"
 section = "M31"
+placements = 10
+collision = [0x01D4B1C0, 0x01DB4E48, 0x01E156F4]
 root = [0x01E388EC, 0x01E114F4, 0x01DA777C]
 texlist = [0x01E38F98, 0x01E120B0, 0x01DA8068]
 
 [[extract.stage]]
 name = "M33"
 section = "M33"
+placements = 12
+placement_layers = {gimmick = [0], emitter = [0], emitter2 = [0]}
+collision = [0x01FDC688]
 root = [0x0208AC84]
 texlist = [0x0208B7D4]
 
 # Table rows only: the area's second part list is in BSS, filled at runtime.
+# The ice floor (a_b2_base02_yuka2, y = 0) reflects the room: area 0x4B3178's
+# first part list (0x4AC114) holds a lighter copy of it (root 0x02782EB0,
+# texlist 0x02768034, f = 0), blended in by a grid coloured 0xE0E0E0E0
+# (area +0x78) where M111's is 0x40A0A0A0: the game lets far more of the
+# reflection through here, so the floor keeps 0.2 of its own texture.
 [[extract.stage]]
 name = "M34"
 section = "M34"
-root = [0x026DDC78]
-texlist = [0x026DE208]
+placements = 13
+placement_layers = {gimmick = [0], emitter = [0], emitter2 = [0], enemy = [-2]}
+collision = [0x02685A10]
+root = [0x026DDC78, 0x02782EB0]
+texlist = [0x026DE208, 0x02768034]
+transform = [{}, {scale = [1, -1, 1], backdrop = [0, 0, 0]}]
+texture_alpha = {a_b2_base02_yuka2 = 0.2}
 
 [[extract.stage]]
 name = "M41"
 section = "M41"
+placements = 15
+collision = [0x015BAD5C, 0x01611CE8, 0x01655220]
 root = [0x0169BB04, 0x0164EBC8, 0x0160C75C]
 texlist = [0x0169C750, 0x0164F764, 0x0160D708]
 
 [[extract.stage]]
 name = "M43"
 section = "M43"
+placements = 17
+placement_layers = {gimmick = [0], emitter = [0], emitter2 = [0]}
+collision = [0x0299217C]
 root = [0x02A1207C]
 texlist = [0x02A12BF0]
 
@@ -482,47 +615,1143 @@ texlist = [0x02A12BF0]
 [[extract.stage]]
 name = "M44"
 section = "M44"
+placements = 18
+placement_layers = {gimmick = [0], emitter = [], emitter2 = [], enemy = [-2]}
+collision = [0x017015AC]
 root = [0x017721C0, 0x0173DC48]
 texlist = [0x01772CCC, 0x0173E7E4]
 
 [[extract.stage]]
 name = "M51"
 section = "M51"
+placements = 20
+collision = [0x02820374, 0x028A97EC, 0x0292E59C]
 root = [0x029479B0, 0x0292CAC4, 0x028A0C40]
 texlist = [0x02947D00, 0x0292D128, 0x028A10D4]
 
 [[extract.stage]]
 name = "M53"
 section = "M53"
+placements = 22
+placement_layers = {gimmick = [0], emitter = [0], emitter2 = [0]}
+collision = [0x01EEA07C]
 root = [0x01F48138, 0x01F5E630]
 texlist = [0x01F4865C, 0x01F5DDDC]
 
 [[extract.stage]]
 name = "M54"
 section = "M54"
+placements = 23
+placement_layers = {gimmick = [0], emitter = [0], emitter2 = [0], enemy = [-2]}
+collision = [0x02B37C88]
 root = [0x02B55A70]
 texlist = [0x02B55BA4]
 
 [[extract.stage]]
 name = "M61"
 section = "M61"
+placements = 25
+collision = [0x01CE4B70]
 root = [0x01CFD1D4]
 texlist = [0x01CFD274]
 
 [[extract.stage]]
 name = "M64"
 section = "M64"
+placements = 28
+placement_layers = {gimmick = [0], emitter = [0], emitter2 = [0], enemy = [-2]}
 root = [0x02ABC7DC]
 texlist = [0x02ABC8A0]
 
 [[extract.stage]]
 name = "M91"
 section = "M91"
+placements = 40
+collision = [0x0151576C]
 root = [0x0155AD2C, 0x01562FD0]
 texlist = [0x0155B12C, 0x0155F9A8]
 
 [[extract.stage]]
 name = "M93"
 section = "M93"
+placements = 42
+placement_layers = {gimmick = [0], emitter = [0], emitter2 = [0]}
+collision = [0x0142CD50]
 root = [0x014E9FEC]
 texlist = [0x014EAB18]
+
+# Placements (extract --placements): what a stage spawns at load, from
+# .data tables of u32 pointers indexed by stage_current (0xB87168; M21 is
+# 5), each to {u32 count, records *}. A record starts with the class dword
+# (class, variant, flags in the top byte), pos at +4 and rotation (radians,
+# X first) at +0x14. openspec/changes/placements-spike/design.md.
+# Enemies: sub_0004F970 -> sub_0004F5C0 -> ent_enemy_spawn (sub_0004EE20).
+# sub_0004F970 loads [s]; in Sweepers an x-4 boss stage (s % 5 == 3)
+# loads [s - 2] instead.
+[[extract.placement_set]]
+name = "enemy"
+table = 0x004921E8
+stride = 0x5C
+pos_at = 4
+rot_at = 0x14
+size = 6.0
+# Items (1P set): stage setup sub_000783B0 -> ent_item_spawn (0x794D0).
+# It reads 0x491D08 instead when 0xB22E3C is 2 (the two-player set,
+# sub_00098E30, menu_player_count 2), and 0x492968 in the hub drills
+# (0xEC4CF8, or 0xEC4CE0 with stage_current == 0xB871AC). Outside M64
+# (0x1C) the item and collectible loops skip records when team mode
+# 0xB21CB4 >= 2 or 0xB21C9C != 0; Sweepers is unaffected. On M14 in
+# Sweepers the item loop (0x784C4-0x784F7) spawns only records whose
+# class dword is 0x23, so the export draws items the game never spawns.
+[[extract.placement_set]]
+name = "item"
+table = 0x00491C18
+stride = 0x28
+pos_at = 4
+rot_at = 0x14
+size = 3.0
+# Collectibles: the same setup then spawns 0x491DF8[s] through
+# ent_item_spawn: time stones (item types 0x2A-0x35), coins (0x36-0x41),
+# medals (0x42-0x47) and Tom Tom medals (0x48-0x4D). It skips them in
+# the hub drills (0xEC4CF8, or 0xEC4CE0 with stage_current == 0xB871AC),
+# the same condition that selects 0x492968.
+[[extract.placement_set]]
+name = "collectible"
+table = 0x00491DF8
+stride = 0x28
+pos_at = 4
+rot_at = 0x14
+size = 2.0
+# Gimmicks (doors, blocks, lifts): sub_000C1D20 from sub_000606F0 loads
+# [s] and, in Sweepers with one player at an area's first stage
+# (s % 5 == 0), [s + 1] and [s + 4]; class init through
+# 0x403A00[class]. layers lists all three, so the export assumes
+# Sweepers, one player at an area's first stage.
+[[extract.placement_set]]
+name = "gimmick"
+table = 0x00491EE8
+stride = 0x2C
+pos_at = 4
+rot_at = 0x14
+layers = [0, 1, 4]
+size = 8.0
+# Effect emitters (no model): sub_000322F0 -> sub_000327F0. Both tables
+# load [s], and at an area's first stage [s + 1] and [s + 4] too.
+[[extract.placement_set]]
+name = "emitter"
+table = 0x00492788
+stride = 0x28
+pos_at = 4
+rot_at = 0x14
+layers = [0, 1, 4]
+size = 2.0
+[[extract.placement_set]]
+name = "emitter2"
+table = 0x00492878
+stride = 0x28
+pos_at = 4
+rot_at = 0x14
+layers = [0, 1, 4]
+size = 2.0
+# Ambient critters: sub_000E0760. M21 holds only class word 0x102
+# (class 0x02, variant 1), whose model is not known yet; gulls are 0x01.
+[[extract.placement_set]]
+name = "ambient"
+table = 0x004922D8
+stride = 0x30
+pos_at = 4
+rot_at = 0x14
+size = 2.0
+
+# Enemy models: variant record = table + variant * 0x20, {object, texlist}
+# (table_flagged when the class dword's top byte is set); the class switch
+# is at 0x4F4D8 / 0x4F538. Most enemies are skinned and stay markers
+# until skinned models draw.
+[[extract.placement_model]]
+set = "enemy"
+class = 0x01
+table = 0x004AFCD8
+table_flagged = 0x004AFD18
+stride = 0x20
+[[extract.placement_model]]
+set = "enemy"
+class = 0x02
+table = 0x004AED40
+table_flagged = 0x004AEDA0
+stride = 0x20
+[[extract.placement_model]]
+set = "enemy"
+class = 0x03
+table = 0x004AEE00
+table_flagged = 0x004AEE40
+stride = 0x20
+[[extract.placement_model]]
+set = "enemy"
+class = 0x04
+table = 0x004B0138
+table_flagged = 0x004B0178
+stride = 0x20
+[[extract.placement_model]]
+set = "enemy"
+class = 0x05
+table = 0x004AF3D0
+table_flagged = 0x004AF410
+stride = 0x20
+[[extract.placement_model]]
+set = "enemy"
+class = 0x08
+table = 0x004AEAF0
+stride = 0x20
+[[extract.placement_model]]
+set = "enemy"
+class = 0x06
+table = 0x004AFA48
+table_flagged = 0x004AFA88
+stride = 0x20
+[[extract.placement_model]]
+set = "enemy"
+class = 0x07
+table = 0x004AF808
+table_flagged = 0x004AF848
+stride = 0x20
+[[extract.placement_model]]
+set = "enemy"
+class = 0x09
+table = 0x004ACBB8
+stride = 0x20
+[[extract.placement_model]]
+set = "enemy"
+class = 0x0A
+table = 0x004AF220
+stride = 0x20
+[[extract.placement_model]]
+set = "enemy"
+class = 0x0D
+table = 0x004AE968
+stride = 0x20
+[[extract.placement_model]]
+set = "enemy"
+class = 0x0E
+table = 0x004AF0EC
+stride = 0x20
+[[extract.placement_model]]
+set = "enemy"
+class = 0x12
+table = 0x004AC968
+stride = 0x20
+# Type 0x10 (init sub_00276580) shares type 0x01's state tables; unless
+# its id is 0x310 it draws through sub_00277CF0, one rigid object.
+[[extract.placement_model]]
+set = "enemy"
+class = 0x10
+object = 0x02BE0690
+texlist = 0x02BD4A68
+# Gimmick 0x52 (breakable block, init 0xC6BF0): 0x407278 + variant * 0x14,
+# {object, second object, texlist}.
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x52
+table = 0x00407278
+stride = 0x14
+texlist_at = 8
+# The other gimmick classes, from each class init (0x403A00[class]) and
+# its draw. Most tables are {object, second object, texlist, ...} at a
+# stride of 0x14 or 0x20 (0x13 is the doors); the rest draw a fixed
+# object. Classes 0x00, 0x04, 0x17 (gates), 0x26, 0x2E, 0x32, 0x3C,
+# 0x44, 0x4F, 0x51, 0x59, 0x70 and 0x74 have no model here: controllers,
+# light sprites, or a model that depends on more than the variant.
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x03
+table = 0x00406550
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x09
+table = 0x00404F7C
+stride = 0x1C
+object_at = 4
+texlist_at = 0xC
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x0C
+table = 0x00406D68
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x0D
+object = 0x01F56658
+texlist = 0x01F55B2C
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x0E
+object = 0x01F58120
+texlist = 0x01F56794
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x0F
+table = 0x004087B8
+stride = 0x14
+texlist_at = 4
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x10
+table = 0x00408750
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x11
+table = 0x00408550
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x12
+table = 0x00404FB8
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x13
+table = 0x004050D8
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x14
+table = 0x004057B8
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x15
+table = 0x00405898
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x16
+table = 0x00405958
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x18
+table = 0x00405C98
+stride = 0x28
+texlist_at = 0xC
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x19
+table = 0x00405FF8
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x1A
+table = 0x003F21B8
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x1B
+table = 0x00406038
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x1D
+table = 0x00406350
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x1E
+table = 0x00407058
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x1F
+table = 0x00407098
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x20
+object = 0x01402A24
+texlist = 0x014018C4
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x21
+object = 0x01403B68
+texlist = 0x01402D94
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x23
+object = 0x0219CBDC
+texlist = 0x0219B00C
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x24
+object = 0x0219D6B4
+texlist = 0x0219CFC0
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x25
+table = 0x0040732C
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x27
+table = 0x004073F8
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x28
+table = 0x00406CC8
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x29
+table = 0x004074C0
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x2A
+table = 0x00406960
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x2B
+table = 0x004082B4
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x2C
+table = 0x00407640
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x2D
+table = 0x00406790
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x2F
+table = 0x00406510
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x30
+table = 0x004064F0
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x31
+object = 0x011880FC
+texlist = 0x011770BC
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x33
+object = 0x01E64234
+texlist = 0x01E60B40
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x34
+table = 0x004076C0
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x35
+object = 0x020A72C8
+texlist = 0x020A1A20
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x36
+table = 0x00406898
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x37
+table = 0x0040694C
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x39
+table = 0x00406B70
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x3A
+object = 0x01E663F4
+texlist = 0x01E64AD4
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x3B
+table = 0x00406254
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x3D
+object = 0x0118645C
+texlist = 0x011851AC
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x3F
+object = 0x01188434
+texlist = 0x011882DC
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x42
+table = 0x00406268
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x43
+object = 0x017C71C4
+texlist = 0x017C733C
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x45
+object = 0x016AA5FC
+texlist = 0x016AA1CC
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x46
+table = 0x00407C7C
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x47
+table = 0x00407738
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x48
+table = 0x00406BE8
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x49
+object = 0x01E6B5B8
+texlist = 0x01E66928
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x4A
+object = 0x01E74DEC
+texlist = 0x01E7431C
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x4B
+table = 0x004076FC
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x4C
+table = 0x00407710
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x4D
+table = 0x00406BC0
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x4E
+object = 0x01E66744
+texlist = 0x01E66614
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x50
+object = 0x01A1F78C
+texlist = 0x01A1A630
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x54
+object = 0x011880FC
+texlist = 0x01177064
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x55
+table = 0x0040672C
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x56
+table = 0x004060B8
+stride = 0x24
+texlist_at = 0xC
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x57
+table = 0x00406750
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x58
+object = 0x020AAB7C
+texlist = 0x020AA070
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x5A
+table = 0x00406D1C
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x5B
+object = 0x0157C864
+texlist = 0x0157B38C
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x5C
+object = 0x01FA6680
+texlist = 0x01F99C2C
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x5D
+object = 0x0295A028
+texlist = 0x02959B68
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x5E
+object = 0x0295FBD0
+texlist = 0x0295A3B0
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x5F
+object = 0x01F9670C
+texlist = 0x01F968E4
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x60
+table = 0x00406D44
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x61
+table = 0x00408578
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x62
+table = 0x0040858C
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x63
+table = 0x004085B4
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x64
+table = 0x004085C8
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x65
+object = 0x0157D1B0
+texlist = 0x0157CDB4
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x66
+object = 0x015953C8
+texlist = 0x0157E724
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x67
+object = 0x014F8F3C
+texlist = 0x014F3EF0
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x68
+table = 0x00406DE8
+stride = 0x20
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x6A
+table = 0x00408868
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x6B
+table = 0x00408890
+stride = 0x14
+texlist_at = 8
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x6C
+object = 0x011880FC
+texlist = 0x011770BC
+[[extract.placement_model]]
+set = "gimmick"
+class = 0x6E
+object = 0x01CFEE54
+texlist = 0x01CFDEA0
+# Ambient 0x01 (gull, sub_00282970): d_b2_kamome.
+[[extract.placement_model]]
+set = "ambient"
+class = 0x01
+object = 0x01BBF5C8
+texlist = 0x01BBEFB0
+# Ambient 0x02 (sub_002835A0) draws a d_hikari_blue light sprite, no
+# model. Items and collectibles: the item type is the class byte, and
+# 0x400528 + type * 0x38 holds {object, texlist, ..., +0x28 scale,
+# +0x2C count, +0x30/+0x34 debris object/texlist}; the item draw
+# sub_00086A80 reads +0 and +4. variants = 1 keeps a non-zero variant
+# from reading the next type's entry.
+[[extract.placement_model]]
+set = "item"
+class = 0x01
+table = 0x00400560
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x02
+table = 0x00400598
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x03
+table = 0x004005D0
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x04
+table = 0x00400608
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x05
+table = 0x00400640
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x06
+table = 0x00400678
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x07
+table = 0x004006B0
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x08
+table = 0x004006E8
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x09
+table = 0x00400720
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x0A
+table = 0x00400758
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x0C
+table = 0x004007C8
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x0E
+table = 0x00400838
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x0F
+table = 0x00400870
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x10
+table = 0x004008A8
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x11
+table = 0x004008E0
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x12
+table = 0x00400918
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x13
+table = 0x00400950
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x14
+table = 0x00400988
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x15
+table = 0x004009C0
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x16
+table = 0x004009F8
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x17
+table = 0x00400A30
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x18
+table = 0x00400A68
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x19
+table = 0x00400AA0
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x1A
+table = 0x00400AD8
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x1B
+table = 0x00400B10
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x1C
+table = 0x00400B48
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x1D
+table = 0x00400B80
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x1E
+table = 0x00400BB8
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x1F
+table = 0x00400BF0
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x20
+table = 0x00400C28
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x21
+table = 0x00400C60
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x23
+table = 0x00400CD0
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x4E
+table = 0x00401638
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x53
+table = 0x00401750
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x54
+table = 0x00401788
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x57
+table = 0x00401830
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x5C
+table = 0x00401948
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x5D
+table = 0x00401980
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x68
+table = 0x00401BE8
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "item"
+class = 0x73
+table = 0x00401E50
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x2A
+table = 0x00400E58
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x2B
+table = 0x00400E90
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x2C
+table = 0x00400EC8
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x2D
+table = 0x00400F00
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x2E
+table = 0x00400F38
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x2F
+table = 0x00400F70
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x32
+table = 0x00401018
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x36
+table = 0x004010F8
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x37
+table = 0x00401130
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x38
+table = 0x00401168
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x39
+table = 0x004011A0
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x3A
+table = 0x004011D8
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x3B
+table = 0x00401210
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x3C
+table = 0x00401248
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x3D
+table = 0x00401280
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x3E
+table = 0x004012B8
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x3F
+table = 0x004012F0
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x40
+table = 0x00401328
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x41
+table = 0x00401360
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x42
+table = 0x00401398
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x43
+table = 0x004013D0
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x44
+table = 0x00401408
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x45
+table = 0x00401440
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x46
+table = 0x00401478
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x48
+table = 0x004014E8
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x49
+table = 0x00401520
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x4A
+table = 0x00401558
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x4B
+table = 0x00401590
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x4C
+table = 0x004015C8
+stride = 0x38
+variants = 1
+[[extract.placement_model]]
+set = "collectible"
+class = 0x4D
+table = 0x00401600
+stride = 0x38
+variants = 1

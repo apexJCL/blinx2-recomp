@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Tests for the host actions in packaging/config.default.toml.
+"""Tests for packaging/config.default.toml: the host actions,
+the hud mod's switch and the movie fill.
 
 The shipped default names menu.open, and the highest file that names an
 action decides all of its bindings (the toolkit's docs/runtime/config.md,
@@ -68,29 +69,38 @@ def _keys_of(binding):
 
 def test_action_keys_are_not_the_games():
     # Rule 2: a key the game receives is refused for a host action, so an
-    # action's key must not be a control's, the walk key, the release key or
-    # a free-camera key (F5 to F8, taken by src/free_camera.c), nor F11,
-    # which the toolkit keeps for the fullscreen hotkey (enhance_input.c
-    # reserved_use).
+    # action's key must not be a control's, the walk key or the release key,
+    # nor F11, which the toolkit keeps for the fullscreen hotkey
+    # (enhance_input.c reserved_use). The actions must not share a key
+    # either: the free camera's F6 (and guide+y), F7, End and Home, which
+    # the camera.free descriptor in src/free_camera.c owns, included.
     cfg = _load()
     inp = cfg["input"]
     used = {"f11": "the toolkit's fullscreen hotkey"}
-    for name, v in cfg["camera"].items():
-        if name.endswith(("_toggle", "_key")):
-            used[v.lower()] = f"camera.{name}"
     for ctl, v in inp["bindings"].items():
         for k in [v] if isinstance(v, str) else v:
             used[k.lower()] = f"input.bindings.{ctl}"
     for name in ("walk_key", "mouse_release_key"):
         used[inp[name].lower()] = f"input.{name}"
     actions = inp["actions"]
-    for name, v in (
+    checked = [
         ("menu.open", actions["menu"]["open"]),
         ("overlay.stats", actions["overlay"]["stats"]),
-    ):
+    ]
+    checked += [(f"camera.free.{a}", v) for a, v in actions["camera"]["free"].items()]
+    assert {n for n, _ in checked} >= {
+        "camera.free.toggle",
+        "camera.free.hud",
+        "camera.free.freeze",
+        "camera.free.reset",
+    }
+    for name, v in checked:
+        mine = set()
         for binding in [v] if isinstance(v, str) else v:
             for key in _keys_of(binding):
                 assert key not in used, f"{name} '{binding}' takes {used[key]}"
+                mine.add(key)
+        used |= dict.fromkeys(mine, name)
 
 
 # Upstream's control names (the toolkit's src/input/input_map.c), the only
@@ -120,6 +130,36 @@ def test_menu_ships_on_strip_off():
     cfg = _load()
     assert cfg["menu"]["enabled"] is True
     assert cfg["overlay"]["stats"] is False
+
+
+HUD_MOD_C = os.path.join(ROOT, "src", "hud_mod.c")
+
+
+def test_hud_mod_ships_on_as_its_descriptor():
+    # The hud mod defaults on (design A16, the user's exception of
+    # 2026-10-30): the shipped line only documents the descriptor's def, so
+    # the two must agree, as an index into its off|on choices.
+    with open(HUD_MOD_C, encoding="utf-8") as f:
+        src = f.read()
+    m = re.search(
+        r'\[SET_ENABLE\] = \{ "enable", NULL, "RECOMP_HUD",.*?XBOX_SET_ENUM, ENHANCE_LIVE,'
+        r"\s*XBOX_SET_ENABLE, (\d+),.*?(k_\w+) \}",
+        src,
+        re.S,
+    )
+    assert m, "hud_mod.c's enable setting not found"
+    choices = re.search(r"%s\[\] = \{([^}]*)\}" % m.group(2), src)
+    names = re.findall(r'"([^"]+)"', choices.group(1))
+    assert _load()["mods"]["hud.enable"] == names[int(m.group(1))] == "on"
+
+
+def test_movies_fill_with_a_wide_aspect():
+    # The user's pick (2026-10-30): the 16:9 title movie fills the width,
+    # crop over stretch. It acts only with a wide aspect, and the aspect
+    # ships 4:3, so stock is unchanged.
+    display = _load()["display"]
+    assert display["movie"] == "fill"
+    assert display["aspect"] == "4:3"
 
 
 def test_goldens_pin_menu_and_strip_off():
