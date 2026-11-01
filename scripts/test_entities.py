@@ -237,12 +237,17 @@ int main(void)
             /* By stage table record: in range, past the count, no stage. */
             struct ent_spawn_spec s;
             struct entl_plan p;
+            int st;
 
             scene(1);
             memset(&s, 0, sizeof s);
             s.stage = 3;
             s.record = 1;
-            printf("%d %X", (int)entl_spawn_check(&m, REC, 0, &s, &p), p.src_placement);
+            /* The check fills p: call it before reading p, never in the
+             * same printf, whose arguments C evaluates in no set order
+             * (gcc on x86-64 reads p.src_placement first). */
+            st = (int)entl_spawn_check(&m, REC, 0, &s, &p);
+            printf("%d %X", st, p.src_placement);
             s.record = 2;
             printf(" %d", check(0, &s));
             s.stage = 4;
@@ -480,9 +485,13 @@ int main(void)
              * takes record 0. */
             memset(g + REC + ENTL_RECORDS * ENTL_PL_SIZE, 3, 100);
             memset(g + REC + ENTL_RECORDS * ENTL_PL_SIZE + 100, 1, 28);
-            printf(" %d %d", entl_rec_age(&m, REC, 0), entl_rec_free_index(&m, REC));
+            /* One call per statement, as in "table": the age writes the
+             * used bytes and the check fills p. */
+            a = entl_rec_age(&m, REC, 0);
+            printf(" %d %d", a, entl_rec_free_index(&m, REC));
             printf(" %d", entl_rec_age(&m, REC, 1));
-            printf(" %d %d\n", (int)entl_spawn_check(&m, REC, 0, &s, &p), p.rec);
+            b = (int)entl_spawn_check(&m, REC, 0, &s, &p);
+            printf(" %d %d\n", b, p.rec);
         } else if (!strcmp(cmd, "cycle")) {
             /* A list that loops back on itself: the walk stops at 64
              * nodes, short of no count the game keeps, so the sweep
