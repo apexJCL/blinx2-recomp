@@ -213,6 +213,19 @@ the Save states page (the user, 2026-10-22). That change owns
 the UI work. This phase keeps the store operations the page calls, the
 CLI verbs and the manual pass.
 
+3G reuses the overlay's file browser from `overlay-revamp` phase G (D6,
+The tracker item) rather than building its own. The browser is the toolkit's
+`src/enhance/file_browser.{c,h}` model under the Files page's view, with
+places, listing, name checks, the overwrite confirm and atomic writes. A
+slot export is then a new `fb_export` job with a `.xbrslot` filter and the
+slot's bytes. A slot import is `fb_import_entry` with a cap that fits a
+slot, followed by this phase's header check. Two things differ from the
+config jobs:
+
+- `fb_add_default_roots` must gain an Exports root at
+  `<save root>/exports/<title_id>/`, or 3G adds it with `fb_root_add`.
+- The import cap is the slot's, not 256 KB.
+
 - 5.1 *Moved to enhance-menu-preview 3G.1* (the slot list in the overlay
   menu: thumbnails, labels, times).
 - [ ] 5.2 The store operations, with no UI: rearrange (`slots.json`

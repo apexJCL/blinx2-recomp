@@ -166,6 +166,14 @@ f2b9ef6).
     scrolled as today, with the scrollbar.
   - Under the toolbar's minimum width (icon plus 8 em of label) the toolbar
     shows icons only, and the focused entry's label shows as a tooltip.
+  - **The toolbar stays on the left and follows the focus** (the user,
+    2026-11-01, Q10): it reads as a menu beside its submenu. While the
+    focus is in CONTENT or FOOTER it shows icons only, and the section gets
+    the width. When TOOLBAR has the focus (a hover, Tab, or the pad path
+    in D3), it shows icons and labels, drawn over the section's left edge
+    so the rows do not reflow. LB/RB from CONTENT show the labels for
+    1.5 s, then the toolbar folds back. Where the panel is too narrow for
+    labels even then, the label shows as a tooltip, as above.
 - **Footer** (D9): hints | unsaved/status | Cancel Save.
 - **Sections:**
   - Render, Shaders, Pack, Game, Mods (each mod's page opens inside it, as
@@ -242,9 +250,33 @@ f2b9ef6).
   - Unchanged in CONTENT. LB/RB change section and the toolbar highlight
     follows; Up/Down move; Left/Right change values; A is OK, B is back,
     X clears, Y saves.
-  - View/Back is Cancel (D9). The pad never needs to enter the toolbar or
-    the header; the size and hints toggles get pad bindings in the footer
-    hint list (L3 = hints, R3 = size).
+  - View/Back is Cancel (D9). The pad never needs to enter the header;
+    the size and hints toggles get pad bindings (L3 = hints, R3 = size).
+  - **B goes up to the toolbar** (the user, 2026-11-01, Q12): a menu and
+    its submenu. B at a section's top level moves the focus to TOOLBAR, on
+    that section's entry, and the toolbar unfolds (D1). In TOOLBAR, Up and
+    Down (or LB/RB) move between entries and show each section beside it;
+    A or Right enters the highlighted section on its remembered row. B in
+    TOOLBAR is the leave request (D9a). The menu opens with the focus in
+    CONTENT, as today, so one B still reaches the toolbar first and a
+    second leaves.
+  - **Down reaches the footer** (the user, 2026-11-01, Q11). Down on the
+    last selectable row moves the focus to FOOTER, on Save when anything
+    is unsaved and on Cancel otherwise. Left/Right pick the button, A
+    presses it, Up and B return to the row the focus came from. Up on the
+    first row stays there. This replaces today's wrap (`move_sel`), so
+    Down no longer jumps from the last row to the first.
+  - **Shortcuts show on their action.** Y (Save), View (Cancel), L3
+    (hints) and R3 (size) stay as shortcuts. Each button that a shortcut
+    presses draws its glyph beside its label (GL.4), so "[Y] Save" and
+    "[View] Cancel" sit on the footer buttons themselves, not only in the
+    hint list.
+  - **Shortcuts never overlap the section.** The global set is Y, View,
+    L3, R3 and LB/RB. CONTENT and FOOTER use only A, B, X, the d-pad and
+    the left stick. A row, a section or a mod page may not bind a global
+    button; a captured-control row (MD) takes every button only while it
+    captures. The action table states each button's owner, and a ctest
+    checks the two sets are disjoint.
   - **View, L3 and R3 act on release, not on press** (the user,
     2026-10-31). A game's menu chord can use them: BLiNX 2's is
     `back+left_thumb@400` (View plus L3, held 400 ms). While any button of
@@ -254,7 +286,9 @@ f2b9ef6).
     Cancel or the hints toggle. The ctest drives the BLiNX 2 chord and
     checks that neither Cancel nor the hints toggle fires.
 - **Keyboard:**
-  - Arrows, Enter, Esc, Q/E and Delete as today.
+  - Arrows, Enter, Esc, Q/E and Delete as today. Esc and Backspace are B
+    (the user, 2026-11-01): at a section's top level they go to TOOLBAR,
+    and in TOOLBAR they are the leave request (D9a).
   - Tab and Shift+Tab cycle TOOLBAR, CONTENT and FOOTER. In TOOLBAR, Up and
     Down change section.
   - F5 and Ctrl+S save (Cmd+S as well on macOS), Shift+Esc cancels. F1
@@ -274,9 +308,13 @@ f2b9ef6).
     - choice arrows: step it;
     - slider: jump, and drag to the value snapped to `step`;
     - the label: OK.
-  - The wheel scrolls the viewport without moving the selection. Once the
-    selection leaves the viewport, the next key press re-anchors it to the
-    first visible row.
+  - The wheel over a slider or a choice (its track, arrows or value)
+    steps the value, one step a notch, through the same event as the
+    pad's Left/Right, so it applies live as the pad does (the user,
+    2026-11-01). Anywhere else it scrolls the viewport without moving the
+    selection. Once the selection leaves the viewport, the next key, pad
+    or pointer press re-anchors it to the first visible row and is spent
+    there: it does not also move, step or activate.
   - Right-click is back. Clicks on the backdrop do nothing; they never
     close the menu, so a missed click is never destructive.
 - **Latest device:**
@@ -306,6 +344,15 @@ f2b9ef6).
     menu is open.
   - `nv2a_overlay_placement` maps it to placement pixels once, in the
     input layer (above).
+  - Under `present.surface = internal` the window and the output differ
+    (the user, 2026-11-01). Each presenter publishes the window-to-output
+    view (scale and letterbox offset) next to the placement with
+    `nv2a_overlay_set_view`: Metal the layer's aspect fit
+    (`kCAGravityResizeAspect`), D3D11 the DXGI stretch of the back buffer
+    over the client area. SDL ignores `internal`, so its view is the
+    identity. `pointer_step` maps the pointer through
+    `nv2a_overlay_to_output` before the placement, and the IME's rect
+    goes back through `nv2a_overlay_to_window`.
 - **Game mouse while the menu is open:**
   - 3F is absorbed whole. On open the menu records the capture and divert
     state, calls `xbox_InputMouseSuspend(1)` (the cursor is freed and shown
@@ -387,7 +434,9 @@ f2b9ef6).
   - *Always available:* the in-overlay keyboard (OSK). It is a pad-driven
     key grid docked under the field, with letters, digits, `-_ .`, space,
     backspace and done. It opens when a text field takes focus while PAD is
-    the latest device and no Steam keyboard opened. It replaces the
+    the latest device, or when the mouse or a touch starts the edit and no
+    key has been pressed this session (the user, 2026-11-01), and no
+    Steam keyboard opened. It replaces the
     letter-cycle editor.
   - The OSK's footer hint names "Steam + X: system keyboard" when Steam is
     present.
@@ -554,6 +603,40 @@ f2b9ef6).
   - A shader profile is copied into `shader-profiles/` under a unique slug,
     and nothing is overwritten. Env-forced keys are skipped and named.
 - **3G save-state export** (save-states D9) reuses the browser.
+- **As built (phase G, toolkit `feat/ovl-files`):**
+  - *The version check* is a marker comment on an export's first lines,
+    `# xbr-export: config 1`, because a config has no version key. A
+    second line names the unsaved keys an export included. An import
+    refuses a marker with a higher format, or one that names another kind
+    (a slot, later). A file with no marker is read as format 1, since it
+    is a hand-written config.
+  - *One Import row* tells a config from a shader profile by its
+    top-level `stages` array. It replaces separate config and profile
+    rows. The profile is checked with `shader_profile_parse` (a newer or
+    broken one is refused). It is named by its own name's slug, as Save
+    as new names files, then written with `fb_import_unique`, which uses
+    an exclusive create and so needs no temp file.
+  - *Export shader profile* writes the active profile's file as last
+    saved. It is available only for a saved user profile. A profile with
+    unsaved edits exports its saved file, and the row says so. A bundled
+    preset or a path is a config key and goes out with Export settings.
+  - *Exports* live in `<user config dir>/exports/`, with no `<game>`
+    subfolder. The user config dir is already per game, so
+    `fb_add_default_roots` gets `game` NULL.
+  - *Game Mode* is `RECOMP_HOST_GAMESCOPE=1`, the launcher's signal that
+    `present.surface=auto` already reads. It is not a new key.
+  - *Kept keys* take effect at the next start, like `menu.enabled`. At
+    most 64 are held per session. An import over that is refused whole.
+    So is one whose kept keys would not patch into the user file (a kept
+    `a.b` over a scalar `a`). A kept key equal to the user file's value
+    is not counted.
+  - *Imported bindings* (`input.actions.<name>` for a registered action)
+    are changes, each binding checked by `enhance_action_check`. An
+    unbound `menu.open` is refused, as Clear refuses it.
+  - *Open exports folder:* `ShellExecuteW` runs on the menu's thread on
+    Windows. Elsewhere the menu posts the path to a one-slot request that
+    the SDL window thread takes each frame (`xbox_HostOpenSdlSync`),
+    because SDL wants `SDL_OpenURL` on its own thread.
 
 ### D7. Section and header icons
 
@@ -716,8 +799,10 @@ f2b9ef6).
 
 - **When it opens:** a request to leave the menu while
   `enhance_menu_unsaved() > 0`. That request is any of:
-  - B or Esc at the top level of a section (not inside a mod page or a
-    capture, where B still goes back one level);
+  - B, Esc or Backspace on the toolbar (Q12; Esc and Backspace act as B,
+    the user, 2026-11-01). Any of them at a section's top level goes to
+    the toolbar instead, and inside a mod page or a capture B still goes
+    back one level;
   - the footer's Cancel button, pad View or Shift+Esc;
   - the header's close `x`;
   - the menu's own toggle (F10, guide+A, paddle1).
@@ -892,6 +977,31 @@ f2b9ef6).
     "`{act:camera.toggle}` to fly, `{pad:ls}` move".
   - The freeze and reset defaults follow the save-states spec (End and
     Home) if it has merged by then. Otherwise they keep F7 and F5.
+- **As built in phase F, where it differs from the above:**
+  - **Glyph rows through a token.** The binding rows draw a glyph form of
+    their value built from a new `{bind:}` token (one config binding: a
+    pad chord as pad glyphs, anything else as key caps, `mouse1` .. `5` as
+    the click). The Controls page shares the row code, so its rows draw
+    glyphs too. The plain text stays the row's value; the glyph form falls
+    back to it when it does not fit.
+  - **Mouse capture binds fly buttons only.** A left, right or middle
+    click binds a BUTTON control as `mouse1` .. `mouse3`, held like a key
+    (a new `ENHANCE_CTL_MOUSE` source; the wheel steps, so it is refused).
+    Actions keep refusing mouse inputs (the action table's rule), and a
+    click on a stick row is refused with the reason. The click that was
+    down as capture started never binds.
+  - **The reset row is named after the mod:** "Reset free camera
+    controls". It puts back every control's stock binding, actions and
+    fly controls, and leaves the settings alone.
+  - **The page intro is the descriptor summary,** the About row, with
+    tokens: "`{ctl:toggle}` to fly, `{ctl:move}` move ...". The section
+    intro above the rows stays the Mods page's.
+  - **Token choice.** Settings and the summary use `{ctl:}`, which reads
+    against the mod only on its own page. Action help is also shown on the
+    Controls page, so it names other actions with `{act:camera.free.*}`.
+  - **Units:** the five sliders read `×` (was `x`).
+  - **F.3 waits:** the freeze and reset defaults were already End and
+    Home; nothing changes until the save-states merge.
 
 ### D12a. Mod glyph API and status panel (Q5, the user, 2026-10-31)
 
@@ -1020,7 +1130,7 @@ Standalone ctests in the toolkit, with no window and no GPU:
 | Test | Covers |
 |---|---|
 | `tests/enhance_menu_layout` | D1 and D2 rects at the sizes in D2. The toolbar collapses below its minimum. The expanded cap holds on 21:9. Each row centre hit-tests to its row and part. Clipped rows are not hittable. |
-| `tests/enhance_menu` (extended) | D3 focus with synthetic events: a still mouse does not steal the selection; hover moves it; a pad press hides the cursor; latest-device hint sets. D9a dialog (triggers, Go Back focus, swallow window, access keys, failed save), revert and Save from any page. D10 marker states, by-value compare against `slot_stock()`. D11 tooltip timing on a fake clock. View and L3 fire on release; BLiNX 2's `back+left_thumb@400` chord fires neither Cancel nor the hints toggle. The menu's hold and release of a mod's mouse divert. |
+| `tests/enhance_menu` (extended) | D3 focus with synthetic events: a still mouse does not steal the selection; hover moves it; a pad press hides the cursor; latest-device hint sets. D9a dialog (triggers, Go Back focus, swallow window, access keys, failed save), revert and Save from any page. D10 marker states, by-value compare against `slot_stock()`. D11 tooltip timing on a fake clock. Esc and Backspace as B; the wheel stepping a slider or choice and scrolling elsewhere; the OSK for a mouse-started rename; the pointer mapped through a published view. View and L3 fire on release; BLiNX 2's `back+left_thumb@400` chord fires neither Cancel nor the hints toggle. The menu's hold and release of a mod's mouse divert. |
 | `tests/input_text` | UTF-8 and UTF-16 surrogate pairing (a lone surrogate dropped), control characters dropped (Tab, 0x13), ring overflow and its count, Begin/End gating, a producer thread against a consumer thread, the request generation seen by a fake sync. |
 | `tests/shader_param_kinds` | D5 rule over the inventory above (FSR_GRAINCOLOR a toggle with its label trimmed), sidecar override and help, the file key. |
 | `tests/file_browser` | D6 roots, sorting, filters, `..` stops at the root, unique import slugs, on a temp dir. Name sanitising (separators, `..`, `:`, reserved names, trailing dot or space, length), a symlink out of the root refused, the size cap, temp+rename writes, the overwrite confirm state. |
@@ -1077,7 +1187,7 @@ but run because the runtime changes.
 
 Behaviour changes a player notices, for the release notes:
 - the row dot means unsaved, not "applies now";
-- B or Esc at the top level asks when something is unsaved (D9a);
+- B or Esc on the toolbar asks when something is unsaved (D9a); in a section it goes back to the toolbar (Q12);
 - X (pad) or Delete resets the selected row to its default on every row
   that has one, and the action is named "Reset to default (<value>)";
 - View and L3 act on release;
@@ -1107,3 +1217,13 @@ Behaviour changes a player notices, for the release notes:
 - **Q9. Answered (the user, 2026-10-31):** the View and L3 menu actions
   fire on release, and are suppressed while a game's menu chord is held,
   e.g. BLiNX 2's `back+left_thumb@400` (D3).
+- **Q10. Answered (the user, 2026-11-01):** the toolbar stays on the left
+  (a menu and its submenu). It shows icons only while the section or the
+  footer has the focus, and icons and labels when it has the focus (D1).
+- **Q11. Answered (the user, 2026-11-01):** Down from the last row moves
+  to the footer's buttons. The shortcuts stay, with each one's glyph on
+  its button, and never collide with a section's own buttons (D3).
+- **Q12. Answered (the user, 2026-11-01):** B at a section's top level
+  goes back to the toolbar, on that section's entry. A on the toolbar's
+  active entry enters its section again. B on the toolbar is the leave
+  request: it closes at once, or opens the unsaved-changes dialog (D9a).

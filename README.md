@@ -121,7 +121,8 @@ install it there:
 Saves (`hdd/`), settings (`config/`) and logs (`logs/`) live outside the
 program files and survive every update, rollback and uninstall.
 [docs/packaging.md](docs/packaging.md) has the long version: every installer
-option, updating, uninstalling, moving saves and a troubleshooting list.
+option, updating, uninstalling, moving saves (the menu's Saves page) and a
+troubleshooting list.
 
 **Updating to a new release.** Run the new release's wizard on the same
 build folder, or by hand `git pull` and then `./blinx2` in this folder.
@@ -480,8 +481,8 @@ reports what is in use and whether it is the pin.
 
 | Component | Pinned at | Where | Notes |
 |---|---|---|---|
-| xboxrecomp-cli (`xbr`) | tag `v0.19.0`, commit `70c9856` | `game.toml` `[cli]` | The commit locks the tag: a tag moved to another commit is refused. |
-| xboxrecomp toolkit (fork) | tag `blinx2-v0.12.0`, commit `1551c42`, branch `blinx2/portability` | `game.toml` `[toolkit]` | Cloned into `external/xboxrecomp` by `setup`. |
+| xboxrecomp-cli (`xbr`) | tag `v0.20.0`, commit `d047f6c` | `game.toml` `[cli]` | The commit locks the tag: a tag moved to another commit is refused. |
+| xboxrecomp toolkit (fork) | tag `blinx2-v0.13.0`, commit `40ed51d`, branch `blinx2/portability` | `game.toml` `[toolkit]` | Cloned into `external/xboxrecomp` by `setup`. |
 | llvm-mingw | `20260922` (clang 23.1.2) | `game.toml` `[toolchain]`, hashes in `config/setup-pins.json` | Cross-compiles the Windows build on every host. |
 | NSIS | `3.13` | `game.toml` `[toolchain]` | Fetched on Windows; Homebrew or the distribution elsewhere. |
 | umu-launcher | `1.4.4` | the CLI | What the SteamOS installer offers to download on a stock Deck. |

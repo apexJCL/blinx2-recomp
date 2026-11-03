@@ -80,7 +80,7 @@ It calls sub_00163550 and stores the hit flag in `[0xB90B88]`. On a hit it moves
 ## 4. The player
 
 - **Calls.** The player update sub_00176150 calls sub_001636C0 with return addresses 0x178F92, 0x184F26, 0x185063, 0x185239, 0x185503, 0x185959 and 0x185B65, each with flags 7: the face (2) and edges (4); vertices (8) are off, and bit 1 is not read by the triangle test.
-- **Chained calls.** The call returning at 0x185063 runs only when the one returning at 0x184F26 found a contact (`je 0x1850E6` at 0x184F35 skips it otherwise), and it re-queries from the pushed centre. The call returning at 0x185239 runs on every path through that block.
+- **Chained calls.** The call returning at 0x185063 runs only when the one returning at 0x184F26 found a contact (`je 0x1850E6` at 0x184F35 skips it otherwise), and it re-queries from the pushed centre. The call returning at 0x185239 runs on every path through that block. **Correction (§9):** 0x184F26 and its re-query 0x185063 are dynamic-object queries only. They set flag 0x4 in sub_00163550's flags, so the static walk is skipped (0x163587) and they never take a stage face; 0x185959 and 0x185B65 are the stage queries.
 - **Sphere.** The centre is the player position (+0xEC/+0xF0/+0xF4) plus an offset. Afterwards the position becomes the new centre minus that offset.
 - **Radius.** sub_001A3160(player, 1) returns it per character and state. Values seen: 1.5, 2.95, 3.8, 4.0, 5.5 and 6.0.
 - **Other callers.** Enemies and objects call the same functions: sub_001636C0 from 0x8xxxx, 0x9363B and 0x2xxxxx, and sub_00163550 directly from 0x810B0, 0x813BB, 0x8A55F, 0x8A8CF, 0xC376B, 0xC4527, 0x28B208, 0x28B81B and 0x28E6A5.
@@ -95,7 +95,7 @@ It calls sub_00163550 and stores the hit flag in `[0xB90B88]`. On a hit it moves
 - B passes the face test once `|s_B| <= r`, that is `d >= w - r`, and beats F once `s_B < s_F`, that is `d < w/2`.
 - So B wins while `w - r <= d < w/2`. That window exists only when **`w < 2r`**: up to 12 units at the largest radius, 6.0.
 - If `w < r`, the window starts before the centre reaches F: a sphere touching F from the front can already pick B.
-- The push from B moves the centre to `1.1 r - 0.1 s_B` beyond B, out of reach of both faces. The chained re-query at 0x185063 (§4) then sees no wall and cannot undo it. But that is one query: in the one in-game case (§6), the player update ran its collision block again from the previous position (the loop from 0x185AB1 back to 0x1858BC) and that pass did undo it.
+- The push from B moves the centre to `1.1 r - 0.1 s_B` beyond B, out of reach of both faces. The chained re-query at 0x185063 (§4) then sees no wall and cannot undo it. But that is one query: in the one in-game case (§6), the player's collision block ran again in the same frame from the previous position, and that pass did undo it. The second run is suspect as first attributed (§9): it is not the loop from 0x185AB1 back to 0x1858BC.
 - A wall at least `2r` thick cannot be passed this way through its broad faces. It can be passed only at corners and side faces, where another face's back is within `r` of the centre while that face's projection still contains it (a pillar's corner, a wall's end).
 
 **Why only sometimes.** Since the test keeps one best for every contact (§3), the walk's order only breaks exact ties, so the walk order does not explain it (the contact-order hypothesis is dropped). The bug needs the centre to be behind both faces of a thin wall with the far face the deeper one: `w - r <= d < w/2`. Ordinary movement rarely gets there. The player moves less than `r` per frame and the near face pushes it back out while `d < w - r`. Only a step that lands in the window in one frame does it.
@@ -177,7 +177,7 @@ Of several such faces, the smallest `s_Y` wins. Without X's face, the test would
   - **Stock** pushed the centre 9.75 behind F, out of the far side.
   - **The fix** (`W`: F written in B's place) pushed it 4.55 in front of F.
 
-  In stock, the player update then ran its collision block again in the same frame. The code has a loop back from 0x185AB1 to 0x1858BC. The pass started 3.5 in front of the previous position, so the player ended in front of the wall in both runs. So the injected step does not reproduce a full pass-through at this spot: something in the player update can undo a far-side push. A follow-up should find what sends the update back, and whether the pot or the wall-jump state skips it.
+  In stock, the player's collision block then ran again in the same frame (first put down to the loop from 0x185AB1 back to 0x1858BC; that loop holds only the 0x185959 call, so the rerun is more likely a second update tick, §9). The pass started 3.5 in front of the previous position, so the player ended in front of the wall in both runs. So the injected step does not reproduce a full pass-through at this spot: something in the player update can undo a far-side push. A follow-up should find what sends the update back, and whether the pot or the wall-jump state skips it.
 
   In about 5600 frames of ordinary play on the stage (`T1on`) the fix never acted. Neither did the golden: it ran with the mod off and passed.
 
@@ -276,9 +276,86 @@ A later one-shot check would confirm the cyan name cheaply: on M14 and M21, log 
 - **Shapes.** The `-col` shape suits a player-centred probe only for classes the player hits. `enemy_wall` and `camera_floor` are air to the player. A second list, `[extract] collision_player_skip = [0x00FFFF, 0x7F7F00, 0x0000FF]`, would draw them with no shape, like `collision_skip`; that is a choice for the CLI change, since an enemy-side probe would want them.
 - **Supersedes** the old Risks note that the classes' meanings were unknown. Naming the always-tested surface types (`0x7F0000`, `0xB2B2B2`, `0x00007F`, `0xFFFF00` and others) is separate work: they change what a contact does, not whether it happens.
 
+### The names in the extract (done)
+
+The CLI change (`xboxrecomp-cli` branch `feat/extract-collision-classes`) takes the proposal above with these differences:
+
+- **Rows.** A row has `value` (not `colour`), an optional `mask` (default `0xFFFFFF`), `name` and an optional `colour`. The first row whose `value` equals `class & mask` wins, so a game whose class is a bit field can name a family with one row. `colour` only replaces the debug mesh's colour; by default it is the class colour, as before. The CLI rejects a `value` with bits outside its `mask`, a row that an earlier row covers (its mask no wider than the later one's and the later value agreeing on it, `mask = 0` included: the later row could never match), and a name that is not `[a-z0-9_]+` (a full match) or that is, or ends after `_` in, a Godot import hint (`col`, `colonly`, `convcol`, `convcolonly`, `rigid`, `noimp`, `navmesh`, `vehicle`, `wheel`, `occ`, `occonly`, `loop`, `cycle`, `vcol`).
+- **Names.** BLiNX 2's rows in `game.toml` are the table above, with `0xFFFFFF` named `untested` rather than `skip`: the node name already says whether a class has a shape (`-col`), and the name says why. The other always-tested surface types stay unnamed (`col_0x<rrggbb>-col`).
+- **The `0x` token.** Nodes are `col_0x<rrggbb>` and `col_<name>_0x<rrggbb>`, with or without a table (this renames the no-table nodes, which were `col_<rrggbb>`). Godot strips a node name's trailing digits and `_` before it looks for an import hint, so a digit-only colour let a skipped class named `rigid` import as a RigidBody3D, `a_col` as a StaticBody3D and `x_navmesh` as a NavigationRegion3D (checked in Godot 4.7.2). No hint ends in `x`, so the token never strips into one; the name check above is the second guard.
+- **Godot.** Nodes and `collision.json` are as proposed. The stage scene also marks the collision instance `[editable path="collision"]`, so the Scene dock lists one node per class and its eye hides that class alone. `collision.gd`'s `C` and `show_meshes` now hide the collision glTF's top node instead of setting each mesh's `visible`, so they no longer undo the classes hidden in the dock. The shapes stay either way. The dock's choices are saved in the stage's `<stage>.tscn`, which the extract rewrites, so they are lost when it is rerun.
+- **Shapes.** Unchanged: `collision_player_skip` was not added. Every class but `0xFFFFFF` keeps its shape, so a player-side probe still has to leave out `enemy_wall`, `camera_floor` and `unused_blue` itself; the names now make that a filter on the node name.
+- **Pin.** The pinned CLI (v0.19.0) rejects the unknown key, so the table in `game.toml` lands with the pin move to a CLI that knows `collision_class`, in its own commit; this note merges first. Until then the extract runs with `XBOXRECOMP_CLI_DIR`.
+
+## 9. The sandwich clip
+
+**The report.** A video recorded on the recomp (Stage 2, TS-1000S LV2, stage time 0:19 to 0:41): the player wall-jumps between a pot and a tall wall with a torch, white gas cylinders beside it. At 0:39.7 the camera is under the floor, then the player falls through the green void and "Retry checkpoint?" appears.
+
+**The spot tried.** Stage 2's dynamic table holds four pots (model `0x13145E4`, bounding radius 22.8). Entry 3, at (315, -65, -820), is the only one with gas cylinders beside it (entries 4..6 and 39) and a wall within reach. It sits on the ledge of the recess at x 300..390, z -840..-810, in front of:
+- the step face at x = 302 (tri 1106 and 1320, facing +x, y -80.88..-60);
+- the tall wall at x = 300 (tri 642, 678 and 1101..1103, facing +x, y -400..-80).
+
+Behind x = 300 there is no stage geometry: a centre that gets more than `r` behind those faces has nothing under it and falls into the void, as in the video. The pit in front of the ledge (z > -810) has a floor only of class `0x7F7F00` (`camera_floor`, off for the player), so falling into it also ends in the void, but legitimately.
+
+That the video shows this pot is a guess from the frames: gas cylinders on one side and stairs ahead match, but the video's angle does not pin the place.
+
+**Getting there.** Teleporting the player (pokes of +0xEC and +0xF8) into the recess sets off the Operator statue's dialog ("This is the Operator."), which holds the player until A dismisses it. That was the "freeze" of the first teleports, not a room boundary.
+
+**The pad scripts** (PC D3D11, `RECOMP_WALLS=on`; `runs/sandwich-clip/scripts/tp6.txt`, `tp7.txt`):
+- `tp6`: the player placed at (306, -61, -820), between the pot and the step face; dialog dismissed; the stick held toward the wall, then sideways, with jumps.
+- `tp7`: placed at (306, -61, -817); 30 s of jumps every 0.5 s while held toward the wall and toward each side.
+
+**The contact sequence** (`walls_trace` R, H and Y lines; one frame of `tp6`, 3212, `r` 4.0). Each frame the player update runs its collision block, and on most frames in the gap it runs it twice: a second run of the whole collision block in the same frame (`184F26 [185063] 185239 185959 [185B65]` twice), most likely a second update tick; the loop from 0x185AB1 back to 0x1858BC holds only the 0x185959 call, so it cannot be what reruns 0x184F26. The traces never show two 0x185959 queries in a row.
+
+| Order | Site | Walk | Contact | Push |
+|---|---|---|---|---|
+| 1 | `0x184F26` | dynamic only | pot (entry 3, priority 3), normal (-0.866, 0, -0.5) | 0.17, toward the wall |
+| 2 | `0x185063` | dynamic only | none (re-query from the pushed centre) | |
+| 3 | `0x185239` | | none | |
+| 4 | `0x185959` | stage | tri 1320 edge, then tri 1106 face, s 2.56 | 1.58, away from the wall |
+| 5 | `0x185B65` | stage | none | |
+| 6..10 | second run of the block | | pot push 1.04, then tri 1320 face, s 2.82 | 1.30 back |
+
+- The pot's contact always replaces the walk's at 0x184F26 because that query skips the walk: its priority (3) never matters there. At 0x185959 the walk runs and the pot does not answer.
+- The pot face and the step face form a wedge: at z = -819 they are 7.4 apart, less than `2r`. The two pushes alternate and the player jitters by 0.6 per frame (frames 3213 to 3253), which is the "sandwich".
+- **Which push carries the player through:** only the pot's, at 0x184F26. It is the one push applied with no stage test, and the stage query that follows (0x185959) is double-sided only within `r`. A pass needs one pot push that moves the centre more than `r` behind the step face (or the tall wall); then 0x185959 sees nothing and nothing undoes it.
+- **The second run of the block** is neither skipped nor overwhelmed in these runs: it ran on 178 (`tp6`) and 168 (`tp7`) frames, each time pot first and stage second, and each time the stage query pushed the centre back in front.
+
+**Margins seen** (`tp6`, `tp7`). Over 289 and 268 pot contacts the largest pot push was 2.23 and 2.64, and the deepest stage contact afterwards was s = 0.53 in front of tri 1106. In the middle of the wedge (z ≈ -820) the centre never got behind a face.
+
+**The stage confirmed.** The user named the stage as Sweepers 2-1, with the trash static, the vacuum unused, and mostly wall jumps toward the wall. 2-1 is `M21`, stage index 5 (`0x5eb638` = 5), the stage these runs load; pot entry 3 is on it. A static pot rules out a moving push, so the push has to come from the geometry.
+
+**The player's fields** (`walls_trace` `pd:f`, an `X` line with player 0's record per frame; record at 0xCD2440, stride 0x30C). Velocity is at +0x130 (y), +0x138 (x) and +0x140 (z), and +y is down. The floor here is y -60, and a jump peaks near -86. The state at +0x034 is 0 on the ground (+0x288 = 1 when grounded), 1 in a jump, 2 in the second jump or hover on a second A press, 0x11 for the 3 landing frames, and 0x10 while falling without a jump (after a drop or off an edge, and through the void). There is no wall-jump state. A "wall jump" is a jump against the wall: horizontal speed stays at most 1.46 per frame, and +0x138 keeps its value while a wall blocks the player.
+
+**The clip: a convex corner** (`tp10`, reproduced only with a carried fall; see the clean re-run below). The step face (tri 1106, x = 302, facing +x) ends at z = -810, where the block's front face (tri 1107/1108, x 300..302, facing +z, y -80.88..-60) meets it. The ledge floor at y = -60 covers only x 302..388, and there is nothing inside the block (x < 302). The pot pushes the centre onto its own line `s_pot = 4`, which crosses x = 302 at z ≈ -814.2. If the centre starts the frame near that corner (x ≈ 305, z above about -812.5, in the step's height band y -80.9..-60), the pot's push at 0x184F26 lands it just behind face 1106. The stage walk at 0x185959 keeps the face with the lowest signed s. That is not 1106 but its perpendicular neighbour 1107/1108, whose plane the centre is now far behind. The game pushes out through that front face, out of the block into the pit, and the player falls into the void. One frame of `tp10` (4084, drop at (304.5, -66, -812.5), stick toward the wall):
+
+| Site | Contact | s | Push | Centre after |
+|---|---|---|---|---|
+| `0x184F26` | pot entry 3 | | 2.94 along (-0.866, 0, -0.5) | (301.92, -68, -813.99): 0.08 behind 1106 |
+| `0x185959` | tri 1107 (+z), s_prev -2.50 | -3.99 | 8.79 along +z | (301.92, -68, -805.2): pit side |
+
+The player then falls (y to +54). The same run clipped on 5 further drops (frames 4115..4237; 4175 and 4206 took tri 1108) with starts z -812.5..-810. Near misses with starts below z -812.5 (frame 4510: x 302.08, z -814.26, pot push 4.05; `tp9` attempt 0: x 302.17, z -814.90, mid-jump, v(-1.05, +2.95, +1.01)) stayed in front of 1106 and were pushed back. The clip is in stock too: the game's own stage test does the 8.79 push. The `walls` mod is on in these runs and does not act.
+
+**The `tp10` drops were not clean starts.** The script poked only the position (+0xEC, +0xF8), so every drop kept the state and velocity of the fall before it: state 0x10 and v(x -0.18, y +4.0, z +1.45), the last +1.45 toward the pit (X lines, frames 4080..4096). All 7 clips had exactly that velocity. `tp10z` (`runs/sandwich-clip/tp10z-20261101-114014`, the same drops with +0x130, +0x138 and +0x140 zeroed and the state set to 0 on each drop) gave **no clip in 43 drops**, including the 18 at the corner. The closest was a near miss at start z -811.5 (pot push 2.67, centre to x 302.14 at z -814.39, still in front of 1106). So the mechanism is shown (a pot push behind 1106, then the game's push out through 1107/1108), but the state that reaches it here came from a fall at full speed (+4.0 per frame down, +1.45 toward the pit) beside the corner, which the player would have to reach on their own. That weakens the reproduction: it is a reproduction of the corner's collision answer, not of a route a player takes.
+
+**Why `walls` misses it.** The Q line's delta for the 0x185959 query includes the pot's push: d(-2.58, 4, -1.49), from (304.5, -72, -812.5). The step (1.24 r) is within `WALL_STEP_MAX`. `wall_decide` asks `wall_entry_face` for the face the centre crossed this frame, and that function accepts only a face opposed to the taken one (`dot3(tx->n, ty->n) < -0.5f`), the thin-wall case. Here the face crossed (1106, +x) is perpendicular to the face taken (1107/1108, +z), so no entry face is found (H act `-`, entry -1) and the game's push stands.
+
+**Natural inputs** (`tp11a`..`c`, `tp12`). Runs and jumps toward the wall from the ledge, one attempt per run (starts z -823.5, -822, -820.5), and ledge-edge approaches from x 308..312, z -812..-811 with the stick toward the wall and repeated jumps. No clip came from these. The closest stage inputs were x 303.35..303.71 at z ≈ -805.5, and 1107/1108 were hit only at the corner vertex. One `tp12` drop fell into the pit past z -810, which is the open edge (a legitimate fall). To clip, a jump has to reach the wedge between the pot and the corner, z above about -812.5, within 2 to 3 units of x 302 and in the step's height band. Repeated wall jumps along the step toward the corner are the likely way in. The user's `RECOMP_PAD_RECORD` file would confirm it.
+
+**Options.**
+
+| Option | What | For | Against |
+|---|---|---|---|
+| A. Extend `walls` | Let `wall_entry_face` also take a non-opposed face (a convex corner, dot of the normals < 0.5) that the centre crossed front to back this frame (s_prev ≥ -EPS, `|s| <= r` now, the point inside the face). The existing rule then puts the centre `r` in front of that face (1106) instead of the game's push through 1107/1108. **Guard:** take the corner face only when it is the shallower one (`|s|` of the crossed face below the game's face's: 0.08 against 3.99 here, the reverse on a step-up), and/or only when both faces are near-vertical (small `|n.y|`) | One switch (`RECOMP_WALLS`) for both clips; reuses the delta (which already includes the pot's push), the triangle copy and the probe; stock untouched | Widens a rule proven on opposed faces; legitimate convex corners (a step-up or ledge top, a riser meeting the floor above at 90°) look exactly like this clip, and without the guard the rule would push the player back off the riser. Tests: ctests for inside corners and for step-ups and ledge grabs, an obtuse 60..120° corner in the probe, and a natural stairs-and-ledges run with `fix:0` against `fix:1` |
+| B. A separate opt-in fix | A swept clamp of dynamic-only pushes (0x184F26, 0x185063) against the stage triangles | Toggles apart from the thin-wall rule | Two switches and two triangle copies for one class of bug; A already catches this case at the stage query |
+| C. Leave it | Stock only | Keeps the clip for speedruns | The clip stays in the opt-in "fixed walls" mode too |
+
+**Recommendation: A.** The mechanism is the thin-wall one seen from a corner: the centre crosses one face, and the stage test picks a different face it is far behind and pushes it out the wrong side. `wall_entry_face` already has the crossing in hand; only the opposed-normal filter rejects it. It stays in the opt-in `walls` mod, so stock (and its speedrun value) is unchanged. Since only a carried fall has clipped so far, write it once a natural route (the user's `RECOMP_PAD_RECORD` file) shows the same contact pair, and keep the guard above.
+
 ## Risks
 
 - **Double-sided shapes.** Godot's concave shapes are double-sided by default and the game's face test is too. The debug view does not show which side is the front. A later pass could tint back faces to show where §5 bites.
 - **Which player a query belongs to.** The walls mod gives a sphere query to the nearest player whose position is within 12 units of its centre; the query's arguments carry no player pointer. In co-op, two players closer than that can swap, and the fix then reads the other player's step. The worst case is a wrong previous centre: the rule then finds no entry face (the game's contact stands) or, with both players moving the same way, the right one. The step bound (`2r`) caps how far off it can be. Reading the player from the caller's frame would remove the guess; it was not needed for one player.
 - **Unproven in play.** The fix is opt-in and labelled experimental: the probe shows the rule on the game's own triangle test, but no pass-through in play has been reproduced (§6), so it has not been seen to fix one there.
+- **The sandwich clip is reproduced only by placement with a carried fall** (§9). Drops near the corner of pot entry 3 on 2-1 clipped only while they kept the previous fall's state 0x10 and velocity (+4.0 down, +1.45 toward the pit); clean drops (`tp10z`, velocity and state zeroed) and natural runs and jumps did not clip. The user's pad recording would confirm the spot, and the convex-corner rule is not written.
 - **Class names are inferred.** §8 reads them from the code; none was confirmed in play (§8, runtime check).

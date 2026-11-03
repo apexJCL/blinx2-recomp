@@ -70,7 +70,7 @@
 
 enum {
     SET_ENABLE, SET_SPEED, SET_LOOK, SET_MOUSE, SET_INVERT_X, SET_INVERT_Y,
-    SET_FAST, SET_SLOW, SET_HUD, SET_N
+    SET_FAST, SET_SLOW, SET_HUD, SET_INDICATOR, SET_REMINDER, SET_N
 };
 enum {
     CTL_TOGGLE, CTL_HUD, CTL_FREEZE, CTL_RESET,         /* host actions */
@@ -79,6 +79,8 @@ enum {
 
 static const char *const k_offon[] = { "off", "on", NULL };
 static const char *const k_hud[] = { "keep", "hide", NULL };
+enum { REMIND_BRIEF, REMIND_ALWAYS, REMIND_NEVER };
+static const char *const k_remind[] = { "brief", "always", "never", NULL };
 
 /* What the camera holds, and what is a setting (D10; mod-settings D6's
  * audit, from this file and free_cam_fly.{c,h}). Before adding a knob,
@@ -92,6 +94,9 @@ static const char *const k_hud[] = { "keep", "hide", NULL };
  *   FC_FAST x4, FC_SLOW x0.25      fast, slow    a preference
  *   pitch and yaw signs            invert_x, _y  a preference
  *   HUD hidden while flying        hud           already a key
+ *   the on-screen card             indicator     a preference (D12a)
+ *   its controls lines, 10 s       reminder      brief, always or never;
+ *                                                the 10 s is not a knob
  *   stick dead zones 7849 / 8689   no            input.pad_deadzone_* apply
  *                                                first; these are the XInput
  *                                                floor fc_axis needs
@@ -111,18 +116,18 @@ static const struct xbox_mod_setting k_set[SET_N] = {
     /* name, key, env, aliases, label, help, unit, kind, live, flags,
      * def, lo, hi, step, choices */
     [SET_ENABLE] = { "enable", "camera.free", "RECOMP_CAMERA_FREE", NULL, "Free camera",
-      "A free-flying camera, started and stopped with its toggle. Player 1"
-      " stands still while it flies.",
+      "A free-flying camera: {ctl:toggle} starts and stops it. Player 1 stands still"
+      " while it flies.",
       NULL, XBOX_SET_ENUM, ENHANCE_LIVE, XBOX_SET_ENABLE, 0, 0, 0, 0, k_offon },
     [SET_SPEED] = { "speed", "camera.free_speed", "RECOMP_CAMERA_FREE_SPEED", NULL,
-      "Fly speed", "A multiplier of the fly speed (80 units a second at full stick).",
-      "x", XBOX_SET_FLOAT, ENHANCE_LIVE, 0, 1.0, 0.05, 20, 0.05, NULL },
+      "Fly speed", "A multiplier of the fly speed: 80 units a second at full {ctl:move}.",
+      "\xC3\x97", XBOX_SET_FLOAT, ENHANCE_LIVE, 0, 1.0, 0.05, 20, 0.05, NULL },
     [SET_LOOK] = { "look_sens", "camera.free_look_sens", "RECOMP_CAMERA_FREE_LOOK_SENS", NULL,
-      "Look sensitivity", "A multiplier of the turn rate, for the stick and the mouse.",
-      "x", XBOX_SET_FLOAT, ENHANCE_LIVE, 0, 1.0, 0.05, 10, 0.05, NULL },
+      "Look sensitivity", "A multiplier of the turn rate, for {ctl:look} and the mouse.",
+      "\xC3\x97", XBOX_SET_FLOAT, ENHANCE_LIVE, 0, 1.0, 0.05, 10, 0.05, NULL },
     [SET_MOUSE] = { "mouse_sens", "camera.free_mouse_sens", "RECOMP_CAMERA_FREE_MOUSE_SENS",
-      NULL, "Mouse sensitivity", "The mouse's turn rate, on top of look sensitivity.",
-      "x", XBOX_SET_FLOAT, ENHANCE_LIVE, 0, 1.0, 0.05, 10, 0.05, NULL },
+      NULL, "Mouse sensitivity", "The turn rate for {mouse:move}, on top of look sensitivity.",
+      "\xC3\x97", XBOX_SET_FLOAT, ENHANCE_LIVE, 0, 1.0, 0.05, 10, 0.05, NULL },
     [SET_INVERT_X] = { "invert_x", "camera.free_invert_x", "RECOMP_CAMERA_FREE_INVERT_X", NULL,
       "Invert X", "Turn the other way, with the stick and the mouse.",
       NULL, XBOX_SET_BOOL, ENHANCE_LIVE, 0, 0, 0, 1, 0, NULL },
@@ -130,14 +135,22 @@ static const struct xbox_mod_setting k_set[SET_N] = {
       "Invert Y", "Look up and down the other way, with the stick and the mouse.",
       NULL, XBOX_SET_BOOL, ENHANCE_LIVE, 0, 0, 0, 1, 0, NULL },
     [SET_FAST] = { "fast", "camera.free_fast", "RECOMP_CAMERA_FREE_FAST", NULL,
-      "Fast multiplier", "How much faster the camera flies while Fast is held.",
-      "x", XBOX_SET_FLOAT, ENHANCE_LIVE, 0, 4.0, 1, 20, 0.5, NULL },
+      "Fast multiplier", "How much faster the camera flies while {ctl:fast} is held.",
+      "\xC3\x97", XBOX_SET_FLOAT, ENHANCE_LIVE, 0, 4.0, 1, 20, 0.5, NULL },
     [SET_SLOW] = { "slow", "camera.free_slow", "RECOMP_CAMERA_FREE_SLOW", NULL,
-      "Slow multiplier", "How much slower the camera flies while Slow is held.",
-      "x", XBOX_SET_FLOAT, ENHANCE_LIVE, 0, 0.25, 0.05, 1, 0.05, NULL },
+      "Slow multiplier", "How much slower the camera flies while {ctl:slow} is held.",
+      "\xC3\x97", XBOX_SET_FLOAT, ENHANCE_LIVE, 0, 0.25, 0.05, 1, 0.05, NULL },
     [SET_HUD] = { "hud", "camera.free_hud", "RECOMP_CAMERA_FREE_HUD", NULL, "HUD while flying",
-      "Keep or hide the HUD when the camera starts; Toggle HUD flips it in flight.",
+      "Keep or hide the HUD when the camera starts; {ctl:hud} flips it in flight.",
       NULL, XBOX_SET_ENUM, ENHANCE_LIVE_ACTIVATE, 0, 0, 0, 0, 0, k_hud },
+    [SET_INDICATOR] = { "indicator", "camera.free_indicator", "RECOMP_CAMERA_FREE_INDICATOR",
+      NULL, "Show indicator", "A card at the top left says the free camera is flying.",
+      NULL, XBOX_SET_BOOL, ENHANCE_LIVE, 0, 1, 0, 1, 0, NULL },
+    [SET_REMINDER] = { "reminder", "camera.free_reminder", "RECOMP_CAMERA_FREE_REMINDER", NULL,
+      "Controls reminder",
+      "The card's controls lines: for 10 seconds after flight starts (brief), the whole"
+      " flight (always), or never.",
+      NULL, XBOX_SET_ENUM, ENHANCE_LIVE, 0, 0, 0, 0, 0, k_remind },
 };
 
 static const char *const k_toggle_def[] = { "F6", "guide+y", NULL };
@@ -163,7 +176,9 @@ static const char *const k_mouse_def[] = { "Look", NULL };
  * Mods page rebinds them (mod-settings D). */
 static const struct xbox_mod_control k_ctl[CTL_N] = {
     /* id, label, help, when, kind, defaults, aliases, env */
-    [CTL_TOGGLE] = { "toggle", "Toggle flight", "Starts and stops the free camera.", NULL,
+    [CTL_TOGGLE] = { "toggle", "Toggle flight",
+      "Starts and stops the free camera. In flight, {act:camera.free.freeze} freezes the"
+      " game and {act:camera.free.reset} puts the camera back.", NULL,
       XBOX_CTL_ACTION, k_toggle_def, k_toggle_alias, "RECOMP_CAMERA_FREE_TOGGLE" },
     [CTL_HUD] = { "hud", "Toggle HUD", "Shows or hides the HUD.", FLYING,
       XBOX_CTL_ACTION, k_hud_def, k_hud_alias, "RECOMP_CAMERA_FREE_HUD_KEY" },
@@ -182,7 +197,8 @@ static const struct xbox_mod_control k_ctl[CTL_N] = {
 
 static const struct xbox_mod_desc k_desc = {
     XBOX_MOD_DESC_VERSION, sizeof k_desc, "Free camera",
-    "Fly a detached camera around the stage", NULL, "1",
+    "Fly a detached camera around the stage: {ctl:toggle} to fly, {ctl:move} move,"
+    " {ctl:look} look, {ctl:rise} and {ctl:sink} up and down", NULL, "1",
     k_set, SET_N, k_ctl, CTL_N
 };
 
@@ -198,6 +214,8 @@ static struct fc_freeze s_fz;
 static int s_hud_hide_now;              /* render thread reads it */
 static int s_act[ACT_N] = { -1, -1, -1, -1 };
 static uint64_t s_last_ns;
+static uint64_t s_fly_ns;               /* guest thread: when flight started */
+static int s_panel;                     /* guest thread: PANEL_* the toolkit has */
 
 static const struct xbox_mod s_mod;
 
@@ -330,6 +348,61 @@ static void hud_apply(int hide)
     __atomic_store_n(&s_hud_hide_now, hide, __ATOMIC_RELEASE);
 }
 
+/* ---- the indicator (overlay-revamp D12a) ------------------------------------ */
+
+/* How long Brief shows the controls lines after flight starts. */
+#define REMIND_NS 10000000000ull
+
+enum { PANEL_NONE, PANEL_TITLE, PANEL_FULL };
+
+/* Tokens, not names: the toolkit expands them at every draw, so the card
+ * follows the device in use and a rebinding without a new call. */
+static const char k_panel_title[] = "Free camera";
+static const char k_panel_full[] =
+    "Free camera\n"
+    "{act:camera.free.toggle} Exit \xc2\xb7 {act:camera.free.hud} HUD\n"
+    "{ctl:move} Move \xc2\xb7 {ctl:look} Look\n"
+    "{ctl:rise} {ctl:sink} Up/down\n"
+    "{ctl:fast} Fast \xc2\xb7 {ctl:slow} Slow\n"
+    "{act:camera.free.freeze} Freeze \xc2\xb7 {act:camera.free.reset} Reset";
+
+/* A toolkit before mod API version 7 has no panel: the camera flies
+ * without one. */
+static int has_status(void)
+{
+    return s_api->size >= offsetof(struct xbox_mod_api, status) + sizeof s_api->status
+           && s_api->status;
+}
+
+static int panel_want(uint64_t now)
+{
+    double r;
+
+    if (!s_flying || !s_api->setting(&k_desc, SET_INDICATOR))
+        return PANEL_NONE;
+    r = s_api->setting(&k_desc, SET_REMINDER);
+    if (r == REMIND_ALWAYS || (r == REMIND_BRIEF && now - s_fly_ns < REMIND_NS))
+        return PANEL_FULL;
+    return PANEL_TITLE;
+}
+
+/* The card as the flight and the two settings want it now; a call only
+ * when that changes. Guest thread. */
+static void panel_update(void)
+{
+    static const char *const text[] = {
+        [PANEL_NONE] = NULL, [PANEL_TITLE] = k_panel_title, [PANEL_FULL] = k_panel_full };
+    int want;
+
+    if (!has_status())
+        return;
+    want = panel_want(xbox_HostNowNs());
+    if (want == s_panel)
+        return;
+    s_panel = want;
+    s_api->status(&s_mod, text[want]);
+}
+
 /* The game's camera as the free camera's start: the eye it built last
  * (p - o), and its pitch and yaw (D2). */
 static int seed(void)
@@ -353,6 +426,7 @@ static void toggle(void)
         s_flying = 0;
         hud_apply(0);
         s_api->input_capture(0);
+        panel_update();
         cam_log("off");
         return;
     }
@@ -361,10 +435,11 @@ static void toggle(void)
         return;
     }
     s_flying = 1;
-    s_last_ns = xbox_HostNowNs();
+    s_last_ns = s_fly_ns = xbox_HostNowNs();
     /* camera.free_hud applies at the next activation: this one. */
     hud_apply(s_api->setting(&k_desc, SET_HUD) == 1);
     s_api->input_capture(1);
+    panel_update();
     cam_log("on at (%.1f %.1f %.1f) pitch %.3f yaw %.3f", s_cam.p[0], s_cam.p[1], s_cam.p[2],
             s_cam.pitch, s_cam.yaw);
 }
@@ -500,6 +575,8 @@ static void on_frame(void *user)
             return;
         }
         fly();
+        /* Brief's collapse, and the two settings changed in flight. */
+        panel_update();
     }
 }
 
@@ -631,6 +708,7 @@ static void shutdown_mod(void)
     if (s_flying) {
         s_flying = 0;
         s_api->input_capture(0);
+        panel_update();
     }
     hud_apply(0);
 }

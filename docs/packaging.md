@@ -17,6 +17,14 @@ commit that tracks a bundle.
 Saves (`hdd/`), settings (`config/`) and logs (`logs/`) live outside the
 program files. No install, update, rollback or uninstall writes them.
 
+**Moving saves to another computer.** In the in-game menu, **Saves >
+Export saves** writes them as one `.zip` to `config/exports/`. Copy it to
+the other computer (into its `config/exports/`, or anywhere the menu's
+Home folder reaches, such as a USB stick or `~/Downloads`) and pick it in
+**Saves > Import saves**. The menu shows what the zip holds first, backs
+up the saves already there to `config/exports/save-backups/`, and then
+quits the game so it cannot write the old saves back.
+
 ## The wizard
 
 The short route. From the first release that carries it, each release has

@@ -105,15 +105,15 @@ sha256 = [
 # commit locks the tag: a tag that names another commit (moved, re-pushed)
 # is refused.
 [cli]
-tag = "v0.19.0"
-commit = "70c985656f22b34f34b3bd553d47688281cf328c"
+tag = "v0.20.0"
+commit = "d047f6c46fad3d87dd05cf43c776000a72229cd8"
 url = "https://github.com/apexJCL/xboxrecomp-cli.git"
 
 [toolkit]
 url = "https://github.com/apexJCL/xboxrecomp.git"
-tag = "blinx2-v0.12.0"
+tag = "blinx2-v0.13.0"
 branch = "blinx2/portability"
-commit = "1551c42daeaa0a124ed9cc38ccae94aa64e224e0"
+commit = "40ed51de62e05a2edcc1780fade62e5ca5cccdb1"
 
 [toolchain]
 llvm_mingw = "20260922"
@@ -450,6 +450,37 @@ placement_world = "-y"
 # loads in Sweepers, one player. The other stages load layer 0 only
 # (placement_layers), the x-4 boss stages their enemies from [s-2] and M44
 # no emitters at all (openspec/changes/placements-spike/design.md).
+
+# Collision surface classes by name (extract --collision names the nodes
+# col_<name>_0x<rrggbb>). sub_00165630 skips the four switched classes while
+# their globals are set; stage_area_setup sets 0x65B1F0, 0x65B1E0 and
+# 0x65B1EC and clears 0x65B1E8. Names inferred from the code that flips
+# each global, not observed in play: openspec/changes/collision-spike/
+# design.md section 8. The other always-tested types (0x7F0000,
+# 0xB2B2B2, ...) stay unnamed.
+[[extract.collision_class]]
+value = 0xBFBFBF  # always tested: walls and floors alike
+name = "solid"
+
+[[extract.collision_class]]
+value = 0x00FFFF  # [0x65B1F0]: tested only around the enemy and object updates
+name = "enemy_wall"
+
+[[extract.collision_class]]
+value = 0x7F7F00  # [0x65B1E0]: only the camera's height probe on M21 and M23
+name = "camera_floor"
+
+[[extract.collision_class]]
+value = 0x0000FF  # [0x65B1EC]: never cleared; no stage holds it
+name = "unused_blue"
+
+[[extract.collision_class]]
+value = 0xFF00FF  # [0x65B1E8]: set only while stage_render runs the camera
+name = "camera_pass"
+
+[[extract.collision_class]]
+value = 0xFFFFFF  # never tested (collision_skip)
+name = "untested"
 
 # Stages: one per M section. Roots are the stage map table's rows (.data
 # 0x40d180 and the parallel rows at 0x40d454, by area) plus the parts in

@@ -93,6 +93,20 @@ class Analysis:
                 break
         return out
 
+    def listing(self, vas):
+        """The disassembly text of each address in vas, from the listing."""
+        want, out = set(vas), {}
+        asm = os.path.join(self.disasm, "asm")
+        for name in sorted(os.listdir(asm)):
+            with open(os.path.join(asm, name), encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    m = _LINE_RE.match(line)
+                    if m and int(m.group(1), 16) in want:
+                        out[int(m.group(1), 16)] = " ".join(line[m.end() :].split())
+            if len(out) == len(want):
+                break
+        return out
+
     def returns_to(self, targets):
         froms = [a for a, t in self.calls if t in targets]
         ln = self.lengths(froms)
@@ -392,6 +406,21 @@ def test_time_control_legend_keyed_at_its_callers():
         assert ret not in sites, "0x%08X: sub_00017330's caller is keyed" % ret
 
 
+# sub_0006B1F0's lit heart crystals: a glow quad and the heart,
+# one pair per crystal. Their x comes from the lives balls' base [esp+0x18]
+# (stored at 0x6D666, added at 0x6D6BE for the lives and 0x6D92F for the
+# hearts; test_hearts_are_every_add_of_the_heart_loop checks those three).
+# Unkeyed, they stayed at 4:3 while their slots moved with the panel.
+HEART_CALLS = (0x0006DA50, 0x0006DB1C)
+LIVES_CALLS = (0x0006D7E1, 0x0006D8C9)
+
+
+def test_heart_crystals_move_with_the_lives():
+    sites = {s["ret_va"]: s for s in load()["site"]}
+    for ret in HEART_CALLS + LIVES_CALLS:
+        assert sites[ret]["group"] == "panel"
+
+
 needs_analysis = pytest.mark.skipif(
     not os.path.isfile(os.path.join(DISASM, "xrefs.json")), reason="no analysis: run analyze"
 )
@@ -434,6 +463,27 @@ def test_legend_plus_is_every_text_call_of_the_legend():
     an = Analysis()
     text = {r for r in an.returns_to({0x00047A00}) if 0x00072362 <= r < 0x00072811}
     assert text == set(LEGEND_PLUS_CALLS)
+
+
+@needs_analysis
+def test_hearts_are_every_add_of_the_heart_loop():
+    # The heart loop (0x6D920, one pass per crystal, to its exit 0x6DB3C)
+    # draws through the add only at these two calls, so no quad of a lit
+    # heart stays behind at 16:9.
+    an = Analysis()
+    loop = range(0x0006D920, 0x0006DB3C)
+    adds = {r for r in an.returns_to({ADD}) if r in loop}
+    assert adds == set(HEART_CALLS)
+    # A draw through a wrapper would have its own site, unkeyed here.
+    wrappers = {w["va"] for w in load()["wrapper"]}
+    assert not {r for r in an.returns_to(wrappers) if r in loop}
+    for ret in HEART_CALLS + LIVES_CALLS:
+        assert an.containing(ret)[0] == 0x0006B1F0
+    # The hearts and the lives share one x base, so panel's dx fits both.
+    base = an.listing({0x0006D666, 0x0006D6BE, 0x0006D92F})
+    assert base[0x0006D666].endswith("fstp dword ptr [esp + 0x18]")
+    assert base[0x0006D6BE].endswith("fadd dword ptr [esp + 0x18]")
+    assert base[0x0006D92F].endswith("fadd dword ptr [esp + 0x18]")
 
 
 @needs_analysis

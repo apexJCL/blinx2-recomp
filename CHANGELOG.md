@@ -10,6 +10,55 @@ No release contains game data: you build the game from your own disc.
 
 ## [Unreleased]
 
+## [2026.11.1] - 2026-11-03
+
+**The Windows build wizard works again, and your saves can travel.**
+2026.11.0's wizard stopped partway on many Windows PCs; this patch fixes
+it and brings a mouse-friendly menu along.
+
+- **Windows wizard fixed.** Builds on a stock Windows PC finish again: no
+  more `UnicodeEncodeError` in the hook scan, no more refusal of
+  `shaders/param-kinds.toml`, and Retry works after a failed step.
+- **Move your saves.** The menu's new Saves page exports your saves to a
+  zip and imports one on another PC. Your current saves are backed up
+  first, and the game closes so its next start loads the imported ones.
+- **Share your settings.** The Files page exports your settings or a
+  shader profile and imports one back, with a file browser in the menu.
+- **The menu takes the mouse.** Hover, click, drag sliders and scroll;
+  an on-screen keyboard pops up for renames on a touch screen.
+- **A tidier menu.** Compact and expanded sizes (R3), a toolbar that
+  folds to icons and button glyphs in the footer.
+- **Free camera, easier to fly.** A small indicator and a controls
+  reminder while you fly, bindings drawn as the buttons and keys you
+  press, mouse buttons for fly controls and one row to reset them.
+- **Fixed:** at 16:9 the lit heart crystals now move with the health
+  panel instead of floating at their 4:3 spot.
+
+### For developers
+
+- **Pins:** xboxrecomp-cli v0.20.0 and toolkit blinx2-v0.13.0, up from
+  v0.19.0 and blinx2-v0.12.0. The CLI writes every text file as UTF-8,
+  clones the toolkit with `core.autocrlf=false` and heals an older CRLF
+  clone; the toolkit's `.gitattributes` keeps packaged text LF. The
+  bootstrap `blinx2.py` is the CLI's refreshed template.
+- **Why a patch release:** the fix lives in the CLI and the toolkit, and
+  the wizard runs the pinned CLI, so the pins had to move before players
+  could build again. The menu and mod changes already on the toolkit
+  come along rather than being held back.
+- **Collision class names:** `[[extract.collision_class]]` rows name
+  BLiNX 2's collision classes in `blinx2 extract --collision`, so the Godot
+  scene lists them by name. v0.19.0 refused the key, so the table waited
+  for this pin.
+- **Mod API 7:** `glyph_name`, the `{ctl:}` token and a per-mod status
+  panel; the free camera's flight panel uses them. Off with the camera,
+  so goldens draw nothing.
+- **Deterministic mode** (`RECOMP_DEBUG=deterministic`, off): a virtual
+  clock, a fixed thread order and pad records on the title's poll clock,
+  so a pad replay repeats state hash for state hash on one host. It is
+  a debugging tool; stock runs read the clock as before.
+- **Frame dumps as PNG:** `blinx2 frames compact` keeps dumps lossless
+  at a fraction of the BMP size, and the shot tools read both.
+
 ## [2026.11.0] - 2026-11-01
 
 **A widescreen HUD, sharper CRT shaders and a handful of new mods.**
@@ -439,7 +488,8 @@ blinx2-v0.3.1.
 - The game crashed once in stage 5-1 on macOS, after about 90 seconds;
   this is being investigated.
 
-[Unreleased]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.11.0...HEAD
+[Unreleased]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.11.1...HEAD
+[2026.11.1]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.11.0...v2026.11.1
 [2026.11.0]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.4...v2026.11.0
 [2026.10.4]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.3...v2026.10.4
 [2026.10.3]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.2...v2026.10.3

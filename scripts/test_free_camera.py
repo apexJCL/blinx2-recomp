@@ -8,7 +8,9 @@ and the freeze bookkeeping on 0xAF0EF4 (the entry guards, game writes kept
 as the restore value, the drop paths giving the flag back), and the fly
 input read through the captured controls (mod-settings D.4: the old pad
 read with the default bindings, each stick's dead zone with Move and Look
-swapped). Then checks the
+swapped), and the indicator card (overlay-revamp D12a: the reminder lines
+for 10 s under Brief, always or never, the card off, cleared when flight
+ends and on a toolkit before API version 7). Then checks the
 keys: every camera.* setting has an env row, a docs/env.md row, a stock line
 in packaging/config.default.toml and a row in the mod's descriptor
 (mod-settings C), every action keeps its old key as an alias, and the golden
@@ -46,6 +48,8 @@ SETTINGS = {
     "camera.free_fast": ("RECOMP_CAMERA_FREE_FAST", 4.0),
     "camera.free_slow": ("RECOMP_CAMERA_FREE_SLOW", 0.25),
     "camera.free_hud": ("RECOMP_CAMERA_FREE_HUD", "keep"),
+    "camera.free_indicator": ("RECOMP_CAMERA_FREE_INDICATOR", True),
+    "camera.free_reminder": ("RECOMP_CAMERA_FREE_REMINDER", "brief"),
 }
 # The host actions camera.free.<id>: old [camera] key (now an alias), env
 # row, stock bindings under [input.actions].
@@ -450,6 +454,7 @@ static int f_arm(const char *k) { (void)k; return 0; }
 static double f_setting(const struct xbox_mod_desc *d, uint32_t i) { (void)d; return g_set[i]; }
 static int f_ctl_action(const struct xbox_mod_desc *d, uint32_t i) { (void)d; return (int)i + 1; }
 static void f_active(const struct xbox_mod *m, int on) { (void)m; g_active = on; }
+static int f_status(const struct xbox_mod *m, const char *t) { (void)m; (void)t; return 0; }
 
 uint64_t xbox_HostNowNs(void) { return 0; }
 void xbox_mod_frame(void) {}
@@ -473,6 +478,7 @@ int main(void)
     g_api.setting = f_setting;
     g_api.control_action = f_ctl_action;
     g_api.active = f_active;
+    g_api.status = f_status;
     for (int i = 0; i < SET_N; i++)
         g_set[i] = k_set[i].def;
     g_set[SET_ENABLE] = 1;
@@ -696,6 +702,201 @@ def test_fly_input_defaults_match_the_old_pad_read():
     assert out and out[-1] == "ok", out
 
 
+# ---- the indicator card (overlay-revamp D12a) ----------------------------------
+
+# The mod against a fake API that keeps the card's text and a clock the
+# harness moves; each line it prints is one card change.
+PANEL_HARNESS = r"""
+#include "free_camera.c"
+
+#define MEM_SIZE 0xB00000u
+static unsigned char *g_mem;
+static double g_set[SET_N];
+static void (*g_on_enable)(int, void *);
+static uint64_t g_now = 1000000000ull;
+static char g_card[1024];
+static int g_calls;
+
+static void f_log(const struct xbox_mod *m, const char *fmt, ...) { (void)m; (void)fmt; }
+static int f_on_frame(xbox_mod_frame_fn fn, void *u) { (void)fn; (void)u; return 0; }
+static int f_batch(xbox_mod_batch_fn fn, void *u) { (void)fn; (void)u; return 0; }
+static void f_capture(int on) { (void)on; }
+static int f_on_enable(void (*fn)(int, void *), void *u) { (void)u; g_on_enable = fn; return 0; }
+static int f_arm(const char *k) { (void)k; return 0; }
+static double f_setting(const struct xbox_mod_desc *d, uint32_t i) { (void)d; return g_set[i]; }
+static int f_ctl_action(const struct xbox_mod_desc *d, uint32_t i) { (void)d; return (int)i + 1; }
+static void f_active(const struct xbox_mod *m, int on) { (void)m; (void)on; }
+static int f_pressed(int id) { (void)id; return 0; }
+static int f_ctl_value(const struct xbox_mod_desc *d, uint32_t k, struct xbox_ctl_value *v)
+{
+    (void)d; (void)k;
+    memset(v, 0, sizeof *v);
+    return 0;
+}
+static void f_input_state(struct enhance_input_state *st) { memset(st, 0, sizeof *st); }
+static int f_status(const struct xbox_mod *m, const char *t)
+{
+    (void)m;
+    g_calls++;
+    snprintf(g_card, sizeof g_card, "%s", t ? t : "");
+    return 0;
+}
+
+uint64_t xbox_HostNowNs(void) { return g_now; }
+void xbox_mod_frame(void) {}
+
+static struct xbox_mod_api g_api;
+
+/* The card in one line: its line count, 0 for none. */
+static int lines(void)
+{
+    int n = g_card[0] != 0;
+    for (const char *p = g_card; *p; p++)
+        n += *p == '\n';
+    return n;
+}
+
+static void frame(double secs)
+{
+    g_now += (uint64_t)(secs * 1e9);
+    on_frame(NULL);
+}
+
+#define CHECK(c) do { if (!(c)) { printf("FAIL %s:%d %s\n", __FILE__, __LINE__, #c); return 1; } } while (0)
+
+static void setup(size_t size)
+{
+    g_api.version = XBOX_MOD_API_VERSION;
+    g_api.size = (uint32_t)size;
+    g_api.mem = (uintptr_t)g_mem;
+    g_api.log = f_log;
+    g_api.on_frame = f_on_frame;
+    g_api.batch_filter = f_batch;
+    g_api.input_capture = f_capture;
+    g_api.on_enable = f_on_enable;
+    g_api.actions_arm = f_arm;
+    g_api.setting = f_setting;
+    g_api.control_action = f_ctl_action;
+    g_api.control_value = f_ctl_value;
+    g_api.action_pressed = f_pressed;
+    g_api.input_state = f_input_state;
+    g_api.active = f_active;
+    g_api.status = f_status;
+}
+
+static int old_api(void)
+{
+    setup(offsetof(struct xbox_mod_api, guest_alloc) + sizeof g_api.guest_alloc);
+    for (int i = 0; i < SET_N; i++)
+        g_set[i] = k_set[i].def;
+    g_set[SET_ENABLE] = 1;
+    XBOX_MOD_MEM32(&g_api, CAM_PTR) = 0x100000u;
+    XBOX_MOD_MEM32(&g_api, RUN_FLAG) = 1;
+    CHECK(s_mod.init(&g_api) == 0);
+    free_cam_action_toggle();
+    CHECK(s_flying);
+    frame(1);
+    free_cam_action_toggle();
+    CHECK(!s_flying && g_calls == 0);
+    printf("ok\n");
+    return 0;
+}
+
+int main(void)
+{
+    g_mem = calloc(1, MEM_SIZE);
+#ifdef OLD_API
+    return old_api();
+#endif
+    setup(sizeof g_api);
+    for (int i = 0; i < SET_N; i++)
+        g_set[i] = k_set[i].def;
+    CHECK(g_set[SET_INDICATOR] == 1 && g_set[SET_REMINDER] == REMIND_BRIEF);
+    g_set[SET_ENABLE] = 1;
+    XBOX_MOD_MEM32(&g_api, CAM_PTR) = 0x100000u;
+    XBOX_MOD_MEM32(&g_api, RUN_FLAG) = 1;
+    CHECK(s_mod.init(&g_api) == 0);
+    CHECK(g_calls == 0);
+
+    /* Brief: the title and five lines, for 10 s; then the title alone. */
+    free_cam_action_toggle();
+    CHECK(s_flying && lines() == 6 && !strcmp(g_card, k_panel_full));
+    CHECK(strstr(g_card, "{act:camera.free.toggle} Exit") && strstr(g_card, "{ctl:move} Move"));
+    frame(9.9);
+    CHECK(lines() == 6 && g_calls == 1);
+    frame(0.2);
+    CHECK(lines() == 1 && !strcmp(g_card, "Free camera") && g_calls == 2);
+    frame(5);
+    CHECK(g_calls == 2);
+    /* Off: cleared. */
+    free_cam_action_toggle();
+    CHECK(!s_flying && lines() == 0 && g_calls == 3);
+    /* A second flight starts its own 10 s. */
+    frame(60);
+    free_cam_action_toggle();
+    CHECK(lines() == 6);
+    frame(10.1);
+    CHECK(lines() == 1);
+
+    /* Always, set in flight: the lines come back and stay. */
+    g_set[SET_REMINDER] = REMIND_ALWAYS;
+    frame(0.016);
+    CHECK(lines() == 6);
+    frame(120);
+    CHECK(lines() == 6);
+    /* Never: the title alone. */
+    g_set[SET_REMINDER] = REMIND_NEVER;
+    frame(0.016);
+    CHECK(lines() == 1);
+    /* Show indicator off: no card; on again: back. */
+    g_set[SET_INDICATOR] = 0;
+    frame(0.016);
+    CHECK(lines() == 0);
+    g_set[SET_INDICATOR] = 1;
+    frame(0.016);
+    CHECK(lines() == 1);
+    /* Indicator off from the start: flight never sets a card. */
+    free_cam_action_toggle();
+    g_set[SET_INDICATOR] = 0;
+    g_set[SET_REMINDER] = REMIND_BRIEF;
+    int calls = g_calls;
+    free_cam_action_toggle();
+    CHECK(s_flying && g_calls == calls && lines() == 0);
+    frame(1);
+    CHECK(g_calls == calls);
+    free_cam_action_toggle();
+    g_set[SET_INDICATOR] = 1;
+
+    /* Off from the Mods page mid-flight, and the exit: cleared. */
+    free_cam_action_toggle();
+    CHECK(lines() == 6);
+    g_on_enable(0, NULL);
+    CHECK(!s_flying && lines() == 0);
+    g_on_enable(1, NULL);
+    free_cam_action_toggle();
+    CHECK(lines() == 6);
+    s_mod.shutdown();
+    CHECK(lines() == 0);
+    printf("ok\n");
+    return 0;
+}
+"""
+
+# The same mod on a toolkit before version 7 (its size ends at guest_alloc):
+# it flies and never calls status.
+OLD_API_HARNESS = "#define OLD_API 1\n" + PANEL_HARNESS
+
+
+def test_indicator_brief_always_never_and_off():
+    out = _run_mod(PANEL_HARNESS)
+    assert out and out[-1] == "ok", out
+
+
+def test_indicator_needs_api_version_7():
+    out = _run_mod(OLD_API_HARNESS)
+    assert out and out[-1] == "ok", out
+
+
 # ---- keys and stock default ----------------------------------------------------
 
 
@@ -738,15 +939,20 @@ def _descriptor():
     return text, text[i:j]
 
 
+# A row's fields up to its closing brace; quoted strings may hold the
+# glyph tokens' own braces ({ctl:move}).
+_ROW = r'(?:"(?:[^"\\]|\\.)*"|[^}"])*'
+
+
 def test_descriptor_declares_every_setting():
     _, desc = _descriptor()
     for key, env in KEYS.items():
         assert f'"{key}"' in desc, f"{key}: not in the descriptor"
         assert f'"{env}"' in desc, f"{env}: not in the descriptor"
-    assert re.search(r'"camera\.free",\s*"RECOMP_CAMERA_FREE",[^}]*XBOX_SET_ENABLE', desc)
+    assert re.search(r'"camera\.free",\s*"RECOMP_CAMERA_FREE",' + _ROW + "XBOX_SET_ENABLE", desc)
     for aid, (alias, env, stock) in ACTIONS.items():
         m = re.search(
-            r'\{\s*"' + aid + r'",[^}]*XBOX_CTL_ACTION,\s*(\w+),\s*(\w+),\s*"(\w+)"', desc
+            r'\{\s*"' + aid + r'",' + _ROW + r'XBOX_CTL_ACTION,\s*(\w+),\s*(\w+),\s*"(\w+)"', desc
         )
         assert m, f"camera.free.{aid}: no action row"
         defs, aliases, row_env = m.groups()

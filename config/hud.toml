@@ -1317,3 +1317,15 @@ ret_va = 0x000727DE
 element = "tc_legend_plus_5"
 group = "tc_legend"
 note = "main copy of the \"+\" (0x3D95D0) at x 544, y 78 next to the second legend, drawn through sub_00047A00 while [0xAEB814] is set (gate 0x72362); the tracker item"
+
+[[site]]
+ret_va = 0x0006DA50
+element = "hearts_glow"
+group = "panel"
+note = "lit heart crystal i, pulsing glow quad (texture 0x13DA898), x = base + 12*i - 8, y -201..-189; the same base [esp+0x18] as the lives; count byte [0xADCA58 + 6*char + 0xF]; the tracker item"
+
+[[site]]
+ret_va = 0x0006DB1C
+element = "hearts"
+group = "panel"
+note = "lit heart crystal i (texture 0x418848), drawn over hearts_glow at the same quad; the tracker item"

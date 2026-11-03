@@ -22,6 +22,9 @@
 #include "recomp_env.h"
 #include "host_time.h"  /* xbox_HostNowNs, xbox_HostSleepNs: the vblank pacer */
 #include "kernel.h"     /* xbox_GuestCpuRelease/Acquire: the pacer's sleep lets the guest CPU go */
+#if __has_include("guest_time.h")
+#include "guest_time.h" /* RECOMP_DEBUG=deterministic: the pacer on the virtual clock */
+#endif
 #include <stddef.h>   /* ptrdiff_t: <windows.h> supplied it on Windows only */
 #include <stdint.h>
 #include "glow.h"       /* fx.glow: the sub_0005B7D0 wrapper below */
@@ -148,8 +151,32 @@ void sub_002E0DB0(void)
      * dry (speech cut off in the attract movie). */
     static volatile uint64_t epoch;
     const uint64_t period = 1000000000u / VBLANK_HZ;
-    uint64_t now = xbox_HostNowNs(), e = epoch, next;
+    uint64_t now, e, next;
 
+#ifdef XBOX_GUEST_TIME_VIRTUAL
+    /* RECOMP_DEBUG=deterministic: the next vblank is the next step of the
+     * virtual clock, which is what the console's vblank event follows, so
+     * the ADX threads wake on the same vblanks on every run. */
+    if (xbox_GuestTimeVirtual()) {
+        uint64_t v = xbox_GuestTimeVblanks();
+        int held;
+#ifdef XBOX_GUEST_DET
+        /* The deterministic ring: wait there, handing the turn on, so the
+         * step this waits for can come (it comes once every guest thread
+         * is idle). */
+        if (xbox_GuestDetWaitVblank(v, 0x002E0DB0u))
+            goto done;
+#endif
+        held = xbox_GuestCpuRelease(XBOX_GUEST_CPU_HOST, 0x002E0DB0u);
+        while (xbox_GuestTimeVblanks() == v)
+            xbox_HostSleepNs(1000000u);
+        if (held)
+            xbox_GuestCpuAcquire();
+        goto done;
+    }
+#endif
+    now = xbox_HostNowNs();
+    e = epoch;
     if (!e) {
         e = now;
 #ifdef _WIN32
@@ -174,6 +201,9 @@ void sub_002E0DB0(void)
             xbox_GuestCpuAcquire();
     }
 
+#ifdef XBOX_GUEST_TIME_VIRTUAL
+done:
+#endif
     {
         uint32_t device = MEM32(0x2F1FB8);
         if (device)

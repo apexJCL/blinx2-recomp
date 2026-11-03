@@ -52,6 +52,8 @@
     X(CAMERA_FREE_FAST,  CONFIG, "RECOMP_CAMERA_FREE_FAST",  NULL, "enhancements: camera.free_fast, 1..20, the speed multiplier while Fast is held (4)") \
     X(CAMERA_FREE_SLOW,  CONFIG, "RECOMP_CAMERA_FREE_SLOW",  NULL, "enhancements: camera.free_slow, 0.05..1, the speed multiplier while Slow is held (0.25)") \
     X(CAMERA_FREE_HUD,   CONFIG, "RECOMP_CAMERA_FREE_HUD",   NULL, "enhancements: camera.free_hud, keep|hide (the HUD while the free camera flies)") \
+    X(CAMERA_FREE_INDICATOR, CONFIG, "RECOMP_CAMERA_FREE_INDICATOR", NULL, "enhancements: camera.free_indicator, true|false, a card at the top left while the free camera flies (true)") \
+    X(CAMERA_FREE_REMINDER, CONFIG, "RECOMP_CAMERA_FREE_REMINDER", NULL, "enhancements: camera.free_reminder, brief|always|never, the card's controls lines: 10 s after flight starts, all flight, or none (brief)") \
     X(CAMERA_FREE_TOGGLE, CONFIG, "RECOMP_CAMERA_FREE_TOGGLE", NULL, "enhancements: the bindings of action camera.free.toggle (alias camera.free_toggle), comma-separated; start and stop the free camera (F6,guide+y)") \
     X(CAMERA_FREE_HUD_KEY, CONFIG, "RECOMP_CAMERA_FREE_HUD_KEY", NULL, "enhancements: the bindings of action camera.free.hud (alias camera.free_hud_key); show or hide the HUD while flying (F7)") \
     X(CAMERA_FREE_FREEZE_KEY, CONFIG, "RECOMP_CAMERA_FREE_FREEZE_KEY", NULL, "enhancements: the bindings of action camera.free.freeze (alias camera.free_freeze_key); stop and restart the world while flying (End)") \
@@ -84,7 +86,7 @@
     X(ENTITIES_PROOF,    DEBUG, "entities_proof",  NULL,                       "=steps (+ separated): spawn:f, fill:f, kill:f, rew:f, spawnrew:f, tc:f, tcreq:r, tcdur:n, rewarea:n, setuponly:1, from:id, keep:1, atsrc:1, killany:1, out:file; the entity API's live proof and per-frame list log") \
     X(CRYSTALS_PROOF,    DEBUG, "crystals_proof",  NULL,                       "=steps (+ separated): seq:digits (| waits for a mission change), at:f, every:n, dup:n, rew:f, out:file; the crystals mod's live proof and record log") \
     X(SHOP_PROOF,        DEBUG, "shop_proof",      NULL,                       "=steps (+ separated): log:1, out:file, gun:id, fire:f, every:n, shots:k, gold:n, goldat:f; the shop API's live proof and per-frame shop and gun log") \
-    X(WALLS_TRACE,       DEBUG, "walls_trace",     NULL,                       "=opts (+ separated): out:file, fix:0|1, probe:f, samples:n, rad:cr, wmax:cr, tp:k, at:f, depth:pct, for:n; the walls mod's collision trace and A/B probes (mod on)") \
+    X(WALLS_TRACE,       DEBUG, "walls_trace",     NULL,                       "=opts (+ separated): out:file, fix:0|1, probe:f, samples:n, rad:cr, wmax:cr, tp:k, at:f, depth:pct, for:n, dyn:f, dynper:n, gat:f, gx/gy/gz:cu, tris:f, pd:f, pdn:n; the walls mod's collision trace and A/B probes (mod on)") \
     X(PAD_PEEK,          DEBUG, "pad_peek",        NULL,                       "=va:n[:x],...: guest dwords on every scripted pad poll") \
     X(THREAD_DUMP,       DEBUG, "thread_dump",     "RECOMP_THREAD_DUMP",       "dump every thread: SIGUSR1 (macOS), touch thread_dump.trigger (Windows)")
 
@@ -127,13 +129,45 @@
  *
  * These rows came with the toolkit's v0.16 sync, as RECOMP_RUMBLE did, so
  * they are guarded the same way: a pin before that merge has none of them
- * and already behaves this way. Drop the guard with the rumble one. */
+ * and already behaves this way. Drop the guard with the rumble one.
+ *
+ * PAD_CLOCK=poll (RECOMP_DEBUG=pad_clock), read only while pad_record
+ * writes a record: steps are timed by the title's own port-0 polls
+ * (g<poll>) with the exact stick and trigger values, not by the walker's
+ * flip. BLiNX 2 polls about once a flip but not in step with the walker, so
+ * two polls can share a flip; a flip record kept one poll's stick for both,
+ * and its replay handed the title a neighbour poll's stick. The 2-1 sandwich
+ * clip, frame-exact, missed on every replay of a flip record, the same way
+ * each time. A flip-timed record (f<flip>) still replays as it
+ * did; pad_clock=flip records that way.
+ *
+ * PAD_ANCHOR (RECOMP_DEBUG=pad_anchor): the opens that start and end BLiNX
+ * 2's loads and movies become anchors, so a replay's steps after a load
+ * count from where the load ended in that run, whatever the host's disk and
+ * shader cache made it take. The stage files (stgNNNN_*) start a stage load
+ * and jingle_stagestart ends it, *.sfd are the movies and song_TITLE the
+ * title's return. Not a stage's song: it opens again on a death's restart,
+ * which a replay that went another way may not have, and the replay would
+ * wait a minute for it or, at the next stage's song, skip ahead. pad_anchor=
+ * (empty) records without anchors.
+ *
+ * The game's public build pins a toolkit that may predate these rows, so
+ * they wait for RECOMP_ENV_HAVE_PAD_CLOCK_ROW (PAD_ANCHOR is older than
+ * PAD_CLOCK, so one guard covers both). */
+#ifdef RECOMP_ENV_HAVE_PAD_CLOCK_ROW
+#define CAT_ENV_PAD_DEFAULTS(D) \
+    D(PAD_CLOCK,     "poll") \
+    D(PAD_ANCHOR,    "stg|jingle_stagestart|song_TITLE|.sfd")
+#else
+#define CAT_ENV_PAD_DEFAULTS(D)
+#endif
 #ifdef RECOMP_ENV_HAVE_RUMBLE_ROW
 #define RECOMP_ENV_GAME_DEFAULTS(D) \
     D(GUEST_CPUS,    "one") \
     D(DISPATCH_GATE, "1") \
     D(FLIP_PACING,   "1") \
-    D(CPUID_NO_SIMD, "1")
+    D(CPUID_NO_SIMD, "1") \
+    CAT_ENV_PAD_DEFAULTS(D)
 #else
 #define RECOMP_ENV_GAME_DEFAULTS(D)
 #endif

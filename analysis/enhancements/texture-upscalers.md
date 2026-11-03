@@ -1,13 +1,14 @@
 # Texture upscalers: re-assessment and measurements
 
-Spike of 2026-11-01 for the `texture-upscale` change. It covers four
+Spike of 2026-11-01 for the `texture-upscale` change. It covers five
 things:
 
 - what still holds in the spec, and what does not;
 - the upscalers a builder can plug in (built-in, ncnn command tools and,
   since the user's decision of 2026-11-01, a PyTorch backend);
 - what each one costs on this Mac (Apple M4 Max);
-- the shape of a CLI preview step that puts their outputs side by side.
+- the shape of a CLI preview step that puts their outputs side by side;
+- an in-game A/B of three upscalers on the PC (section 8).
 
 This document holds names, hashes, sizes, timings and licences only. The
 comparison grids and every decoded texture stay in a local runs
@@ -276,7 +277,7 @@ Tiling at 256 changed nothing measurable on MPS.
 | chaiNNer `run` | GPL-3.0 (invoked) | yes | yes | yes | per backend | per chain |
 | spandrel 0.4.2 + PyTorch 2.15.0 | MIT / BSD-3 | MPS (verified) | CUDA (the PC; not run here) | CUDA / ROCm / CPU | CPU (measured above) | RGB (split); 4xHDcube-Alpha is an alpha-only model, not tried |
 
-The Deck never builds, so the Linux column is for owners only.
+Handhelds do not build, so the Linux column is for owners only.
 
 **Releases**, from the official GitHub releases, with their sha256:
 
@@ -481,7 +482,7 @@ which.
   `reproducible_scope = "host"`; `reproducible` stays a boolean.
 - The goldens never load packs, so none of this touches the gates.
 
-## 7. In-game frames: not taken, and why
+## 7. Why v2 can carry only unmipped world
 
 The current runtime pack (v2) cannot show the world classes at 3x yet:
 
@@ -499,6 +500,121 @@ The current runtime pack (v2) cannot show the world classes at 3x yet:
 4. **Taking frames needs a game build** with a hand-made pack, which
    was out of this spike's scope.
 
-The follow-up filed on the tracker is an A/B of `@stage1` at render
-scale 3 with a hand-made v2 pack of unmipped world and fx entries
-(lanczos, `realesr-general`, xbr), on the PC.
+Section 8 has that A/B.
+
+## 8. In-game A/B
+
+`@stage1` on the PC (D3D11 native), render scale 3, `RECOMP_MENU=0`, one
+run stock and one per pack, frames dumped from the render target
+(1920x1440). The packs are hand-made v2: the 2,607 unmipped world (2,522)
+and fx (85) hashes as kind-0 entries, raw BGRA (no BC, so no encoder
+artefacts in the comparison), one level, at 3x, 3.15 GB each. They are
+built with the 0.3 pipeline (pad 8, wrap for world, edge for fx; `lanczos`
+premultiplied; the CNN with split alpha, 4x then Lanczos down to 3x;
+`xbr` at 3x with the CLI's xBR scaler patched to accept 3x (its scale guard
+is `(2, 4)` on main)). Mipped textures stay stock,
+with no sampler shift (D4 is not in this run). Crops, contact sheets and full frames are
+kept locally, never in the repo.
+
+| Pack | Build (Mac, 2,607 textures, 87 M source texels) | Deterministic |
+|---|---|---|
+| `lanczos` | 4 s compute, 13 processes; 150 s with the stream to the PC | yes (same sha twice) |
+| `xbr` 3x | 56 s compute, 13 processes; 200 s with the stream | yes |
+| `realesr-general-x4v3` | 448 s on MPS (compute-bound; the stream overlaps) | not checked |
+
+End to end, the CNN pack build ran about 5 s per source megatexel (448 s
+over 87 M texels), against 0.57 s for the model call alone (section 3).
+Padding, the alpha split, the down-scale and the stream make up the rest.
+
+**In the frame.**
+- Each pack run loaded all 2,607 entries.
+- 105 entries were hit in the run, with about 81 MB resident.
+- The misses are the mipped chains and render targets, as designed.
+- Each run took 3,406 to 3,481 flips in 105 s each, 32 to 33 per
+  second, with no
+  change against stock and 0 presents mismatched.
+
+What the pack reaches in `@stage1`:
+- alpha-cut plants, grass, ferns and vines;
+- the ground glyph decal (fx);
+- props such as the boulder by the brick wall;
+- the radar disc, which is classed world by name.
+
+The large surfaces stay stock because they are mipped: the rock walls,
+the dirt ground and the brick.
+
+**Per upscaler.**
+- `lanczos`:
+  - Props come out a little sharper than stock and stay soft.
+  - Premultiplied alpha leaves no halos.
+  - Thin alpha-tested strands get thinner: one hanging vine almost
+    disappears. This may come from premultiplied RGBA rather than from
+    lanczos itself: the built-ins ran premultiplied, the CNN split alpha.
+    This run does not separate the two.
+  - Against `xbr`, it is cleaner and cheaper; the CNN is sharper.
+- `realesr-general-x4v3`:
+  - It gives the clearest gain. The boulder's surface is crisp and
+    denoised instead of blotchy.
+  - Vines and fern fronds keep their width and get clean edges.
+  - No halos (colour extended under alpha, alpha upscaled apart).
+  - The cost is about 110 times `lanczos` compute.
+- `xbr`:
+  - Props come out smoothed and posterised, with flat painterly patches
+    on the boulder.
+  - Thin strands keep their width but stair-step.
+  - This is no better than `lanczos` for world art.
+- No pack shows seams or tiling breaks. The decal is edge-padded, and the
+  boulder wraps cleanly. The tiled floors and walls are mipped, so this
+  pack does not test them.
+
+**Mipped beside unmipped.** With no sampler shift, a mipped surface stays
+at the guest's texels. An upscaled unmipped surface next to it gains
+detail the mipped one lacks. In wide gameplay views the gap is hard to
+see, because the mipped ground and walls are minified there. In close-ups
+it is easy to see: the CNN-sharpened boulder and fern sit against the soft
+stock rock wall and brick, so the mixed sharpness shows. A world pack
+therefore wants the mipped chains too (D4, task 1.2) before the CNN's
+sharpness pays off. On its own, an unmipped-only pack improves props and
+foliage, and the difference is visible mainly up close.
+
+### Native 4x and render scale 4
+
+This checks whether the 4x-to-3x Lanczos step after `realesr-general-x4v3`
+softens its gain. The same 2,607 hashes were packed at the model's native
+4x with no down-to-scale step: 5.59 GB (the 3x pack is 3.15 GB), about
+145 MB resident (81 MB for 3x), and 105 hits as before. Runs were on the
+PC, D3D11, `@stage1`:
+- render scale 3: stock, 3x and 4x;
+- render scale 4: stock, a stock repeat, 3x and 4x.
+
+**Native 4x against 4x-to-3x: no visible gain.** In the frames the two
+match by eye. In the boulder, high-frequency energy (the Laplacian's
+standard deviation) rises 1 to 3% from 3x to 4x at render scale 3 and
+1 to 4% at render scale 4, where 3x itself rises 5 to 20% over stock at
+render scale 3. The whole-frame mean absolute luma difference between 3x
+and 4x is 0.41 8-bit levels at render scale 3 and 0.27 at render scale 4.
+Two stock runs at render scale 4 differ by 0.13 levels. Inferred, not
+measured (D14's trace will measure it): on-screen magnification stays
+under about 3 pixels per source texel, so the GPU minifies the 4x entry.
+The entries are single-level, so that minification aliases rather than
+averages, and the extra texels add almost nothing.
+
+**Render scale 4.** At render scale 4 the 4x pack still adds no visible
+texture detail over 3x (1 to 4% detail energy). By eye, render scale 4
+shows finer geometry edges and thinner grass stems than render scale 3,
+the usual render-scale gain. The detail metric is per screen pixel, so it
+gives no stock render scale 4 against 3 figure for texture detail.
+
+Flips per second over a 105 s run:
+- render scale 3: 32.4 for stock, 32.8 for 3x, 33.1 for 4x;
+- render scale 4: 29.6 for stock, 29.2 for its repeat, 29.5 for 3x, 31.4
+  for 4x.
+
+The ±1.5 is the full range of all runs at one render scale (32.4 to 33.2
+at render scale 3 with every pack, 29.2 to 31.4 at render scale 4), not a
+measured noise model. The two stock runs at render scale 4 differ by 0.4.
+The 4x pack's 31.4 at render scale 4 is noise, not a gain: the packs cost
+no speed.
+
+The 4x build took 926 s on MPS against 448 s for 3x. The two are not
+comparable: other jobs loaded the Mac during the 4x build.

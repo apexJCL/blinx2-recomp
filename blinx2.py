@@ -171,7 +171,7 @@ def at_pin(d, cli):
             git("-C", d, "checkout", "--quiet", pin)
         if head(d) != pin:
             raise NoCli("external/xboxrecomp-cli would not check out the pin %s" % pin[:12])
-    with open(os.path.join(d, MARK), "w") as f:
+    with open(os.path.join(d, MARK), "w", encoding="utf-8") as f:
         f.write(pin + "\n")
     return d
 
@@ -191,15 +191,17 @@ def clone(cli, dest):
         file=sys.stderr,
     )
     try:
-        git("clone", "--quiet", "--no-checkout", "--", cli["url"], tmp)
+        # Git for Windows' default core.autocrlf=true would check the CLI
+        # out with CRLF; its templates and test data are meant LF.
+        git("clone", "-c", "core.autocrlf=false", "--quiet", "--no-checkout", "--", cli["url"], tmp)
         pin = resolve(tmp, cli, fresh=True)
         git("-C", tmp, "checkout", "--quiet", pin)
         if head(tmp) != pin:
             raise NoCli("the clone is not at the pin %s" % pin[:12])
         excl = git("-C", tmp, "rev-parse", "--git-path", "info/exclude")
-        with open(os.path.join(tmp, excl), "a") as f:
+        with open(os.path.join(tmp, excl), "a", encoding="utf-8") as f:
             f.write("\n/%s\n" % MARK)  # out of `git status`: no -dirty versions
-        with open(os.path.join(tmp, MARK), "w") as f:
+        with open(os.path.join(tmp, MARK), "w", encoding="utf-8") as f:
             f.write(pin + "\n")
         os.rename(tmp, dest)
     except BaseException:

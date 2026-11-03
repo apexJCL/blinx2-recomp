@@ -866,7 +866,9 @@ adds no migration.
 
 **Phase 5, the slot manager,** is blocked on the mod overlay menu and
 plugs into it: the list with thumbnails, rearrange, delete, export and
-import. The `xbr state slot export|import` verbs come with it. They do
+import. Export and import pick the file through the overlay's file
+browser from `overlay-revamp` D6 (phase G), not a browser of their own.
+The `xbr state slot export|import` verbs come with it. They do
 not need the overlay and can be pulled earlier if asked.
 
 *Rejected:*

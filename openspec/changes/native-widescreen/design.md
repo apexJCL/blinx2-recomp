@@ -1,11 +1,15 @@
 ## Context
 
 - **The EEPROM answer.**
-  - `ExQueryNonVolatileSetting(XC_VIDEO = 8)` (`kernel_xbox.c:147`) returns `XC_VIDEO_FLAGS_WIDESCREEN | XC_VIDEO_FLAGS_HDTV`, which is 0x03.
-  - The XDK's `XGetVideoFlags` (statically linked in each title) returns `(raw >> 16) & 0x5F`. If the AV pack is not HDTV or the standard is not NTSC-M, it then clears the HDTV bits with `& ~0x0E`.
+  - `ExQueryNonVolatileSetting(XC_VIDEO = 8)` (`kernel_xbox.c:224`) returns `XC_VIDEO_FLAGS_WIDESCREEN | XC_VIDEO_FLAGS_HDTV`, which is 0x03.
+  - The XDK's `XGetVideoFlags` (statically linked in each title) returns `(raw >> 16) & 0x5F`. It then clears the HDTV bits with `& ~0x0E` when `XGetAVPack()` is not HDTV (1) or `XGetVideoStandard()` is PAL-I (3).
+    - `XGetAVPack()` is `*HalBootSMCVideoMode` (kernel export 356), in the SMC's pack numbering (0 SCART, 1 HDTV, 2 VGA, 3 RFU, 4 S-Video, 6 standard). The toolkit exports 0 (`kernel_bridge.c`, "auto-detect"), so every title sees a SCART pack and the HDTV bits never survive.
+    - `XGetVideoStandard()` is byte 1 of `XC_FACTORY_AV_REGION` (index 0x103), which falls to the unhandled branch and reads 0 (a real NTSC console has 0x00400100, standard 1). `XGetGameRegion()` (0x104) reads 0 the same way (NTSC-U is 1).
+    - Confirmed in BLiNX 2: `sub_00298AA3` (`XGetVideoFlags`), `sub_0029A9B9` (`XGetAVPack`), `sub_00298A7A` (`XGetVideoStandard`). BLiNX 1 links none of them.
   - In the return domain the bits are: widescreen 0x01, 720p 0x02, 1080i 0x04, 480p 0x08, letterbox 0x10, PAL-60 0x40.
   - So the raw word wants those bits shifted left by 16. The toolkit's defines are the return-domain values, so every title sees 0.
-  - Index 8 is queried only through `XGetVideoFlags` in all four games. The other `ExQueryNonVolatileSetting` callers ask for 7, 9, 0xA, 0x100-0x104 and 0x11.
+  - In the four the tracker item games (Burnout 3, SSX 3, BLiNX 2, Spartan), index 8 is queried only through `XGetVideoFlags`. The other `ExQueryNonVolatileSetting` callers ask for 7, 9, 0xA, 0x100-0x104 and 0x11.
+  - BLiNX 1 never queries index 8. It asks for 7, 9, 0xA, 0x104 and 0x11, and through its generic `XQueryValue` (`sub_000F4EE0`) also for 0xFF (the `XC_MAX_OS` block) and 0xFFFF.
 - **Per-game behaviour.** The proposal's table, from the generated code (read-only) and string scans of the game files.
   - **Burnout 3:**
     - `sub_00015A60` calls `sub_0003C8A0` on the video block at 0x4D6170. That stores `(flags & 1)` at +0xD (0x4D617D) and sets 640x480.
@@ -17,7 +21,8 @@
     - `sub_00050850` seeds the settings word 0x33925C, bits 20-21, from that value: widescreen gives 2 (Anamorphic), letterbox gives 1 (16:9, letterboxed), otherwise 0 (Off).
     - The options page `sub_0008F4C0` shows Off, 16:9 and Anamorphic (`kT_CMNOff`, `kT_19Widescreen169`, `kT_19WidescreenAnimorphic`). Its setter `sub_0008E0D0` writes `(v << 20) & 0x300000`, and the renderer (`sub_000E1F10`) passes the mode to the display object [0x379680].
     - The setting is saved with the profile, so the dashboard bit only picks a fresh profile's default.
-  - **BLiNX 2 and Spartan:** they read only the PAL-60 bit (with the video standard) to pick 50 or 60 Hz. There are no widescreen strings in their game files.
+  - **BLiNX 2 and Spartan:** they read only the PAL-60 bit (with the video standard) to pick 50 or 60 Hz. There are no widescreen strings in their game files. In BLiNX 2 the read is gated on `XGetVideoStandard() == PAL-I`, which the toolkit answers 0, so the flags word is not consumed at all.
+  - **BLiNX 1**: no `XGetVideoFlags`, no `XGetVideoStandard`, no `HalReadSMBusValue`; its `XC_MAX_OS` block read (`sub_000F2CE8`) takes only the time-zone fields and MiscFlags, not +0x34. No aspect strings in the XBE, and the menu art has no aspect item. Nothing in the title can change with the video flags.
 - **The present today.** `present.filter` picks the letterbox fit (nearest or linear) or the integer fit. Both fits use the presented surface's own shape, which is 4:3 for an unpadded 640x480 and wider for a padded Hor+ target. The window's initial width is `nv2a_host_window_w`.
 
 ## Goals / Non-Goals
@@ -82,8 +87,8 @@ The kernel and the presenters never link the enhancements layer (toolkit `docs/r
   - 0 by default;
   - `| XC_VIDEO_FLAGS_WIDESCREEN` when `nv2a_host_opts()->native_active`;
   - replaced whole by `RECOMP_DEBUG=video_flags=0x...` when that is set, for spikes, and logged.
-- `kernel_xbox.c` returns that function's value, with a comment on why stock is 0.
-- The file's header comment (`kernel_xbox.c:122`, "Video: NTSC, widescreen+HDTV enabled") gets the same fix: "Video: NTSC, 4:3, no HDTV modes (raw 0)".
+- `kernel_xbox.c` returns that function's value, with a comment on why stock is 0, in both places that answer the video word: the `XC_VIDEO` case (`kernel_xbox.c:224`) and the `XC_MAX_OS` block, whose +0x34 field (`kernel_xbox.c:318`) writes `WIDESCREEN | HDTV` today and takes the same `xbox_video_flags_raw()` value.
+- The file's header comment (`kernel_xbox.c:125`, "Video: NTSC, widescreen+HDTV enabled") gets the same fix: "Video: NTSC, 4:3, no HDTV modes (raw 0)".
 
 **Why stock is 0, not the corrected `WIDESCREEN | HDTV`:**
 - 0 is what every title has seen since the first boot, and every golden, bench timing and save fixture was made with it.
@@ -93,7 +98,10 @@ The kernel and the presenters never link the enhancements layer (toolkit `docs/r
   - SSX 3 would seed Anamorphic into every fresh profile.
 - That is exactly what "opt-in features default OFF" forbids. The old comment's intent ("widescreen and HDTV support enabled") was never in effect.
 
-The AV-pack answer (`AV_PACK_HDTV`, NTSC-M, 60 Hz) stays as it is. It keeps the HDTV bits from being masked if a spike sets them, and the games read it only at boot.
+The AV-pack answers stay as they are. There are three, in three numberings, and only the first reaches `XGetVideoFlags`:
+- `HalBootSMCVideoMode` = 0, a SCART pack in the SMC numbering. `XGetVideoFlags` therefore masks 720p, 1080i and 480p whatever the raw word says: widescreen, letterbox and PAL-60 get through, and that is all this change needs. A spike that wants 480p seen (Burnout 3's `sub_0003D690`) must also export 1 (HDTV) there. The games' audio-settings getters read the same pack (BLiNX 2 `sub_00298467`, BLiNX 1 `sub_000F34B0`, both calling `XGetAVPack`), so that export changes their answer too and is not part of this change. What those getters do with the pack was not traced.
+- `HalReadSMBusValue(SMC_CMD_AV_PACK)` answers 4, which is S-Video in the SMC numbering, not HDTV. Neither BLiNX imports `HalReadSMBusValue`.
+- `AvSendTVEncoderOption(6)` answers `AV_PACK_HDTV | NTSC-M | 60 Hz` in the encoder numbering, which D3D's mode table needs. Whether a real kernel's answer also carries the EEPROM video flags is unverified: there is no kernel source or dump for it in the repo.
 
 ### D4. Native state probe: follow the game's own setting
 

@@ -140,6 +140,10 @@
 #include "mouse.h"
 #include "pad_slots.h"
 #include "pad_pack.h"
+#if __has_include("guest_time.h")
+#include "guest_time.h" /* the virtual clock (RECOMP_DEBUG=deterministic) */
+#define CAT_HAVE_GUEST_TIME 1
+#endif
 /* The host actions' pad filter (toolkit mod.h, host_pad.h): a toolkit pin
  * from before it builds without, as the title did. */
 #if defined(RECOMP_ENV_HAVE_ENHANCE_KEYS) && defined(__has_include)
@@ -501,6 +505,15 @@ static const struct { const char *name, *script; } PRESETS[] = {
 
 static double now_s(void)
 {
+#ifdef CAT_HAVE_GUEST_TIME
+    /* On the virtual clock a script's seconds are guest seconds: a tap
+     * every N s on the host clock lands on a different frame each run
+     * (stage1's START taps reached the pad state at vblank 2610 in one run
+     * and not in the next), and the clock's whole point is that it does
+     * not. KeQueryInterruptTime's 100 ns units, vblanks x 1/60 s. */
+    if (xbox_GuestTimeVirtual())
+        return (double)xbox_GuestInterruptTime() * 1e-7;
+#endif
 #ifdef _WIN32
     static LARGE_INTEGER freq;
     LARGE_INTEGER t;

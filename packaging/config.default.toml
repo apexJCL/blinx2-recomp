@@ -114,6 +114,9 @@ free_invert_y = false     # flip the look up and down
 free_fast = 4.0           # 1 .. 20: speed times this while White is held
 free_slow = 0.25          # 0.05 .. 1: speed times this while Black is held
 free_hud = "keep"         # "keep" or "hide": the HUD when the camera starts
+free_indicator = true     # a card at the top left while the camera flies
+free_reminder = "brief"   # its controls lines: "brief" (10 s after flight
+                          # starts), "always" or "never"
 # The camera's keys are host actions under [input.actions] (camera.free.*).
 # The old free_toggle, free_hud_key, free_freeze_key and free_reset_key keys
 # are still read here as aliases.

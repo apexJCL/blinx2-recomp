@@ -6,7 +6,7 @@ Worktrees: `wt/<name>/xboxrecomp` (a branch off `posix-host/portability`), `wt/<
 
 ## 1. Spike (done unless marked)
 
-- [x] 1.1 The EEPROM path. `kernel_xbox.c:150` answers 0x03 in the `XGetVideoFlags` domain, and every title's `XGetVideoFlags` returns 0. Index 8 is queried only by `XGetVideoFlags` in all four games.
+- [x] 1.1 The EEPROM path. `kernel_xbox.c:224` answers 0x03 in the `XGetVideoFlags` domain, and every title's `XGetVideoFlags` returns 0. Index 8 is queried only by `XGetVideoFlags` in the four the tracker item games; BLiNX 1 never queries it (task 1.5).
 - [x] 1.2 Per game: the flag reads, the in-game options and the effect of the widescreen bit (proposal table). b3 at stock: byte 0x4D617D reads 0 for the whole attract (`runs/native-wide/peek`).
 - [ ] 1.3 Burnout 3 runtime confirmation.
   - Done: `RECOMP_POKE=0x4D617C:0x100` holds the byte at 1 and the attract frames change (`runs/native-wide/poke`, frames 8, 12 and 16 against `peek`), but attract replays are not frame-locked, so the squeeze is not yet shown on a fixed scene.
@@ -15,6 +15,10 @@ Worktrees: `wt/<name>/xboxrecomp` (a branch off `posix-host/portability`), `wt/<
     - `RECOMP_WATCH=0x4D617D` while toggling "Aspect Ratio" in the options, to pin the menu's writer and whether the item is gated on the flag.
 - [ ] 1.4 SSX 3 runtime confirmation: `video_flags=0x00010000` on a fresh profile seeds Anamorphic (0x33925C bits 20-21 = 2). The in-game setting switches 0x33925C as decoded.
 
+- [x] 1.5 BLiNX 1 and the rest of the video answer.
+  - BLiNX 1 links no `XGetVideoFlags`: its settings reads are language (7), audio (9), parental (0xA), region (0x104, inside `XGetLanguage`), misc (0x11), the time-zone block (0xFF) and 0xFFFF. Hor+ only, no native mode.
+  - BLiNX 2 re-checked on the current gen: one `XGetVideoFlags` call, PAL-60 only, and only when the standard is PAL-I. No runtime check: with the standard answered 0 the word is never consumed, so forcing it cannot change a frame.
+  - `XGetAVPack` reads `HalBootSMCVideoMode`, which is 0 (SCART), so the HDTV bits are masked in every title (design D3). The factory indices 0x103 and 0x104 read 0. Neither is changed here.
 
 ## 2. CLI first (the manifest rejects unknown tables)
 
@@ -38,7 +42,7 @@ Worktrees: `wt/<name>/xboxrecomp` (a branch off `posix-host/portability`), `wt/<
   - 0 stock, `| WIDESCREEN` when `nv2a_host_opts()->native_active`;
   - `RECOMP_DEBUG=video_flags=0x...` replaces it, logged once;
   - no `enhance_*` call.
-  - `kernel_xbox.c` returns it, with a comment on why stock is 0. Its header comment (line 122) is fixed.
+  - `kernel_xbox.c` returns it, with a comment on why stock is 0, from the `XC_VIDEO` case (line 224) and the `XC_MAX_OS` block's +0x34 field (line 318). Its header comment (line 125) is fixed.
 - [ ] 3.4 ctest:
   - the stock value is 0;
   - native adds only bit 16;

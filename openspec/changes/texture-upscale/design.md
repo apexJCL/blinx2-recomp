@@ -145,7 +145,7 @@ treatment:
 | `font` (1) | `[enhance.hud] font_atlas`, or `[enhance.textures.classes] font` patterns | 4 | the atlas fit when the game names a font, else `xbr` (`alpha_edge`) | split | clamp | none | raw |
 | `text` (2) | a picked language's archives, `text` patterns | 2 | `xbr` | split | clamp | none | bc3 |
 | `ui` (0) | `ui` patterns (cat: today's `[enhance.hud] textures`), or a dump fact: drawn only by pre-transformed (2D) batches | `clamp(R, 2, 4)` | `xbr` | split | clamp | none | raw |
-| `world` (3) | everything else that is packable | 2 with `lanczos`; `clamp(R, 2, 4)` with a CNN | `lanczos` built in; a CNN preset when the owner has one | split | the recorded wrap mode | full | auto (bc1 opaque, bc3 with alpha) |
+| `world` (3) | everything else that is packable | 2 with `lanczos`; `clamp(R, 2, 3)` with a CNN | `lanczos` built in; a CNN preset when the owner has one | split | the recorded wrap mode | full | auto (bc1 opaque, bc3 with alpha) |
 
 Facts and what they do:
 
@@ -172,8 +172,15 @@ holds 16 texels per source texel where the screen shows 9, so 7/16
 `lanczos` at 2x by default because it needs nothing installed, is
 reproducible, and halves the pack of a 4x choice; picking a CNN for
 world (the GUI or `pick`) switches its default scale to `clamp(R, 2,
-4)`. A scale of 3 needs the fractional sampler shift of D4; until 1.2
-lands, a 3x entry is only safe for unmipped textures (`mips = none`).
+3)`. World with a CNN is capped at 3 until D14's trace shows a
+magnification of 3 or more: in the in-game A/B ("Measured"), a native
+4x CNN pack was invisible against 3x even at `R = 4`, for about 78% more
+pack bytes and VRAM. `ui`, `font` and `text` keep the rule above. A
+scale of 3 needs the fractional sampler shift of D4; until 1.2 lands, a
+3x entry is only safe for unmipped textures (`mips = none`). An
+unmipped-only world pack puts sharp props beside soft mipped surfaces,
+and the mixed sharpness shows up close, so the world CNN preset is worth
+offering only once 1.2 lands.
 
 **Coverage presets** are a game's named sets over classes and rules
 (`game.toml [enhance.textures.presets]`): `hud` (= today's `[enhance.hud]`
@@ -831,7 +838,9 @@ skip when `mag_scale1 * R <= 1` (never magnified), else the smallest of
 0.9 pixels per texel at 1x is skipped for `R = 1`, gets 2x for `R = 2`
 and 3x for `R = 3`; one at 1.3 gets 2x, 3x and 4x); a 3x proposal on a
 mipped entry waits for D4's fractional shift (1.2); untraced entries get the class default or are
-skipped (`coverage.untraced`). The GUI shows the table (name, class,
+skipped (`coverage.untraced`). A traced world entry
+with a CNN gets 4 only here, where the trace shows a magnification above
+3; D2's class default for it stops at 3. The GUI shows the table (name, class,
 `mag` at 1x, the proposal at `R`, the bytes saved against the class
 default) and the owner overrides per entry; the result is written as
 rules, so the build stays declarative and the trace is advice. The
@@ -1004,7 +1013,8 @@ sizes and timings only).
   a grid from DXT blocks in translucent panels); effects with
   `lanczos` (CNNs flatten glow cores and invent leaf veins). D2's
   upscalers stand; its scales follow the render-scale rule now written
-  into the table (`clamp(R, 2, 4)` for ui, and for world with a CNN).
+  into the table (`clamp(R, 2, 4)` for ui, `clamp(R, 2, 3)` for world
+  with a CNN until D14's trace shows a magnification of 3 or more).
 - **Presets to ship**: the built-ins; command presets for
   realesrgan-ncnn-vulkan (`realesr-animevideov3` as the world CNN
   default for ncnn, x4plus offered with a "repaints" note),
@@ -1015,11 +1025,25 @@ sizes and timings only).
   (CC0), `RealESRGAN_x4plus` (BSD-3), `4xHDCube4Compact` (flagged:
   custom licence, OpenModelDB lists the HDCube versions as CC0,
   CC-BY-4.0 and CC-BY-NC-SA-4.0).
+- **Measured in game** (0.3a, 2026-11-01;
+  `analysis/enhancements/texture-upscalers.md` section 8): `@stage1` on
+  the PC (D3D11) at render scale 3 with hand-made v2 packs of the 2,607
+  unmipped world and fx hashes. The CNN (`realesr-general-x4v3`) is the
+  best for world (crisp props, foliage keeps its width, no halos);
+  `lanczos` is soft and thins alpha-tested strands; `xbr` is the worst
+  for world (posterised, stair-stepped). The packs cost no speed (flips
+  per second within run-to-run spread). A native 4x CNN pack matches the
+  4x-to-3x one by eye at render scale 3 and 4 (1 to 4% detail energy at render scale 4)
+  for about 78% more bytes and VRAM. With no sampler shift, sharp
+  unmipped props beside soft mipped surfaces show mixed sharpness up
+  close until 1.2 lands. Build-time correction: end to end the CNN pack
+  build ran about 5 s per source megatexel (448 s for 87 M texels),
+  against 0.57 for the model call alone, so the "about a minute" world
+  pass above is closer to 13 min.
 - **Still open in phase 0**: 0.1 (the dump and the trace), the BC1/BC3
   encoder timings (moved to 3.4) and the pure-Python built-in timings
-  (moved to 3.1), VRAM in 0.4, and in-game 3x frames (a
-  hand-made v2 pack can carry the 2,522 unmipped world hashes; the
-  mipped ones need 1.2's sampler shift, fractional at 3x).
+  (moved to 3.1), and VRAM in 0.4 (the mipped world hashes need 1.2's
+  sampler shift, fractional at 3x, before a pack can carry them).
 
 ## Decided (the user, 2026-10-18)
 

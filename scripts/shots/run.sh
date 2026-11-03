@@ -18,4 +18,8 @@ env RECOMP_HEADLESS=1 SDL_AUDIODRIVER=dummy RECOMP_PB_BACKEND=metal \
     RECOMP_DEBUG="fb_dump=$out/fb/,fb_dump_flips=$every" "$@" \
     perl -e "alarm $secs; exec @ARGV" build/cat_recomp > "$out/log.txt" 2>&1
 echo "$name rc=$? dumps=$(ls "$out/fb" | wc -l) flips=$(grep -c 'METAL\] flip' "$out/log.txt")"
+# The dumps as lossless PNG (each checked before its BMP goes); XBR_FRAMES_BMP=1 keeps BMP.
+if [ "${XBR_FRAMES_BMP:-0}" != 1 ]; then
+    "$here/blinx2" frames compact "$out/fb" || echo "run.sh: some frames left as BMP" >&2
+fi
 "$here/scripts/shots/sheet.sh" "$out/fb" "$out/sheet.png" 10x

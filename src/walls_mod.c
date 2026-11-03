@@ -87,6 +87,21 @@ static const struct xbox_mod_desc k_desc = {
 /* The dynamic objects' query, called by sub_00163550 after the walk; its
  * contact overrides the walk's at 0x163647. Returns 0 or 1. */
 #define VA_DYNAMIC      0x00163160u
+/* The dynamic objects' table that sub_00163160 walks: 0x200 entries of
+ * 0xE0 bytes; +0x00 the owner, +0x05 the priority (s8), +0x08 the flags
+ * (u16), +0x0C the bounding radius, +0x10 the centre, +0x28 the model
+ * (0: unused), +0x30 the alternate model, +0x38 the previous centre. */
+#define VA_DYN_TABLE    0x00B90B90u
+#define DYN_SIZE        0xE0u
+#define DYN_N           0x200u
+/* Seen from sub_00163160's entry esp: sub_00163550's entry esp (its return
+ * into sub_001636C0 sits there), whose frame holds both contacts at the
+ * override (0x163628..0x163647): the walk's hit flag at +0x18, its push
+ * and normal through the pointers at +0x10 and +0x0C; the dynamic
+ * contact's priority byte at +0x20 (written only when the caller passed a
+ * non-zero byte), push at +0x24, normal at -0x0C and table entry at -0x20. */
+#define DYN_Q_FRAME     0x60u
+#define DYN_Q_RET       0x0016371Au
 /* The triangle test: cdecl (tri, centre*, r, flags, point*, normal*, pen*,
  * class*, best*); returns 1 when it took a contact. */
 #define VA_FACE         0x00165630u
@@ -107,6 +122,10 @@ static const uint32_t k_sites[] = { 0x00178F92u, 0x00184F26u, 0x00185063u, 0x001
 #define PLAYER_SIZE     0x30Cu
 #define PLAYER_POS      0xECu
 #define PLAYER_PREV     0xF8u
+#define PLAYER_STATE    0x34u   /* 0 ground, 1 jump, 2 second jump, 0x10 fall, 0x11 landing */
+#define PLAYER_VEL_Y    0x130u  /* +y is down */
+#define PLAYER_VEL_X    0x138u
+#define PLAYER_VEL_Z    0x140u
 #define N_PLAYERS       4
 /* A query belongs to the nearest player whose position is this close to
  * its centre (the sites' offsets are a few units). */
@@ -162,6 +181,14 @@ static int s_tp_pending;                /* the next player 0 query steps in */
 static float s_tp_c[3];
 static uint32_t s_sw_last[4];
 static int s_sw_seen;
+/* the tracker item (the sandwich clip): the dynamic table dump and a teleport. */
+static long o_dyn = -1, o_dynper = 0, o_gat = -1, o_gx, o_gy, o_gz, o_tris = -1;
+static long o_pd = -1, o_pdn = 600;    /* player 0's record, for its velocity and state */
+static struct {
+    int ok;
+    uint32_t e, hit, prio_in;
+    float pen, n[3];
+} s_dq;
 
 static inline uint32_t rd32(uint32_t va) { return XBOX_MOD_MEM32(s_api, va); }
 static inline float rdf(uint32_t va) { return XBOX_MOD_MEMF(s_api, va); }
@@ -328,11 +355,43 @@ static void query_post(struct xbox_mod_call *c, void *user)
             s_q.c[2] + (c->eax ? n[2] * pen : 0));
 }
 
+static void dynamic_pre(struct xbox_mod_call *c, void *user)
+{
+    uint32_t e = c->esp + DYN_Q_FRAME;
+
+    (void)user;
+    s_dq.ok = 0;
+    if (!s_q.active || s_probing || !s_out || rd32(e) != DYN_Q_RET)
+        return;
+    s_dq.ok = 1;
+    s_dq.e = e;
+    s_dq.hit = rd32(e + 0x18);
+    s_dq.prio_in = rd32(e + 0x20) & 0xFFu;
+    s_dq.pen = rdf(rd32(e + 0x10));
+    rd3(rd32(e + 0x0C), s_dq.n);
+}
+
 static void dynamic_post(struct xbox_mod_call *c, void *user)
 {
     (void)user;
     if (s_q.active && !s_probing)
         s_q.dyn = c->eax != 0;
+    if (s_dq.ok && c->eax) {
+        uint32_t e = s_dq.e, ent = rd32(e - 0x20);
+        float n[3];
+        int idx = ent >= VA_DYN_TABLE && ent < VA_DYN_TABLE + DYN_N * DYN_SIZE
+                      ? (int)((ent - VA_DYN_TABLE) / DYN_SIZE) : -1;
+
+        rd3(e - 0x0C, n);
+        /* Y: the walk's contact (hit, push, normal, the priority byte the
+         * caller passed) against the dynamic objects' (entry, owner,
+         * priority, push, normal). */
+        fprintf(s_out, "Y\t%u\t%u\t%u\t%.4f\t%.5f\t%.5f\t%.5f\t%u\t%d\t%X\t%d\t%.4f\t%.5f\t%.5f\t%.5f\n",
+                s_frame, s_qid, s_dq.hit, s_dq.pen, s_dq.n[0], s_dq.n[1], s_dq.n[2], s_dq.prio_in,
+                idx, idx >= 0 ? rd32(ent) : 0, (int)(int8_t)(rd32(e + 0x20) & 0xFFu),
+                rdf(e + 0x24), n[0], n[1], n[2]);
+    }
+    s_dq.ok = 0;
 }
 
 /* ---- the triangle test -------------------------------------------------- */
@@ -661,6 +720,71 @@ static void teleport(void)
                s_pairs[o_tp].w, d);
 }
 
+/* The dynamic objects' table as sub_00163160 sees it. */
+static void dyn_dump(void)
+{
+    uint32_t i;
+
+    for (i = 0; i < DYN_N; i++) {
+        uint32_t e = VA_DYN_TABLE + i * DYN_SIZE;
+        float cc[3], pc[3];
+
+        if (!rd32(e) || !rd32(e + 0x28))
+            continue;
+        rd3(e + 0x10, cc);
+        rd3(e + 0x38, pc);
+        fprintf(s_out, "D\t%u\t%u\t%X\t%04X\t%d\t%.3f\t%.4f\t%.4f\t%.4f\t%X\t%X\t%.4f\t%.4f\t%.4f\n",
+                s_frame, i, rd32(e), rd32(e + 8) & 0xFFFFu, (int)(int8_t)(rd32(e + 4) >> 8),
+                rdf(e + 0x0C), cc[0], cc[1], cc[2], rd32(e + 0x28), rd32(e + 0x30), pc[0], pc[1],
+                pc[2]);
+    }
+}
+
+/* Every baked triangle once, for placing the trace's contacts offline. */
+static void tri_dump(void)
+{
+    int i;
+
+    load_tris();
+    for (i = 0; i < s_ntris; i++) {
+        const struct wall_tri *t = &s_tris[i];
+
+        fprintf(s_out, "G\t%d\t%06X\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.5f\t%.5f\t%.5f\n",
+                i, t->cls & 0xFFFFFFu, t->v[0][0], t->v[0][1], t->v[0][2], t->v[1][0], t->v[1][1],
+                t->v[1][2], t->v[2][0], t->v[2][1], t->v[2][2], t->n[0], t->n[1], t->n[2]);
+    }
+}
+
+/* Put player 0 at (gx, gy, gz) hundredths, collision space, standing still:
+ * velocity and state cleared too, or a warp keeps the motion it had (a fall
+ * carries state 0x10 and its velocity into the next drop, which made the
+ * first drops clip). */
+static void go_to(void)
+{
+    float pos[3] = { (float)o_gx / 100.0f, (float)o_gy / 100.0f, (float)o_gz / 100.0f };
+
+    wr3(VA_PLAYERS + PLAYER_POS, pos);
+    wr3(VA_PLAYERS + PLAYER_PREV, pos);
+    wrf(VA_PLAYERS + PLAYER_VEL_Y, 0.0f);
+    wrf(VA_PLAYERS + PLAYER_VEL_X, 0.0f);
+    wrf(VA_PLAYERS + PLAYER_VEL_Z, 0.0f);
+    XBOX_MOD_MEM32(s_api, VA_PLAYERS + PLAYER_STATE) = 0;
+    fprintf(s_out, "#go frame %u pos %.4f %.4f %.4f\n", s_frame, pos[0], pos[1], pos[2]);
+    s_api->log(&s_mod, "go: player 0 to %.2f %.2f %.2f", pos[0], pos[1], pos[2]);
+}
+
+/* Player 0's whole record as words, to find the wall jump's velocity and
+ * state fields offline. */
+static void player_dump(void)
+{
+    uint32_t i;
+
+    fprintf(s_out, "X\t%u", s_frame);
+    for (i = 0; i < PLAYER_SIZE; i += 4)
+        fprintf(s_out, "\t%X", rd32(VA_PLAYERS + i));
+    fputc('\n', s_out);
+}
+
 /* ---- the mod ------------------------------------------------------------ */
 
 static void trace_frame(void)
@@ -701,6 +825,16 @@ static void trace_frame(void)
         probe_run();
     if ((long)s_frame == o_tp_at)
         teleport();
+    if ((long)s_frame == o_gat)
+        go_to();
+    if ((long)s_frame == o_tris)
+        tri_dump();
+    if (o_dyn >= 0 && ((long)s_frame == o_dyn ||
+                       (o_dynper > 0 && (long)s_frame > o_dyn &&
+                        ((long)s_frame - o_dyn) % o_dynper == 0)))
+        dyn_dump();
+    if (o_pd >= 0 && (long)s_frame >= o_pd && (long)s_frame < o_pd + o_pdn)
+        player_dump();
     if (!(s_frame % 60))
         fflush(s_out);
 }
@@ -791,6 +925,15 @@ static void trace_init(const char *v)
     o_tp_at = opt(v, "at", -1);
     o_depth = opt(v, "depth", o_depth);
     o_tp_for = opt(v, "for", o_tp_for);
+    o_dyn = opt(v, "dyn", -1);
+    o_dynper = opt(v, "dynper", 0);
+    o_gat = opt(v, "gat", -1);
+    o_gx = opt(v, "gx", 0);
+    o_gy = opt(v, "gy", 0);
+    o_gz = opt(v, "gz", 0);
+    o_tris = opt(v, "tris", -1);
+    o_pd = opt(v, "pd", -1);
+    o_pdn = opt(v, "pdn", o_pdn);
     s_out = fopen(path, "w");
     if (!s_out) {
         s_api->log(&s_mod, "trace: cannot write %s", path);
@@ -800,7 +943,10 @@ static void trace_init(const char *v)
     fprintf(s_out, "#Q frame id site player cx cy cz r dx dy dz\n"
                    "#H frame id tri kind flags class s s_prev best_before best_after entry s_entry act\n"
                    "#R frame id hit dyn override nx ny nz push ox oy oz\n"
-                   "#P frame player x y z px py pz\n#S frame A B C D\n#T frame s_near s_far\n");
+                   "#P frame player x y z px py pz\n#S frame A B C D\n#T frame s_near s_far\n"
+                   "#Y frame id s_hit s_push s_nx s_ny s_nz prio_in entry owner prio d_push d_nx d_ny d_nz\n"
+                   "#D frame entry owner flags prio radius cx cy cz model alt pcx pcy pcz\n"
+                   "#G tri class v0 v1 v2 n\n#X frame player0 words\n");
     s_api->log(&s_mod, "trace: %s, fix %d, probe %ld, tp %ld at %ld depth %ld%%", path, o_fix,
                o_probe, o_tp, o_tp_at, o_depth);
 }
@@ -820,7 +966,9 @@ static int init(const struct xbox_mod_api *api)
         api->log(&s_mod, "no hook slot for 0x%08X: stock walls", VA_QUERY);
         return 1;
     }
-    if (!api->hook(VA_DYNAMIC, NULL, dynamic_post, 0, NULL))
+    /* Both callbacks only feed the trace's R and Y lines: with no trace the
+     * dynamic-object test stays unhooked. */
+    if (trace && !api->hook(VA_DYNAMIC, dynamic_pre, dynamic_post, 0, NULL))
         api->log(&s_mod, "no hook slot for 0x%08X: the trace cannot see overrides", VA_DYNAMIC);
     s_on = api->setting(&k_desc, SET_ENABLE) != 0;
     api->on_frame(on_frame, NULL);
