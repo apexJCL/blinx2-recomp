@@ -99,7 +99,6 @@ def test_env_doc_names_the_default():
     doc = _read("docs", "env.md")
     row = next(line for line in doc.splitlines() if line.startswith("| (none) | `pad_anchor` |"))
     assert _default().replace("|", "\\|") in row
-    assert "ITEM" in row
 
 
 def test_records_on_the_poll_clock():
@@ -120,7 +119,9 @@ def test_pad_defaults_wait_for_the_toolkit_rows():
 def test_env_doc_rows_for_clock_and_quit():
     doc = _read("docs", "env.md").splitlines()
     clock = next(line for line in doc if line.startswith("| (none) | `pad_clock` |"))
-    assert "`poll`" in clock and "ITEM" in clock
+    # No tracker id here: the public export rewrites them, and the
+    # public checks run these tests on the rewritten doc.
+    assert "`poll`" in clock
     assert any(line.startswith("| (none) | `pad_quit` |") for line in doc)
 
 
