@@ -65,6 +65,10 @@ neutral product, with engines as adapters on top.
 delta here. Its extract requirement is updated when the first of the two
 changes is archived (task 6.4).
 
+Note (tidy, 2026-11-03): `engine-extract` is archived and
+`openspec/specs/engine-extract/spec.md` is a main spec, so task 6.4 is now
+due as a MODIFIED delta here.
+
 ## Impact
 
 - **CLI:** `main.py` and `helptext.py`, the manifest loader, `extract/`

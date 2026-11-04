@@ -113,7 +113,7 @@
 
 ## 7. Follow-ups outside this change
 
-- [ ] 7.1 `wizard-incremental-builds` (is running on it; not edited here): its D15 and tasks 9.6 and 9.7 assume SSX 3 and Spartan stay private and build their wizards through `[wizard] private`. Once the tracker item merges, update them to the public `[wizard] repo` and keep `private` only for a game with no public repo
+- [ ] 7.1 `wizard-incremental-builds` (archived as `openspec/changes/archive/2026-11-03-wizard-incremental-builds/`; the tracker item ran on it; not edited here): its D15 and tasks 9.6 and 9.7 assume SSX 3 and Spartan stay private and build their wizards through `[wizard] private`. Once the tracker item merges, update them to the public `[wizard] repo` and keep `private` only for a game with no public repo
 - [ ] 7.2 Commit messages a70e0ac and d8bd99f in `ssx3/recomp` cite the workspace's `runs/`. Export mode never publishes private messages, so there is nothing to rewrite
 - [ ] 7.3 After each game's migration, its CLAUDE.md row names `<slug> public export` instead of `export-public.sh` or the direct push (orchestrator or user edit)
 - [ ] 7.4 A game-specific data-extension key (`[public] data_ext`, design.md open questions), when SSX 3's or Spartan's survey finds a format the default list misses

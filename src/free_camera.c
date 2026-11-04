@@ -153,7 +153,12 @@ static const struct xbox_mod_setting k_set[SET_N] = {
       NULL, XBOX_SET_ENUM, ENHANCE_LIVE, 0, 0, 0, 0, 0, k_remind },
 };
 
-static const char *const k_toggle_def[] = { "F6", "guide+y", NULL };
+/* Back+R3 held 0.4 s for hosts that never pass Guide on (Steam on the
+ * Deck, the Game Bar on Windows), as menu.open has Back+L3: the game
+ * ignores a lone Back in play, and with Back down first the R3 that
+ * completes the chord never reaches its camera. Listed after guide+y so
+ * {ctl:toggle} still names Guide+Y on a pad that has it. */
+static const char *const k_toggle_def[] = { "F6", "guide+y", "back+right_thumb@400", NULL };
 static const char *const k_hud_def[] = { "F7", NULL };
 static const char *const k_freeze_def[] = { "End", NULL };
 static const char *const k_reset_def[] = { "Home", NULL };
@@ -198,7 +203,8 @@ static const struct xbox_mod_control k_ctl[CTL_N] = {
 static const struct xbox_mod_desc k_desc = {
     XBOX_MOD_DESC_VERSION, sizeof k_desc, "Free camera",
     "Fly a detached camera around the stage: {ctl:toggle} to fly, {ctl:move} move,"
-    " {ctl:look} look, {ctl:rise} and {ctl:sink} up and down", NULL, "1",
+    " {ctl:look} look, {ctl:rise} and {ctl:sink} up and down. Where Guide is not seen,"
+    " hold {bind:back+right_thumb} (Back first) to fly", NULL, "1",
     k_set, SET_N, k_ctl, CTL_N
 };
 

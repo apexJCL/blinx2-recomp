@@ -47,11 +47,17 @@ Buttons are the digital `UP DOWN LEFT RIGHT START BACK LTHUMB RTHUMB`, the analo
 - **THEN** an `[INPUT] script:` line is logged and the remaining steps still run
 
 ### Requirement: A host pad can drive the pad
-Host controllers SHALL be a source for the pad when the host pad is enabled. Enablement: with no `RECOMP_INPUT_SCRIPT`, the host pad is on by default on every host (XInput on Windows and Proton, SDL2 GameController elsewhere, macOS included); with a script set, it is off unless `RECOMP_HOST_PAD=1` is given explicitly; `RECOMP_HOST_PAD=0` SHALL always disable host controllers, and nothing else: the keyboard and the mouse SHALL NOT depend on the host pad being enabled (they are governed by `input.keyboard` and `input.mouse`, below). Host controller N (XInput user index or SDL slot N) SHALL drive port N. When a port has both a script and a host source, buttons SHALL be OR-ed, analog values SHALL take the larger, and a stick axis the script leaves at zero SHALL take the host's value. On port 0 a host controller and the keyboard-and-mouse source SHALL be merged the same way, a non-zero keyboard or mouse axis replacing the controller's for that poll.
+Host controllers SHALL be a source for the pad when the host pad is enabled. Enablement: with no `RECOMP_INPUT_SCRIPT`, the host pad is on by default on every host (XInput on Windows and Proton, SDL3 gamepad, `SDL_Gamepad`, elsewhere, macOS included); with a script set, it is off unless `RECOMP_HOST_PAD=1` is given explicitly; `RECOMP_HOST_PAD=0` SHALL always disable host controllers, and nothing else: the keyboard and the mouse SHALL NOT depend on the host pad being enabled (they are governed by `input.keyboard` and `input.mouse`, below).
+
+Host controllers SHALL reach the ports in the order they come up, not by their host slot (XInput user index or SDL slot), through one slot-to-port map; the host slot SHALL serve only as the controller's identity (the SDL backend gives a replugged model its old slot). A controller that comes up SHALL drive the port its slot last drove when that port is free and another host controller drives a port, and otherwise the lowest port no other host controller drives; controllers that come up together SHALL be assigned in slot order, and a controller SHALL keep its port until it goes away, so plugging one in or out never moves another player and ports never shift. Controllers filling the slots from 0 in order therefore drive port N from slot N, a controller pulled and replugged comes back on its port, and a lone controller on any slot drives port 0, where the title reads player 1.
+
+A controller that has never shown input SHALL give up its port to the first controller on a higher port that does. Input is a digital button, or an analog button above 30; the sticks SHALL NOT count. When a controller first shows input, it SHALL swap ports with the controller on the lowest port held by one that never has, if that port is lower than its own; controllers whose first input falls in the same poll SHALL be handled in slot order. The swap SHALL NOT change the connected mask: the title sees no remove or insert. A controller that has shown input SHALL never be moved while it stays connected, and a controller that goes away SHALL count as never active when it comes back. While any controller holding a port has never shown input, the host SHALL read every such controller on each poll of port 0, and on each poll of any port while port 0 has no source, whether or not the title polls its port, so a controller played alone is marked before a second one can take its port; once every controller has shown input, nothing extra is read.
+
+The keyboard and mouse, when either is on, SHALL be read once per poll of port 0 and at no other time, whichever host slot drives port 0, since the read consumes the mouse motion. When a port has both a script and a host source, buttons SHALL be OR-ed, analog values SHALL take the larger, and a stick axis the script leaves at zero SHALL take the host's value. On port 0 a host controller and the keyboard-and-mouse source SHALL be merged the same way, a non-zero keyboard or mouse axis replacing the controller's for that poll. On SDL hosts the host-to-Duke mapping SHALL be indexed by SDL's positional gamepad button and axis values (south, east, west, north, ...), which SDL3 keeps at the values SDL2's controller API had.
 
 #### Scenario: Proton with a real controller
-- **WHEN** the title runs under Proton with one controller connected and no script
-- **THEN** the `[INPUT] sources` line reports `host=on ports=0x1`, and pressing START on the title advances to the story opening (R0_opening.sfd opens; title state 0x5EB620 leaves 0)
+- **WHEN** the title runs under Proton with one controller connected, Steam Input off for the game (`PROTON_NO_STEAMINPUT=1`) and no script
+- **THEN** the `[INPUT] sources` line reports `host=on ports=0x1 pads=0:0`, and pressing START on the title advances to the story opening (R0_opening.sfd opens; title state 0x5EB620 leaves 0)
 
 #### Scenario: Proton with a Steam Input pad
 - **WHEN** the title runs under Proton with a controller that Steam Input exposes as XInput
@@ -67,11 +73,63 @@ Host controllers SHALL be a source for the pad when the host pad is enabled. Ena
 
 #### Scenario: Host pads off, keyboard on
 - **WHEN** the title runs with `RECOMP_HOST_PAD=0`, no script, and `input.keyboard = true` in effect
-- **THEN** the `[INPUT] sources` line reports `host=off keyboard=on ports=0x1` and keys drive port 0
+- **THEN** the `[INPUT] sources` line reports `host=off keyboard=on ports=0x1 pads=none` and keys drive port 0
 
 #### Scenario: Pad and mouse together
 - **WHEN** a controller drives port 0 with its right stick at rest and the mouse is moved during one game frame
 - **THEN** that poll's `sThumbRX`/`sThumbRY` are the mouse's values, and the next poll with the mouse at rest reads the controller's stick again
+
+#### Scenario: Lone controller on a non-zero slot
+- **WHEN** the title runs with one controller that the host reports on slot 1 and nothing on slot 0
+- **THEN** the `[INPUT] sources` line reports `ports=0x1 pads=1:0`, and its buttons appear as `host port=0` and drive player 1
+
+#### Scenario: Steam's inert pad on slot 0
+- **WHEN** the title runs under Proton with Steam Input on, Steam's virtual pad on slot 0 and the real controller on slot 1 (`sources ... ports=0x3 pads=0:0,1:1`), and a button is pressed on the real controller
+- **THEN** the log shows `[INPUT] t=<s> pads=0:1,1:0 active=0x2`, no `ports=` line follows, and the controller's buttons appear as `host port=0` from that poll on and drive player 1
+
+#### Scenario: A pressed controller keeps its port
+- **WHEN** two controllers drive ports 0 and 1 and the one on port 0 was pressed first
+- **THEN** pressing the controller on port 1 moves nothing, and no `active=` line is logged
+
+#### Scenario: A controller pressed while alone keeps port 0
+- **WHEN** one controller drives port 0 alone and is pressed, then a second controller comes up on another port and is pressed
+- **THEN** no `active=` line is logged, and the first controller keeps port 0
+
+#### Scenario: Keyboard with a controller on port 1 from slot 0
+- **WHEN** the keyboard is on, a controller on slot 1 drives port 0, and a controller on slot 0 drives port 1
+- **THEN** keys drive port 0 only, and each poll of port 0 reads the keyboard and mouse exactly once
+
+#### Scenario: Controller added below a held one
+- **WHEN** a controller on slot 1 drives port 0 and a second controller comes up on slot 0
+- **THEN** the log shows `[INPUT] t=<s> pads=0:1,1:0`, the first controller keeps port 0, and the new one drives port 1
+
+#### Scenario: A replugged controller keeps its port
+- **WHEN** three controllers drive ports 0, 1 and 2, the ones on ports 0 and 1 are unplugged, and the one from port 1 is plugged in again first
+- **THEN** it drives port 1 again, not port 0, and the one from port 0, plugged in after it, drives port 0
+
+#### Scenario: A controller alone after a replug is player 1
+- **WHEN** every controller is unplugged and one that drove port 1 is plugged in again
+- **THEN** it drives port 0
+
+#### Scenario: A controller pressed while port 0 is empty
+- **WHEN** controllers drive ports 0 and 1 and neither has been pressed, the keyboard and the script are off, the one on port 0 is unplugged, the one on port 1 is pressed, and then the first is plugged in again
+- **THEN** the first drives port 0 again, and pressing the second moves nothing
+
+#### Scenario: Slot mapping unit test
+- **WHEN** `scripts/test_pad_slots.py` runs
+- **THEN** it passes: slot 0 alone maps to port 0, slots filled from 0 map to themselves, a lone slot 1 or 3 maps to port 0, an unplug frees only its own port and forgets that slot's activity, freed ports are refilled lowest first, a first press takes the lowest port held by a never-active controller without changing the port mask, a controller once active is never moved, a controller pressed while alone keeps port 0 when a second comes up and is pressed, a replugged slot takes its old port back when it is free and another controller is up (also after a first-press swap), a slot that comes up alone takes port 0, and first presses in one poll are handled in slot order
+
+#### Scenario: Toolkit pad-only read
+- **WHEN** the toolkit's `input_map` ctest runs
+- **THEN** it passes: `xbox_InputGetPadState` never reads the keyboard and answers `ERROR_DEVICE_NOT_CONNECTED` for an empty slot under the same backoff as `xbox_InputGetState`, `xbox_InputGetState(0)` reads the keyboard exactly once and `xbox_InputGetState(1)` never, and `xbox_InputMergeKbm` gives the state `xbox_InputGetState(0)` gives
+
+#### Scenario: macOS pad through SDL3
+- **WHEN** the title runs on macOS with a controller connected and no script
+- **THEN** `[INPUT] sources` reports `host=on ports=0x1 pads=0:0`, START on the title opens R0_opening, and the right shoulder reads `bAnalogButtons[BLACK] = 255`
+
+#### Scenario: Mapping tests on SDL3
+- **WHEN** `tests/input_map` and `tests/input_keyboard_sdl` run on macOS and in a Linux distrobox against SDL3
+- **THEN** every row and every key and mouse case passes, two half-count mouse motions add up to one count, and `input_map` fails if the README column still reads "SDL2"
 
 ### Requirement: Host controls map to the Duke layout
 A host controller's controls SHALL map to the Xbox gamepad as follows: A, B, X, Y to A, B, X, Y; the left shoulder button to WHITE; the right shoulder button to BLACK; START/Menu to START; BACK/View to BACK; thumbstick clicks to LTHUMB and RTHUMB; the d-pad to the d-pad; the left and right triggers to L and R; the sticks to the left and right sticks with up and right positive. The mapping SHALL be the same on every host backend and SHALL be documented in one table that the code is generated from or checked against.
@@ -100,7 +158,7 @@ Sticks SHALL be passed to the guest as signed 16-bit values at the host's full r
 - **THEN** the guest reads (0, 0), and a stick at (32767, 0) still reads (32767, 0)
 
 ### Requirement: Rumble reaches the host controller
-`XInputSetState` motor speeds (0..65535 per motor) SHALL be forwarded to the host controller on the same port when the host pad is enabled and that port has a host device. `RECOMP_RUMBLE=0` SHALL disable forwarding. All motors SHALL be set to zero when the process exits or the host pad is shut down.
+`XInputSetState` motor speeds (0..65535 per motor) SHALL be forwarded to the host controller driving that port when the host pad is enabled and that port has a host device. When a first press swaps two controllers' ports, both controllers' motors SHALL be set to zero, so a rumble does not stay on the controller that left the port; the title's per-frame resend restarts it on the controller now driving the port. `RECOMP_RUMBLE=0` SHALL disable forwarding. All motors SHALL be set to zero when the process exits or the host pad is shut down.
 
 #### Scenario: Rumble on a hit
 - **WHEN** Stick takes a hit in stage 1-1 with a real controller
@@ -111,7 +169,7 @@ Sticks SHALL be passed to the guest as signed 16-bit values at the host's full r
 - **THEN** no host rumble call is made and the title's feedback status still reads complete
 
 ### Requirement: Input sources are logged
-At start the host SHALL log one line `[INPUT] sources: script=<name|off> host=<on|off> keyboard=<on|off> mouse=<on|off> rumble=<on|off> ports=<mask>` and SHALL log `[INPUT] t=<s> ports=<mask>` whenever the connected mask changes. Host-driven state changes SHALL be logged per port as `[INPUT] t=<s> host port=<n> buttons=<state>` in the same format as script changes, at most once per poll per port. The bench SHALL record these lines with the run.
+At start the host SHALL log one line `[INPUT] sources: script=<name|off> host=<on|off> keyboard=<on|off> mouse=<on|off> rumble=<on|off> ports=<mask> pads=<map>`, where `<map>` lists each host controller as `slot:port` in slot order or reads `none`. It SHALL log `[INPUT] t=<s> ports=<mask>` whenever the connected mask changes, `[INPUT] t=<s> pads=<map>` whenever a host controller takes or gives up a port, and `[INPUT] t=<s> pads=<map> active=<slot mask>` whenever a first press moves a controller, where `<slot mask>` lists every controller that has shown input; a first press that moves nothing SHALL NOT be logged. Host-driven state changes SHALL be logged per port as `[INPUT] t=<s> host port=<n> buttons=<state>` in the same format as script changes, at most once per poll per port, where `<n>` is the title's port, not the host slot. The bench SHALL record these lines with the run.
 
 #### Scenario: Sources line in a bench run
 - **WHEN** a bench run finishes
@@ -156,15 +214,15 @@ The host keyboard and mouse together SHALL be one source for port 0, merged on t
 - **THEN** the `[INPUT]` log shows no `ports=0x0` line, the title's port-0 handle stays non-zero, and a stick key moves Stick
 
 ### Requirement: The mapping lives in the configuration files
-The binding of host inputs to the Duke's controls SHALL be read from the `[input]` and `[input.bindings]` tables of the configuration files through the layering of `config-layering` (`config.default.toml` shipped and read, `config/config.toml` the player's differences). `[input.bindings]` SHALL map each control name (`a b x y white black ltrigger rtrigger start back lthumb rthumb dpad_up dpad_down dpad_left dpad_right lstick_up lstick_down lstick_left lstick_right rstick_up rstick_down rstick_left rstick_right`) to a string or an array of strings naming keys (`A`..`Z`, `0`..`9`, `F1`..`F12`, `Space`, `Return`/`Enter`, `Escape`/`Esc`, `Backspace`, `Tab`, `LShift` `RShift` `Shift`, `LCtrl` `RCtrl` `Ctrl`, `LAlt` `RAlt` `Alt`, `Up` `Down` `Left` `Right`, `Insert` `Delete` `Home` `End` `PageUp` `PageDown`, `KP0`..`KP9`, `KPEnter` `KPPlus` `KPMinus` `KPMultiply` `KPDivide` `KPPeriod`, `Comma` `Period` `Slash` `Semicolon` `Quote` `LBracket` `RBracket` `Backslash` `Minus` `Equals` `Grave`) or mouse inputs (`MouseLeft` `MouseRight` `MouseMiddle` `Mouse4` `Mouse5` `WheelUp` `WheelDown`), case-insensitively, by the label the host layout gives the key. Resolution SHALL be: per control, the highest layer that names it wins whole (`[]` unbinds); an input the player's file names under one control is removed from every control it inherited from a lower layer; an input named under two controls in one file is reported and the second occurrence ignored; a control no file names keeps the compiled-in default. The `[input]` knobs SHALL be `keyboard`, `mouse` (bool), `mouse_look` (`right_stick` default, `left_stick`, `none`), `mouse_sensitivity` (0.1..10.0, default 1.0), `mouse_invert_y`, `mouse_invert_x` (bool, default false), `mouse_min_deflection` (0.0..0.9, default 0.45), `mouse_capture` (`focus` default, `click`, `never`), `mouse_release_key` (default `F9`; `""` or `"none"`: no key), `wheel_pulse_ms` (default 100), `stick_ramp_ms` (0..2000, compiled-in default 0, instant), `walk_key` (compiled-in default none; `""` or `"none"`: no key), `walk_scale` (0.41..1.0, compiled-in default 1.0); the compiled-in stick defaults SHALL keep the toolkit's legacy keyboard, and the game's shipped `config.default.toml` SHALL set `stick_ramp_ms = 60`, `walk_key = "LAlt"` and `walk_scale = 0.5`. Every error SHALL be one line `[INPUT] config error: <file>:<line>: <message>` naming the control or key and what was done instead, SHALL never be fatal, and SHALL leave the rest of the file applied; an unknown control, an unknown input, a wrong type, an out-of-range knob and an unknown choice SHALL each have their message; a binding of `F9`, `F10` or `F11` SHALL be applied with a warning naming the reserved use. One line `[INPUT] config: keyboard=<on|off> mouse=<on|off> look=<target> sens=<v> bindings=<n> (<file>) [+<m> (<file>)]` SHALL be logged at init; the toolkit's compiled-in key table SHALL be the fallback when no file binds a control and SHALL NOT change. The `[ENHANCE]` lines SHALL gain nothing and the golden harness SHALL NOT learn `[input]` keys.
+The binding of host inputs to the Duke's controls SHALL be read from the `[input]` and `[input.bindings]` tables of the configuration files through the layering of `config-layering` (`config.default.toml` shipped and read, `config/config.toml` the player's differences). `[input.bindings]` SHALL map each control name (upstream xboxrecomp's names from the toolkit's `src/input/input_map.c`: `dpad_up dpad_down dpad_left dpad_right start back left_thumb right_thumb a b x y black white left_trigger right_trigger left_stick_up left_stick_down left_stick_left left_stick_right right_stick_up right_stick_down right_stick_left right_stick_right`) to a string or an array of strings naming keys by upstream's key names (`xbox_InputMap_KeyFromName`: `A`..`Z`, `0`..`9`, `F1`..`F12`, `Space`, `Enter`/`Return`, `Escape`/`Esc`, `Backspace`, `Tab`, `Pause`, `CapsLock`, `LShift` `RShift` `Shift`, `LCtrl` `RCtrl` `Ctrl`/`Control`, `LAlt` `RAlt` `Alt`, `Up` `Down` `Left` `Right`, `Insert` `Delete` `Home` `End` `PageUp` `PageDown`, `Numpad0`..`Numpad9`, `NumpadAdd` `NumpadSubtract` `NumpadMultiply` `NumpadDivide` `NumpadDecimal`, `Comma` `Period` `Slash` `Semicolon` `Quote` `LeftBracket` `RightBracket` `Backslash` `Minus` `Equals` `Grave`) plus the fork's `NumpadEnter`, or mouse inputs (upstream's `Mouse1`..`Mouse5`, the fork's `WheelUp` `WheelDown`), case-insensitively, by the label the host layout gives the key. The names used before the tracker item (`ltrigger`, `lthumb`, `lstick_up`, `KP8`, `KPEnter`, `LBracket`, `MouseLeft` ...) SHALL be unknown names, with no alias. Resolution SHALL be: per control, the highest layer that names it wins whole (`[]` unbinds); an input the player's file names under one control is removed from every control it inherited from a lower layer; an input named under two controls in one file is reported and the second occurrence ignored; a control no file names keeps the compiled-in default. The `[input]` knobs SHALL be `keyboard`, `mouse` (bool), `mouse_look` (`right_stick` default, `left_stick`, `none`), `mouse_sensitivity` (0.1..10.0, default 1.0), `mouse_invert_y`, `mouse_invert_x` (bool, default false), `mouse_min_deflection` (0.0..0.9, default 0.45), `mouse_capture` (`focus` default, `click`, `never`), `mouse_release_key` (default `F9`; `""` or `"none"`: no key), `wheel_pulse_ms` (default 100), `stick_ramp_ms` (0..2000, compiled-in default 0, instant), `walk_key` (compiled-in default none; `""` or `"none"`: no key), `walk_scale` (0.41..1.0, compiled-in default 1.0); the compiled-in stick defaults SHALL keep the toolkit's legacy keyboard, and the game's shipped `config.default.toml` SHALL set `stick_ramp_ms = 60`, `walk_key = "LAlt"` and `walk_scale = 0.5`. Every error SHALL be one line `[INPUT] config error: <file>:<line>: <message>` naming the control or key and what was done instead, SHALL never be fatal, and SHALL leave the rest of the file applied; an unknown control, an unknown input, a wrong type, an out-of-range knob and an unknown choice SHALL each have their message; a binding of `F9`, `F10` or `F11` SHALL be applied with a warning naming the reserved use. One line `[INPUT] config: keyboard=<on|off> mouse=<on|off> look=<target> sens=<v> bindings=<n> (<file>) [+<m> (<file>)]` SHALL be logged at init; the toolkit's compiled-in key table SHALL be the fallback when no file binds a control and SHALL NOT change. The `[ENHANCE]` lines SHALL gain nothing and the golden harness SHALL NOT learn `[input]` keys.
 
 #### Scenario: Player rebinds one key
-- **WHEN** `config.default.toml` binds `start = ["Return", "Escape"]` and the player's `config/config.toml` holds `[input.bindings]` `back = "Escape"`
-- **THEN** Escape drives BACK and not START, Return still drives START, and the `[INPUT] config:` line reports one binding from the player's file
+- **WHEN** `config.default.toml` binds `start = ["Enter", "Escape"]` and the player's `config/config.toml` holds `[input.bindings]` `back = "Escape"`
+- **THEN** Escape drives BACK and not START, Enter still drives START, and the `[INPUT] config:` line reports one binding from the player's file
 
 #### Scenario: Unknown control
 - **WHEN** the player's file holds `jmp = "Space"` under `[input.bindings]` and `a = "J"` on the next line
-- **THEN** the log shows `[INPUT] config error: config/config.toml:<line>: unknown control 'jmp' under [input.bindings] (controls: a b x ... rstick_right); ignored`, and J drives A
+- **THEN** the log shows `[INPUT] config error: config/config.toml:<line>: unknown control 'jmp' under [input.bindings] (controls: dpad_up dpad_down ... right_stick_right); ignored`, and J drives A
 
 #### Scenario: Unknown key
 - **WHEN** the player's file holds `a = ["Spacebar", "J"]`
@@ -205,7 +263,7 @@ With `input.mouse` on, the mouse's relative motion accumulated between two polls
 With `input.mouse` on and `mouse_capture = "focus"` (the default), the cursor SHALL be captured (hidden, relative motion, confined to the window) whenever the game window has focus, from the first focus on; the capture SHALL be released on focus loss, hide or minimise, while the enhancements menu is open (`xbox_InputMouseSuspend(1)`), and when the window closes, and SHALL be taken again when focus returns or the menu closes. `mouse_release_key` (default `F9`; `""` or `"none"`: no key) SHALL toggle the capture: pressed while captured it frees the cursor and the window keeps focus with the cursor free; pressed again it captures. While released, motion and buttons SHALL drive nothing. `"click"` SHALL capture on the first mouse button press inside the focused window (that press consumed) and otherwise behave as `focus`; `"never"` SHALL never capture, buttons working only over the window. Each transition SHALL log `[INPUT] mouse captured` or `[INPUT] mouse released (<reason>)`. On Windows the motion SHALL come from raw input (`WM_INPUT`) with a re-centring `WM_MOUSEMOVE` fallback when raw input is silent, and the first capture SHALL log which path is in use; on SDL hosts from relative mouse mode. The same window procedures SHALL feed the SDL, D3D11 and GDI windows; headless runs SHALL have no mouse.
 
 #### Scenario: Focus captures
-- **WHEN** the game window gains focus with `input.mouse` on and the defaults (`rtrigger = ["MouseLeft", "R"]`)
+- **WHEN** the game window gains focus with `input.mouse` on and the defaults (`right_trigger = ["mouse1", "R"]`)
 - **THEN** `[INPUT] mouse captured` is logged, the cursor is hidden, and the first left click after the capture (not the click that focused the window) reads `bAnalogButtons[RTRIGGER] = 255`
 
 #### Scenario: The focusing click drives nothing
@@ -224,8 +282,8 @@ With `input.mouse` on and `mouse_capture = "focus"` (the default), the cursor SH
 With `RECOMP_DEBUG=kbm_script=<file>` the toolkit SHALL apply a file of timed events on the pad poll, one per line: a time in seconds since the first poll or in polls (`Np`), then `key down|up NAME`, `mouse move DX DY` (counts, one poll's motion), `mouse down|up NAME` or `wheel N`, with `#` comments; names SHALL be the binding vocabulary. It SHALL write the same tables the windows write and force capture, SHALL log `[INPUT] kbm_script: <n> events` at init and report a bad line with its number and skip it, and SHALL be refused with one line when `RECOMP_INPUT_SCRIPT` is set.
 
 #### Scenario: Headless title screen on the Mac
-- **WHEN** a headless Metal run with the build's defaults and `kbm_script` holding `15.0 key down Return` / `15.2 key up Return` reaches the title
-- **THEN** the log shows `[KEY] down Return`, `host port=0 buttons=START` and `R0_opening.sfd` opens
+- **WHEN** a headless Metal run with the build's defaults and `kbm_script` holding `15.0 key down Enter` / `15.2 key up Enter` reaches the title
+- **THEN** the log shows `[KEY] down enter`, `host port=0 buttons=START` and `R0_opening.sfd` opens
 
 #### Scenario: Mouse under Proton
 - **WHEN** a `blinx2 bench run` under Proton (D3D11 window) plays a script with `mouse move 20 -5` once the title has appeared
@@ -236,11 +294,11 @@ With `RECOMP_DEBUG=kbm_script=<file>` the toolkit SHALL apply a file of timed ev
 - **THEN** one `[INPUT] kbm_script: refused (RECOMP_INPUT_SCRIPT is set)` line is logged and the preset runs alone
 
 ### Requirement: Host inputs are named in the trace
-With `RECOMP_TRACE=key` the host SHALL log every key and mouse edge by its binding name (`[KEY] down Space`, `[KEY] up Space`, `[KEY] mouse down MouseLeft`, `[KEY] wheel +1`), the first 200 edges then one in 50, so a player can discover a name by pressing the key; `RECOMP_TRACE=mouse` SHALL log the mouse model's input and output per poll with motion (`[MOUSE] dx=<n> dy=<n> -> RS(<x>,<y>)`) for the first 200 such polls.
+With `RECOMP_TRACE=key` the host SHALL log every key and mouse edge by its canonical binding name, upstream's `xbox_InputMap_KeyName` (`[KEY] down space`, `[KEY] up space`, `[KEY] mouse down mouse1`, `[KEY] wheel +1`), the first 200 edges then one in 50, so a player can discover a name by pressing the key; `RECOMP_TRACE=mouse` SHALL log the mouse model's input and output per poll with motion (`[MOUSE] dx=<n> dy=<n> -> RS(<x>,<y>)`) for the first 200 such polls.
 
 #### Scenario: Discover a key name
 - **WHEN** the trace is on and the player presses and releases the space bar
-- **THEN** stderr shows `[KEY] down Space` then `[KEY] up Space`
+- **THEN** stderr shows `[KEY] down space` then `[KEY] up space`
 
 ### Requirement: Per-poll pad state is a trace
 The game's `[INPUT] ... host port=N buttons=...` line (one per poll in which a host pad's state changed) and its `[INPUT] rumble port=N ...` line (one per change of the motor words) SHALL print only under `RECOMP_TRACE=input`, beside the `handles=` line already there. The `[INPUT] ... ports=0x..` change line, the scripted pad's `buttons=` line and the script's `script done` line are unchanged.
@@ -254,12 +312,13 @@ The game's `[INPUT] ... host port=N buttons=...` line (one per poll in which a h
 - **THEN** the `host port=` lines carry the `wall=` stamp it subtracts from, as before
 
 ### Requirement: Hot-plugging follows the host
-A host controller connected or disconnected while the title runs SHALL change the connected-port mask, and the title's `XGetDeviceChanges` insert or remove mask, within a second, on every host. A port with no controller SHALL be asked at most once a second. On SDL hosts (macOS, native Linux) the toolkit's SDL backend SHALL:
-- open a controller the host adds and close one it removes, with or without a window pumping SDL events (SDL device events, plus a rescan at most once a second);
+A host controller connected or disconnected while the title runs SHALL change the connected-port mask, and the title's `XGetDeviceChanges` insert or remove mask, within a second, on every host. A port with no controller SHALL be asked at most once a second. On SDL hosts (macOS, native Linux) the toolkit's SDL3 backend SHALL:
+- open a controller the host adds and close one it removes, with or without a window pumping SDL events (`SDL_EVENT_GAMEPAD_ADDED`/`SDL_EVENT_GAMEPAD_REMOVED` and the joystick device events, plus a rescan at most once a second);
 - keep a controller on its port while it stays attached; ports SHALL never shift, so player 1 keeps port 0 while other pads come and go;
 - free the port of a removed controller; `XInputGetState` on that port SHALL return `ERROR_DEVICE_NOT_CONNECTED` from the next read;
 - give a new controller the port the same model (joystick GUID) last held when that port is free and another controller is still connected, else the lowest free port, so a controller that connects while no other is connected takes port 0 and a pad pulled and replugged comes back as the same player where the GUIDs tell the pads apart;
 - leave a fifth controller unopened until a port frees up;
+- open each controller once, even when SDL reports one already present at init as added;
 - log `[INPUT] host pad added port=<n> "<name>"` and `[INPUT] host pad removed port=<n>` once per change, beside the `[INPUT] t=<s> ports=<mask>` line of "Input sources are logged".
 
 A controller connected before launch SHALL be open at the title's first read, so its port is connected from the first `ports` line; the first poll SHALL wait at most 250 ms for the window's loop to open it, never longer.
@@ -267,7 +326,7 @@ A controller connected before launch SHALL be open at the title's first read, so
 The game's poll threads read the controllers while the window thread pumps SDL; opening and closing SHALL be serialized with those reads so a poll never touches a closed controller, and device enumeration SHALL run only on the thread that pumps SDL.
 
 #### Scenario: Virtual pads attached and detached (ctest)
-- **WHEN** `tests/input_hotplug_sdl` attaches SDL virtual game controllers A then B, detaches A, attaches C, detaches B, and detaches C, with no window
+- **WHEN** `tests/input_hotplug_sdl` attaches SDL virtual gamepads A then B, detaches A, attaches C, detaches B, and detaches C, with no window
 - **THEN** the masks read 0x1, 0x3, 0x2, 0x3, 0x1, 0x0 with insert masks 0x1, 0x2, -, 0x1, -, - and remove masks -, -, 0x1, -, 0x2, 0x1; A is on port 0, B on port 1 throughout, C takes port 0; port 0 returns `ERROR_DEVICE_NOT_CONNECTED` on the first read after A is detached
 
 #### Scenario: A replugged model keeps its port
@@ -275,7 +334,7 @@ The game's poll threads read the controllers while the window thread pumps SDL; 
 - **THEN** Q returns to port 1 (not the lower free port 0) and P to port 0
 
 #### Scenario: Boot with a pad attached (ctest)
-- **WHEN** `tests/input_hotplug_sdl` attaches a virtual controller, then a guest thread makes the first XInput call while the test's thread runs the window's pad sync every 5 ms
+- **WHEN** `tests/input_hotplug_sdl` attaches a virtual gamepad, then a guest thread makes the first XInput call while the test's thread runs the window's pad sync every 5 ms
 - **THEN** port 0 reads connected at that first call, within 200 ms, and a second later no insert is reported; and with no window loop running the first call returns after 200-1000 ms with no port connected
 
 #### Scenario: A pad connected before launch on the Mac

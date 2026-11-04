@@ -151,6 +151,23 @@ Order: section 1 (layer), section 2 (framework; 2.1 to 2.3 may merge once 1.1, 1
   - [ ] Follow-up (review S1): `sub_000EA270` also draws `sub_000EC630` (`0xEA8E4`) and `sub_000ECC90` (`0xEA8F9`), with digits `0xEC753`, `0xEC785`, `0xECD3E` around x 336. If one is a balloon counter shown with the goal message, it splits from `goal` at 16:9. A capture after picking up one balloon settles it.
   - [ ] Open (review N1; the whole table, not only the tracker item): in split screen with 3 or more players, the odd players draw their HUD (gold, panel, radar, counter) at x base 336, the right half (`0x92515`, `0x92534`). A `left` anchor moves them by the pad as well. Needs a per-player view in the layer or a split-screen check before rows assume one player.
 - [ ] 5.3 Gates as in 3.9 (and 4.9 for BLiNX 1 rows).
+- [ ] 5.4 The fallback for unlisted sites (F1, the tracker item spike). Join is deferred: the review (2026-11-03) took the rows only, and the fallback code and its requirement stay on the branches `spike/hud-fallback` (toolkit e6021acc, cat f3a57eba and 6167cf0f) until the operator decides on it.
+  - [x] 5.4.1 Offline evaluation over the existing captures: position bands are a no-go (40.6% of centred sprite-frames moved); same-frame adjacency moves 0.031%.
+  - [x] 5.4.4 A/B on the PC at 16:9, listed only vs join: attract, stage1, story, the gold tally and the boss stage 0x1c (`runs/hud-fallback/`). Join moved nothing in the first four. In the boss stage it moved only the top teammate bar and tore the team column (F1), so that block became rows.
+  - [x] 5.4.8 The boss health bar (branch `feat/hud-boss-rows`): `sub_00070A20`'s four calls are rows in the right group `boss_bar`. The team block under the panel (`0x6DECC`, `0x6FC10`, `0x6FD35`, `0x6FDDD`, `0x6FE2A`) is `panel` rows. Tests: `test_boss_bar_moves_right_as_one`, `test_team_block_moves_with_the_panel`. A/B: `runs/hud-fallback/boss-ab-3way.png` (D3D11). Metal on the Mac (task 5.4.6, 2026-11-03, toolkit 11e099c2, headless, `runs/hud-fallback/mac/boss-{listed,rows}`, `boss-metal-listed-vs-rows.png`): listed only (223 sites) leaves the boss bar and the team block at their 4:3 places; with the rows (232 sites) `[hud.site]` prints dx 107 for the four boss calls and dx -107 for the team block, and both sit with their edge HUD. 30.0 flips/s on both sides.
+  - [ ] 5.4.9 The boss bar's second caller, `0x1706C6` in `sub_0016F660` (from `sub_0016B800` and `sub_0016B860` at x 640, y 240, and from `sub_00170C20` sliding in to x 232): no capture reached it. The `boss_bar` rows move its bar but not its own text (calls at `0x17084D`, `0x1708BC`, `0x17099F`). A capture of that screen decides: rows for the panel, or `sub_00070A20` as a wrapper (a hook function and a regenerate) with the row on `0x6E304` only.
+  - [ ] 5.4.5 The icon column itself: a script that sets char `+0xC5` (items held), so a capture places it; then its rows (5.2's follow-up).
+  - [ ] 5.4.7 Offline alternative to weigh: `hud-map propose` offers unlisted adds inside functions that already hold listed rows.
+  - [ ] 5.4.10 If join is taken up (deferred, on `spike/hud-fallback`), the review's findings come first:
+    - M1: cache the setting through `on_setting`.
+    - M2: a per-site latch, or trace-only.
+    - M3: skip full-width listed boxes.
+    - L1: note after the skip checks.
+    - L2: the dead conflict branch.
+    - L3: the units doc.
+    - L4: tests for the centre origin and the ordering.
+    - L5: game text in toolkit comments.
+    Then the Metal A/B and a fresh review.
 
 ## 6. Later, on evidence
 

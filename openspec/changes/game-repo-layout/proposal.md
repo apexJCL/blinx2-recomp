@@ -105,8 +105,8 @@ Today the four repos have drifted apart (design.md, Survey):
 
 ### Modified Capabilities
 
-None in `openspec/specs/`. The manifest schema (`cli-extraction`'s
-`game-manifest`, not yet archived) gains `[public]` and `[layout]`. The
+None in `openspec/specs/`. The manifest schema (`game-manifest`, a main spec
+since `cli-extraction` was archived on 2026-11-03) gains `[public]` and `[layout]`. The
 CLI's `docs/manifest.md` documents them.
 
 ## Impact

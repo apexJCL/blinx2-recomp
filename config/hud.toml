@@ -183,6 +183,19 @@ kind = "left"
 name = "goal"
 kind = "right"
 
+# The boss health bar at the upper right (sub_00070A20: frame, cap, fill and
+# the name) gets its own right group: it slides in from the right edge and
+# sits alone, away from `goal` and `tc_legend`. Its rows key the
+# bar's own adds, so they also move the bar from sub_00070A20's second
+# caller (0x1706C6, in sub_0016F660), a panel based at the right edge or
+# sliding in from it, whose own text calls (at 0x17084D, 0x1708BC, 0x17099F)
+# are unlisted. No capture reached that panel; at 16:9 its bar would leave
+# its text. Keying only the boss fight would need sub_00070A20 as a
+# wrapper (a hook function) with the row on 0x6E304.
+[[group]]
+name = "boss_bar"
+kind = "right"
+
 # The time-control legend sits alone at the upper right, so it gets its own
 # right group: `counter` is the block at the bottom right, and the legend is
 # drawn only while a control runs. The "+" that sub_00072010
@@ -701,6 +714,18 @@ group = "panel"
 ret_va = 0x000708A9
 element = "health_bar"
 group = "panel"
+
+[[site]]
+ret_va = 0x00070347
+element = "stick_panel_6"
+group = "panel"
+note = "frame strip stretched over the long bar's extra length, drawn only when max hp lengthens the bar past its default (a strip of u 0.5..0.508); stick_panel_5 and the end cap move right by that length. It is the dark backing under that part of the bar: unkeyed, it stayed at its 4:3 spot at 16:9 (the dark block past the end cap), and the bar's 75%-alpha green segments over the gap it left looked like a faded copy of the bar; the tracker item, GitHub #6"
+
+[[site]]
+ret_va = 0x00070A0E
+element = "health_bar_flash"
+group = "panel"
+note = "the bar's hit flash, a red 0xC0FF0000 quad at the bar's end, drawn while the record's +0xAA timer is above 0 (found in the code: no capture so far reached it); the tracker item"
 
 [[site]]
 ret_va = 0x000730BF
@@ -1329,3 +1354,61 @@ ret_va = 0x0006DB1C
 element = "hearts"
 group = "panel"
 note = "lit heart crystal i (texture 0x418848), drawn over hearts_glow at the same quad; the tracker item"
+
+[[site]]
+ret_va = 0x00070B75
+element = "boss_name"
+group = "boss_bar"
+note = "boss health bar (upper right, slides in from the right): name, through text_outlined (0x48600); sub_00070A20, callers 0x6E304 and 0x1706C6; the tracker item"
+
+[[site]]
+ret_va = 0x00070C9B
+element = "boss_health"
+group = "boss_bar"
+note = "boss health bar (upper right, slides in from the right): health fill; sub_00070A20, callers 0x6E304 and 0x1706C6; the tracker item"
+
+[[site]]
+ret_va = 0x00070D61
+element = "boss_cap"
+group = "boss_bar"
+note = "boss health bar (upper right, slides in from the right): left cap; sub_00070A20, callers 0x6E304 and 0x1706C6; the tracker item"
+
+[[site]]
+ret_va = 0x00070E1A
+element = "boss_frame"
+group = "boss_bar"
+note = "boss health bar (upper right, slides in from the right): frame; sub_00070A20, callers 0x6E304 and 0x1706C6; the tracker item"
+
+# The team block under the stick panel in team stages (the boss stage 0x1c
+# and others): the "Team:ATTACK" label and one bar per teammate. Unlisted,
+# they stayed at the 4:3 centre while the panel went to the edge; the
+# fallback's join moved only the top bar (A/B), so they are rows.
+[[site]]
+ret_va = 0x0006DECC
+element = "team_label"
+group = "panel"
+note = "\"Team:\" and the order under the panel, through text_outlined (0x48600); sub_0006B1F0; the tracker item"
+
+[[site]]
+ret_va = 0x0006FC10
+element = "team_bar"
+group = "panel"
+note = "teammate bar under the panel, one per teammate (three in stage 0x1c), first of four quads; sub_0006F940; the tracker item"
+
+[[site]]
+ret_va = 0x0006FD35
+element = "team_bar_2"
+group = "panel"
+note = "teammate bar, second quad; sub_0006F940; the tracker item"
+
+[[site]]
+ret_va = 0x0006FDDD
+element = "team_bar_3"
+group = "panel"
+note = "teammate bar, third quad; sub_0006F940; the tracker item"
+
+[[site]]
+ret_va = 0x0006FE2A
+element = "team_bar_4"
+group = "panel"
+note = "teammate bar, fourth quad; sub_0006F940; the tracker item"

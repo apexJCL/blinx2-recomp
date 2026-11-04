@@ -56,5 +56,5 @@ This is a spike plan. It does not change behaviour, it has no spec deltas (`skip
   - Metal and D3D11 agree (route A on both), or the gap is recorded in TASKS (MetalFX);
   - the CPU backend logs that it ignores the option.
 - The toolkit-generic parts (route A in full, and B's motion vectors) would also serve Burnout 3, which also runs its races at 30 fps.
-- Related: the tracker item (merged as cat 0fa905a, `openspec/changes/free-camera/`) read the constant layout and found that the view matrix `V_game` is not yet located; its task M0a finds it. Route A's camera factoring and B's camera-only motion vectors would share that result, with a generic heuristic as the fallback. This spike does not repeat that work.
+- Related: the tracker item (merged as cat 0fa905a, `openspec/changes/archive/2026-11-03-free-camera/`) read the constant layout and found that the view matrix `V_game` is not yet located; its task M0a finds it. Route A's camera factoring and B's camera-only motion vectors would share that result, with a generic heuristic as the fallback. This spike does not repeat that work.
 - Route A's key belongs to the toolkit enhancements layer (`render.interp`), not to cat's `fps.mode`.

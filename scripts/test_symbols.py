@@ -8,12 +8,22 @@ source. Entries stay sorted by address so branches that add symbols merge
 without conflicts. The file also stays in the TOML subset the Ghidra import
 script (scripts/ghidra/ImportSymbolMap.java) parses by hand.
 
+The CLI makes each function name gen's identifier ([pipeline] symbols,
+openspec change gen-names), so no name may collide in C: not a keyword, not
+a libc, POSIX or Windows CRT name, not an identifier in cat's sources or an
+extern one in the toolkit's, not another function's name. Code outside
+src/recomp_manual.c must not name a mapped function by its sub_ symbol:
+only the manual file pins sub_ names (design D2).
+
   uv run pytest scripts/test_symbols.py
   SYMBOLS_TOML=other.toml uv run pytest scripts/test_symbols.py
 """
 
+import glob
+import json
 import os
 import re
+import sys
 
 import pytest
 
@@ -23,6 +33,7 @@ except ImportError:  # Python < 3.11
     import tomli as tomllib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
 PATH = os.environ.get("SYMBOLS_TOML") or os.path.join(HERE, "..", "config", "symbols.toml")
 
 KINDS = {"function", "global", "field", "label"}
@@ -142,3 +153,129 @@ def test_field_addresses(entries):
                 e["struct"],
                 e["offset"],
             )
+
+
+# ── C collisions (openspec change gen-names, design D6) ──────────────────
+
+C_KEYWORDS = set(
+    """
+auto break case char const continue default do double else enum extern float
+for goto if inline int long register restrict return short signed sizeof static
+struct switch typedef union unsigned void volatile while bool true false
+nullptr alignas alignof static_assert thread_local typeof class new delete this
+namespace template typename operator public private protected virtual friend
+using try catch throw
+""".split()
+)
+# Comments, strings and character literals, blanked before looking for
+# identifiers.
+NOISE = re.compile(r"//[^\n]*|/\*.*?\*/|\"(?:\\.|[^\"\\\n])*\"|'(?:\\.|[^'\\\n])*'", re.S)
+IDENT = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*\b")
+STATIC = re.compile(r"\bstatic\b[^;{(=]*?\b([A-Za-z_][A-Za-z0-9_]*)\s*[(\[=;]")
+SUB = re.compile(r"\bsub_([0-9A-Fa-f]{8})(?:_gen)?\b")
+GEN = os.path.join(ROOT, "src", "recomp", "gen")
+MANUAL = os.path.join(ROOT, "src", "recomp_manual.c")
+
+
+def code(path):
+    with open(path, encoding="utf-8", errors="replace") as f:
+        return NOISE.sub(" ", f.read())
+
+
+def sources(*roots, exts=(".c", ".h", ".cpp", ".m", ".mm", ".inc")):
+    for root in roots:
+        for p in sorted(glob.glob(os.path.join(root, "**", "*"), recursive=True)):
+            if p.endswith(exts) and not p.startswith(GEN + os.sep):
+                yield p
+
+
+def toolkit():
+    # The toolkit checkout next to cat (or vendored), not the one game.toml
+    # pins, and test_no_reserved_names adds the host libc's exports: a
+    # result can differ between hosts and toolkit branches.
+    for d in (os.path.join(ROOT, "external", "xboxrecomp"), os.path.join(ROOT, "..", "xboxrecomp")):
+        if os.path.isdir(os.path.join(d, "src")):
+            return d
+    return None
+
+
+def gen_functions(entries):
+    return {e["name"]: e for e in entries if e["kind"] == "function" and e.get("in_gen", True)}
+
+
+def test_no_reserved_names(entries):
+    sys.path.insert(0, HERE)
+    import host_reserved_names as hr
+
+    reserved = C_KEYWORDS | hr.POSIX_BASELINE | hr.WINDOWS_BASELINE | hr.host_libc_exports()
+    tk = toolkit()
+    if tk:
+        sys.path.insert(0, os.path.join(tk, "tools", "ghidra_naming"))
+        try:
+            import merge_names
+
+            reserved |= merge_names.RESERVED
+        except ImportError:
+            pass
+    hits = sorted(e["name"] for e in entries if e["name"] in reserved)
+    assert not hits, "names reserved in C or a host C library: %s" % ", ".join(hits)
+
+
+def test_no_clash_with_cat_sources(entries):
+    # A mod's own function or global by the same name would clash at link
+    # time, or shadow the gen function in that file.
+    funcs = gen_functions(entries)
+    hits = {}
+    for p in sources(os.path.join(ROOT, "src")):
+        for name in funcs.keys() & set(IDENT.findall(code(p))):
+            hits.setdefault(name, os.path.relpath(p, ROOT))
+    assert not hits, "function names already used in cat's sources: %s" % hits
+
+
+def test_no_clash_with_toolkit(entries):
+    tk = toolkit()
+    if not tk:
+        pytest.skip("no toolkit checkout (external/xboxrecomp or ../xboxrecomp)")
+    funcs = gen_functions(entries)
+    hits = {}
+    for p in sources(*(os.path.join(tk, d) for d in ("src", "include", "templates"))):
+        text = code(p)
+        names = set(IDENT.findall(text))
+        # A static name in a .c file stays there, and that file never sees
+        # gen's. A header's statics (recomp_types.h's static inline helpers)
+        # land in every gen file that includes it, so they still clash.
+        if p.endswith(".c"):
+            names -= set(STATIC.findall(text))
+        for name in funcs.keys() & names:
+            hits.setdefault(name, os.path.relpath(p, tk))
+    assert not hits, "function names the toolkit already uses: %s" % hits
+
+
+def test_no_clash_with_other_functions(entries):
+    path = os.path.join(ROOT, "analysis", "disasm", "functions.json")
+    if not os.path.exists(path):
+        pytest.skip("no analysis/disasm/functions.json (run analyze)")
+    with open(path) as f:
+        starts = {e["name"]: int(e["start"], 16) for e in json.load(f)}
+    hits = sorted(
+        "%s (0x%08X, map 0x%08X)" % (n, starts[n], e["addr"])
+        for n, e in gen_functions(entries).items()
+        if n in starts and starts[n] != e["addr"]
+    )
+    assert not hits, "names another function already has: %s" % ", ".join(hits)
+
+
+def test_sub_references_only_in_manual(entries):
+    # recomp pins to sub_ only the names src/recomp_manual.c mentions; a
+    # mapped function named sub_ anywhere else would not link once gen calls
+    # it by its map name. Move the reference there or call it by address.
+    mapped = {e["addr"]: e["name"] for e in gen_functions(entries).values()}
+    hits = []
+    for p in sources(os.path.join(ROOT, "src")):
+        if os.path.samefile(p, MANUAL):
+            continue
+        for m in SUB.finditer(code(p)):
+            va = int(m.group(1), 16)
+            if va in mapped:
+                hits.append("%s: %s (%s)" % (os.path.relpath(p, ROOT), m.group(0), mapped[va]))
+    assert not hits, "sub_ references outside src/recomp_manual.c: %s" % ", ".join(sorted(hits))

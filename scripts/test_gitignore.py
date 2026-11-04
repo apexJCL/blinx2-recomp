@@ -196,7 +196,7 @@ def test_worktree_symlinks_are_ignored():
 
 def test_build_named_changes_are_not():
     # Only a top-level build-*/ is a build tree.
-    keep = ["openspec/changes/build-resources/tasks.md", "game_files.txt"]
+    keep = ["openspec/changes/archive/2026-11-03-build-resources/tasks.md", "game_files.txt"]
     hit = sorted(ignored(keep))
     assert not hit, "ignored: %s" % ", ".join(hit)
 

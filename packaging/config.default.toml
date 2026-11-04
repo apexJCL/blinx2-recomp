@@ -91,13 +91,21 @@ ram_cache = true          # the cache partition (Z:) in memory, capped at the
                           # nothing back. Costs up to 750 MB of RAM. false: the
                           # files go to hdd/Cache as stock
 
+[system]
+language = "en"           # the language the game is told the console is set
+                          # to, read at boot: en, ja, de, fr, es or it (the
+                          # disc's six; any other gives English). Also on the
+                          # menu's Game page
+
 [fps]
 mode = "lock30"           # lock60 and free are not available for this title:
                           # the stage logic steps a fixed 1/30 s per frame
 
 [fx]
-glow = "on"               # "on" (stock) or "off": the game's soft glow pass
-glow_intensity = 1.0      # 0.0 .. 2.0: a scale of that layer (1.0 is stock)
+glow = "on"               # "on" (stock) or "off": the game's bloom (soft glow) pass
+glow_intensity = 1.0      # 0.0 .. 2.0, step 0.05: a scale of that layer (1.0
+                          # is stock). Both are the Bloom mod's, also on the
+                          # menu's Mods page and applied at once there
 
 [camera]
 free = "off"              # "on": a free-flying camera you start and stop with
@@ -122,6 +130,7 @@ free_reminder = "brief"   # its controls lines: "brief" (10 s after flight
 # are still read here as aliases.
 
 [mods]
+# "glow.enable" = "on"     # "off": the stock bloom, whatever [fx] says
 "hud.enable" = "on"       # the HUD at the edges of a wide screen (the user's
                           # exception to default-off, 2026-10-30); "off" keeps it
                           # in the 4:3 frame. Nothing at 4:3. Also on the Mods page
@@ -139,7 +148,7 @@ free_reminder = "brief"   # its controls lines: "brief" (10 s after flight
 #                           # entities.kill); off in VS and during time controls
 # "entities.hp_scale" = 1   # 1 .. 10: class-1 enemies' hp times this, from
 #                           # the next area loaded
-# "crystals.enable" = "off" # "on": BLiNX 1-style crystal sets: a row of four,
+# "crystals.enable" = "off" # "on": BLiNX 1 crystals: a row of four,
 #                           # three of a colour give its time control, four
 #                           # give it twice; Sweepers stages only
 # "walls.enable" = "off"    # "on" (experimental): meant to stop the player
@@ -228,9 +237,13 @@ menu.open = ["F10", "guide+a", "paddle1", "back+left_thumb@400"]
                             # a lone Back or L3 press in play (Back acts only
                             # in menus)
 overlay.stats = "F3"        # toggles the stats strip; no key of the game's
-camera.free.toggle = ["F6", "guide+y"]
+camera.free.toggle = ["F6", "guide+y", "back+right_thumb@400"]
                             # start and stop the free camera when [camera]
-                            # free is on; the game reads neither
+                            # free is on; the game reads neither F6 nor
+                            # Guide. Back+R3 held 0.4 s is for hosts that
+                            # never pass Guide on, as menu.open's Back+L3:
+                            # press Back first, as R3 alone moves the
+                            # game's camera
 camera.free.hud = "F7"      # show or hide the HUD while flying
 camera.free.freeze = "End"  # stop and restart the world while flying
 camera.free.reset = "Home"  # back to the game's camera while flying

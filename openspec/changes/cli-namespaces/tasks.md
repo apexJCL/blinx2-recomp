@@ -40,6 +40,7 @@
 - [ ] 6.2 `diff -r` against 1.2 on the owner's dump for every stage; only the three verb lines differ
 - [ ] 6.3 Update `README.md`, `docs/commands.md`, `manifest.md`, `bundle.md`, `wizard.md`, `symbols.md`, `CHANGELOG`; add `docs/engines.md`
 - [ ] 6.4 Before archiving: if `engine-extract` is archived by then, add a MODIFIED delta for its extract requirement (verb `assets export`, table `[assets]`, out `dist/assets`); otherwise edit that change's spec in place
+  - Note (tidy, 2026-11-03): `engine-extract` is archived, so this is due as a MODIFIED delta against `openspec/specs/engine-extract/spec.md`.
 
 ## 7. Games (with each game's pin move)
 

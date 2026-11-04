@@ -61,11 +61,13 @@
 #include "enhance.h"
 #include "enhance_cfg.h"
 #include "glow.h"
+#include "glow_mod.h"
 #include "free_camera.h"
 #include "lod_scale.h"
 #include "debug_menu.h"
 #include "crystals_mod.h"
 #include "walls_mod.h"
+#include "collision_mod.h"
 #include "entities_mod.h"
 #include "shop_mod.h"
 #include "hud_mod.h"
@@ -1398,11 +1400,13 @@ static BOOL load_xbe(const char *path, void **out_data, size_t *out_size)
  * fps spike, docs/env.md). lock60 and free say so and run lock30; nothing
  * changes in the guest.
  *
- * fx.glow and fx.glow_intensity are the game's too: off, or a scale of the
- * mode-3 glow layer (0..2), applied by the sub_0005B7D0 wrapper in
- * recomp_manual.c. At on and 1 the wrapper never touches the guest.
+ * fx.glow and fx.glow_intensity are the glow mod's (glow_mod.c), under
+ * their old keys: off, or a scale of the mode-3 glow layer (0..2), applied
+ * live by the sub_0005B7D0 wrapper in recomp_manual.c. At on and 1 the
+ * wrapper never touches the guest. A toolkit before mod API v4 has no
+ * mod, and the keys are read here once, as before.
  *
- * camera.free (free_camera.c), lod (lod_scale.c), debug_menu
+ * glow (glow_mod.c), camera.free (free_camera.c), lod (lod_scale.c), debug_menu
  * (debug_menu.c), crystals (crystals_mod.c), hud (hud_mod.c), entities
  * (entities_mod.c), shop (shop_mod.c) and walls (walls_mod.c) are mods:
  * their table goes to the layer before xbox_enhance_init, which runs their
@@ -1422,11 +1426,13 @@ static void host_enhance_init(void)
     int nm = 0;
 
     /* A NULL entry ends the table, so each mod is added only when built
-     * (lod_mod is NULL before mod API v3, hud_mod before v5, crystals_mod,
-     * entities_mod, shop_mod and walls_mod before v6). crystals goes
-     * before hud: both hook the sprite add, and its pre must see the
-     * game's vertices and its post run after hud's restore (openspec
-     * change crystal-sets, D3). */
+     * (lod_mod is NULL before mod API v3, glow_mod before v4, hud_mod
+     * before v5, crystals_mod, entities_mod, shop_mod and walls_mod
+     * before v6). crystals goes before hud: both hook the sprite add, and
+     * its pre must see the game's vertices and its post run after hud's
+     * restore (openspec change crystal-sets, D3). */
+    if (glow_mod())
+        mods[nm++] = glow_mod();
     if (free_cam_mod())
         mods[nm++] = free_cam_mod();
     if (lod_mod())
@@ -1443,6 +1449,8 @@ static void host_enhance_init(void)
         mods[nm++] = shop_mod();
     if (walls_mod())
         mods[nm++] = walls_mod();
+    if (collision_mod())
+        mods[nm++] = collision_mod();
     xbox_mod_register_table(mods);
 #else
     /* The golden check reads camera.free from the [ENHANCE] line, as with
@@ -1465,17 +1473,22 @@ static void host_enhance_init(void)
         fprintf(stderr, "[ENHANCE] fps.mode=%s not available for this title"
                         " (stage logic advances a fixed 1/30 s per frame;"
                         " see docs/env.md); using lock30\n", fps_modes[fps]);
-    enhance_cfg_bind_env("fx.glow", RENV_GLOW);
-    enhance_cfg_bind_env("fx.glow_intensity", RENV_GLOW_INTENSITY);
-    glow_off = enhance_cfg_choice("fx.glow", glow_modes, 0) == 1;
-    glow_k = enhance_cfg_float("fx.glow_intensity", 1.0);
-    if (!(glow_k >= 0.0 && glow_k <= 2.0)) {
-        double c = glow_k > 2.0 ? 2.0 : glow_k < 0.0 ? 0.0 : 1.0;   /* NaN: stock */
-        fprintf(stderr, "[ENHANCE] fx.glow_intensity=%g out of range 0..2;"
-                        " using %g\n", glow_k, c);
-        glow_k = c;
+    if (!glow_mod()) {
+        enhance_cfg_bind_env("fx.glow", RENV_GLOW);
+        enhance_cfg_bind_env("fx.glow_intensity", RENV_GLOW_INTENSITY);
+        glow_off = enhance_cfg_choice("fx.glow", glow_modes, 0) == 1;
+        glow_k = enhance_cfg_float("fx.glow_intensity", 1.0);
+        if (!(glow_k >= 0.0 && glow_k <= 2.0)) {
+            double c = glow_k > 2.0 ? 2.0 : glow_k < 0.0 ? 0.0 : 1.0;   /* NaN: stock */
+            fprintf(stderr, "[ENHANCE] fx.glow_intensity=%g out of range 0..2;"
+                            " using %g\n", glow_k, c);
+            glow_k = c;
+        }
+        glow_configure(glow_off, glow_k);
     }
-    glow_configure(glow_off, glow_k);
+    /* What the run uses at start (the golden check reads it): with the mod,
+     * what its init set, so stock when it is off or held off. */
+    glow_settings(&glow_off, &glow_k);
     fprintf(stderr, "[ENHANCE] fx.glow=%s fx.glow_intensity=%g\n",
             glow_off ? "off" : "on", glow_k);
     enhance_cfg_report_unused();

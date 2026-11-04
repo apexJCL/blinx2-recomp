@@ -41,8 +41,8 @@
     X(INPUT_STRICT,      CONFIG, "RECOMP_INPUT_STRICT",      NULL, "1: a bad input script ends the run") \
     X(HOST_PAD,          CONFIG, "RECOMP_HOST_PAD",          NULL, "0/1: host gamepads in or out") \
     X(FPS_MODE,          CONFIG, "RECOMP_FPS_MODE",          NULL, "enhancements: fps.mode, lock30 only (lock60 and free are not available)") \
-    X(GLOW,              CONFIG, "RECOMP_GLOW",              NULL, "enhancements: fx.glow, on|off (the mode-3 glow pass)") \
-    X(GLOW_INTENSITY,    CONFIG, "RECOMP_GLOW_INTENSITY",    NULL, "enhancements: fx.glow_intensity, 0.0..2.0 (scales the glow layer)") \
+    X(GLOW,              CONFIG, "RECOMP_GLOW",              NULL, "enhancements: fx.glow, on|off (the glow mod: the mode-3 glow pass)") \
+    X(GLOW_INTENSITY,    CONFIG, "RECOMP_GLOW_INTENSITY",    NULL, "enhancements: fx.glow_intensity, 0.0..2.0 (the glow mod: scales the glow layer)") \
     X(CAMERA_FREE,       CONFIG, "RECOMP_CAMERA_FREE",       NULL, "enhancements: camera.free, off|on (a hotkey toggles a free-flying camera)") \
     X(CAMERA_FREE_SPEED, CONFIG, "RECOMP_CAMERA_FREE_SPEED", NULL, "enhancements: camera.free_speed, 0.05..20, a multiplier of the fly speed (1)") \
     X(CAMERA_FREE_LOOK_SENS, CONFIG, "RECOMP_CAMERA_FREE_LOOK_SENS", NULL, "enhancements: camera.free_look_sens, 0.05..10, a multiplier of the look rate (1)") \
@@ -68,8 +68,10 @@
     X(ENTITIES_HP_SCALE, CONFIG, "RECOMP_ENTITIES_HP_SCALE", NULL, "enhancements: mods.entities.hp_scale, 1..10, class-1 enemy hp times this from the next area setup (1)") \
     X(ENTITIES_SPAWN_KEY, CONFIG, "RECOMP_ENTITIES_SPAWN_KEY", NULL, "enhancements: [input.actions] entities.spawn, the bindings that spawn a copy of the nearest enemy (unbound)") \
     X(ENTITIES_KILL_KEY, CONFIG, "RECOMP_ENTITIES_KILL_KEY", NULL, "enhancements: [input.actions] entities.kill, the bindings that defeat the nearest enemy (unbound)") \
-    X(CRYSTALS,          CONFIG, "RECOMP_CRYSTALS",          NULL, "enhancements: mods.crystals.enable, off|on (BLiNX 1-style crystal sets in Sweepers stages)") \
+    X(CRYSTALS,          CONFIG, "RECOMP_CRYSTALS",          NULL, "enhancements: mods.crystals.enable, off|on (the BLiNX 1 crystals mod: BLiNX 1-style crystal sets in Sweepers stages)") \
     X(WALLS,             CONFIG, "RECOMP_WALLS",             NULL, "enhancements: mods.walls.enable, off|on (the player's sphere no longer slides through walls thinner than twice its radius)") \
+    X(COLLISION,         CONFIG, "RECOMP_COLLISION",         NULL, "enhancements: mods.collision.enable, off|on (the stage's collision triangles around the player, drawn in the game's view)") \
+    X(COLLISION_KEY,     CONFIG, "RECOMP_COLLISION_KEY",     NULL, "enhancements: [input.actions] collision.toggle, the bindings that show and hide the collision overlay (F4)") \
     X(SHOP,              CONFIG, "RECOMP_SHOP",              NULL, "enhancements: mods.shop.enable, off|on (the shop API and the menu's price and gun stat percents)") \
     X(SHOP_PRICE_PCT,    CONFIG, "RECOMP_SHOP_PRICE_PCT",    NULL, "enhancements: mods.shop.price_pct, 10..500 step 10, every shop price in percent, rounded to 10 (100)") \
     X(SHOP_AMMO_PCT,     CONFIG, "RECOMP_SHOP_AMMO_PCT",     NULL, "enhancements: mods.shop.ammo_pct, 50..500 step 10, every gun's capacity and ammo per purchase in percent, 1..99 (100)") \
@@ -84,7 +86,7 @@
     X(MEM_DUMP,          DEBUG, "mem_dump",        "RECOMP_MEM_DUMP",          "=va,bytes,prefix: guest memory dumps") \
     X(MEM_DUMP_EVERY,    DEBUG, "mem_dump_every",  "RECOMP_MEM_DUMP_EVERY",    "=s: mem_dump period, default 20") \
     X(ENTITIES_PROOF,    DEBUG, "entities_proof",  NULL,                       "=steps (+ separated): spawn:f, fill:f, kill:f, rew:f, spawnrew:f, tc:f, tcreq:r, tcdur:n, rewarea:n, setuponly:1, from:id, keep:1, atsrc:1, killany:1, out:file; the entity API's live proof and per-frame list log") \
-    X(CRYSTALS_PROOF,    DEBUG, "crystals_proof",  NULL,                       "=steps (+ separated): seq:digits (| waits for a mission change), at:f, every:n, dup:n, rew:f, out:file; the crystals mod's live proof and record log") \
+    X(CRYSTALS_PROOF,    DEBUG, "crystals_proof",  NULL,                       "=steps (+ separated): seq:digits (| waits for a mission change), at:f, every:n, dup:n, rew:f, kill:f, out:file; the crystals mod's live proof and record log") \
     X(SHOP_PROOF,        DEBUG, "shop_proof",      NULL,                       "=steps (+ separated): log:1, out:file, gun:id, fire:f, every:n, shots:k, gold:n, goldat:f; the shop API's live proof and per-frame shop and gun log") \
     X(WALLS_TRACE,       DEBUG, "walls_trace",     NULL,                       "=opts (+ separated): out:file, fix:0|1, probe:f, samples:n, rad:cr, wmax:cr, tp:k, at:f, depth:pct, for:n, dyn:f, dynper:n, gat:f, gx/gy/gz:cu, tris:f, pd:f, pdn:n; the walls mod's collision trace and A/B probes (mod on)") \
     X(PAD_PEEK,          DEBUG, "pad_peek",        NULL,                       "=va:n[:x],...: guest dwords on every scripted pad poll") \

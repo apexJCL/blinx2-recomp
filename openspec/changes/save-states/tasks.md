@@ -147,10 +147,14 @@
 
 - [ ] 3.1 A `longjmp` unwind point in `bridge_thread_main` and on the boot
   thread. Check, per restartable call, that no bridge lock is held.
+  Game-reset phase 1 built this as `recomp_guest_unwind`
+  (`src/kernel/kernel_guest_unwind.h`). Reuse it and its held-region
+  count rather than a second jump.
 - [ ] 3.2 Host object teardown and re-creation: every host sync object,
   critical-section shadows included, destroyed and re-created, since the
   `longjmp` abandons ownership the reused threads still hold. Reuse threads, or create
-  and exit them.
+  and exit them. The unwind already leaves the critical sections a thread
+  owns (game-reset phase 1); mutants stay abandoned.
 - [ ] 3.3 An undo state with the saves on disk, and rollback of both on a
   failed load.
 - [ ] 3.4 D7.3 soak: 50 cycles with handle and texture counts flat.

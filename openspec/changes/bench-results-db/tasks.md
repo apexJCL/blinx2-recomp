@@ -1,3 +1,5 @@
+Open (tidy, 2026-11-03): 0.2, 6.4 (the topic dirs under `bench-logs/` still exist), 6.5-6.8 (`notes/cleanup-derived.py` still exists), 7.3, 7.4, 8.1 and 8.2. The rest merged (benchdb live since 2026-10-25).
+
 ## 0. Decisions
 
 - [x] 0.1 The user answered the first draft's Q1-Q9 (2026-10-25). Recorded in D17.

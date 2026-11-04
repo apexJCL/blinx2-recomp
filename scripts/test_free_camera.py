@@ -54,7 +54,11 @@ SETTINGS = {
 # The host actions camera.free.<id>: old [camera] key (now an alias), env
 # row, stock bindings under [input.actions].
 ACTIONS = {
-    "toggle": ("camera.free_toggle", "RECOMP_CAMERA_FREE_TOGGLE", ["F6", "guide+y"]),
+    "toggle": (
+        "camera.free_toggle",
+        "RECOMP_CAMERA_FREE_TOGGLE",
+        ["F6", "guide+y", "back+right_thumb@400"],
+    ),
     "hud": ("camera.free_hud_key", "RECOMP_CAMERA_FREE_HUD_KEY", "F7"),
     "freeze": ("camera.free_freeze_key", "RECOMP_CAMERA_FREE_FREEZE_KEY", "End"),
     "reset": ("camera.free_reset_key", "RECOMP_CAMERA_FREE_RESET_KEY", "Home"),

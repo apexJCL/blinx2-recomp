@@ -11,7 +11,7 @@ design's open questions on 2026-10-18; the answers are in `design.md`.
 
 ## 0. Facts
 
-- [ ] 0.1 Confirm BLiNX 2's recipe. From a save this build writes, and from
+- [x] 0.1 Confirm BLiNX 2's recipe. From a save this build writes, and from
   the user's community seed (size and offsets only, run by the user),
   confirm that `blinx2data.bin` is always 81920 bytes, and whether
   33992..81920 carries a second signed block (81920 = 2 × 40960). If it
@@ -19,6 +19,10 @@ design's open questions on 2026-10-18; the answers are in `design.md`.
   result as a standalone recipe check: a pytest that builds a synthetic
   file, signs it with `hmac.new(bytes(16), b[start:end], sha1)` at each
   digest offset, and checks that the importer reproduces every digest.
+  - Result (2026-11-03): one signed block. The file is 81920 bytes, the
+    HMAC-SHA1 input is [0, 33972), the digest is at 33972, and no digest
+    of any later range verifies. Pinned in the CLI's `test_saves.py`
+    (`test_blinx2_recipe`). The community-seed check is the user's to run.
 - [ ] 0.2 Find out how Burnout 3 saves. On the Mac (under `lockf`, with
   `SDL_AUDIODRIVER=dummy`, after asking "main"), save once under this build
   into a fresh `RECOMP_SAVE_DIR`. Record the save file names and sizes, and
@@ -27,34 +31,41 @@ design's open questions on 2026-10-18; the answers are in `design.md`.
   padding) and load it again, so that one flip that loads is not taken to
   mean "unsigned". Record the result in `b3/` notes and draft b3's
   `[saves]` table.
-- [ ] 0.3 Confirm Cxbx-Reloaded against its source: the
+  - Partial (2026-11-03): the save is `Profile 1`, 59904 bytes, under
+    title 0x4541005B; no zero-key HMAC-SHA1 or SHA-1 over any range was
+    found in it. The byte-flip load test has not run, so b3's `[saves]`
+    is not drafted yet (it imports with the no-table warning meanwhile).
+- [x] 0.3 Confirm Cxbx-Reloaded against its source: the
   `EmuDisk/Partition1/UDATA` layout, the default data dir, portable mode,
   the `settings.ini` custom location key, and its process names. Record any
   path that differs from design D2 there before 2.3b starts.
-- [ ] 0.4 Record whether each game keeps its progress in TDATA, and set its
+  - Result: as D2, with the details now in D2 (source HEAD 585c49a5).
+- [x] 0.4 Record whether each game keeps its progress in TDATA, and set its
   `[saves] tdata` value from that.
+  - BLiNX 2 writes nothing to TDATA: `tdata = "ignore"`. KUF uses TDATA
+    (for its table, later). Burnout 3: with 0.2.
 
 ## 1. CLI core: manifest, folder and zip sources, import (D1, D3, D4, D6)
 
-- [ ] 1.1 `manifest.py`: parse and validate `[saves]` (`title_ids`,
+- [x] 1.1 `manifest.py`: parse and validate `[saves]` (`title_ids`,
   `signing`, `tdata`, `[[saves.signed]]`, several entries per glob).
   Document every key in `docs/manifest.md`.
-- [ ] 1.2 `saves/sources.py`: folder and zip sources, root normalisation,
+- [x] 1.2 `saves/sources.py`: folder and zip sources, root normalisation,
   the name and size rules (D4), and no link following.
-- [ ] 1.3 `saves/importer.py`: classify saves (title from the directory
+- [x] 1.3 `saves/importer.py`: classify saves (title from the directory
   name, case rules, "no title", `TitleName=` and `NoCopy=1`), read SaveMeta
   names, pick the target from `[data]` (with `dir_env`, the SteamOS bundle
   root or `--to`), refuse link targets, back up to `save-backups/` with
   `-N` stamps and `testzip()`, handle conflicts per save and per TDATA file
   (`--replace`), stage in `.save-import-tmp/`, re-sign, rename into place,
   clean stale staging, and support `--dry-run` and `--json`.
-- [ ] 1.3a `saves/procs.py`: process checks for the game, xemu (`xemu`,
+- [x] 1.3a `saves/procs.py`: process checks for the game, xemu (`xemu`,
   `xemu.exe`, Flatpak `app.xemu.xemu`) and Cxbx-Reloaded, including a Windows lister
   (`tasklist /FO CSV`, or toolhelp through `ctypes`), with tests on canned
   lister output.
-- [ ] 1.4 `main.py`: `saves list` and `saves import`, with help text and a
+- [x] 1.4 `main.py`: `saves list` and `saves import`, with help text and a
   README entry in the CLI style.
-- [ ] 1.5 Tests:
+- [x] 1.5 Tests:
   - root normalisation for each layout;
   - traversal, symlink and size-cap zips;
   - each name rule, for folders and zips;
@@ -75,8 +86,11 @@ design's open questions on 2026-10-18; the answers are in `design.md`.
   - refusal of a target inside a bundle;
   - the legacy-UDATA warning;
   - the pinned zero-key constant.
-- [ ] 1.6 cat: add the `game.toml` `[saves]` table for BLiNX 2 and a
+- [x] 1.6 cat: add the `game.toml` `[saves]` table for BLiNX 2 and a
   "Bring your saves" README section. Run `uv run pytest scripts` and ruff.
+  - The table sits in a comment and the README section is held (its text
+    is in cat c4adea08): both land with the `[cli]` pin move in 5.2, since
+    the pinned v0.19.0 refuses `[saves]` and has no `saves` command.
 
 ## 2. CLI images: FATX, qcow2, raw disk, MU, xemu discovery (D2)
 
@@ -130,8 +144,9 @@ design's open questions on 2026-10-18; the answers are in `design.md`.
 
 ## 5. Release
 
-- [ ] 5.1 CLI: a `CHANGELOG.md` entry and a version bump for `xbr saves`.
-- [ ] 5.2 cat: move the `game.toml` CLI pin to that release, and check that
+- [x] 5.1 CLI: a `CHANGELOG.md` entry and a version bump for `xbr saves`.
+- [x] 5.2 cat: move the `game.toml` CLI pin to that release, uncomment
+  `[saves]`, add the held README section (wrapped), and check that
   `blinx2 saves list --help` runs through the bootstrap.
 
 ## 6. Later (each needs a sample)

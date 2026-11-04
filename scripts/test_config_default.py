@@ -72,8 +72,9 @@ def test_action_keys_are_not_the_games():
     # action's key must not be a control's, the walk key or the release key,
     # nor F11, which the toolkit keeps for the fullscreen hotkey
     # (enhance_input.c reserved_use). The actions must not share a key
-    # either: the free camera's F6 (and guide+y), F7, End and Home, which
-    # the camera.free descriptor in src/free_camera.c owns, included.
+    # either: the free camera's F6 (and guide+y and back+right_thumb@400),
+    # F7, End and Home, which the camera.free descriptor in
+    # src/free_camera.c owns, included.
     cfg = _load()
     inp = cfg["input"]
     used = {"f11": "the toolkit's fullscreen hotkey"}

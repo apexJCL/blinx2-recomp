@@ -11,7 +11,7 @@
 - **Time control.** The 20 time-control rate stores (`0x65C65`…`0x66DA8`) drive the world clock `[0xEC4C14]` and the HUD timer `[0xAE7428]`. Halving them fixes the timer, and nothing else.
 - **mod60.** A real 60 fps BLiNX 2 needs an estimated 300 to 800 patched sites (XL, months).
 
-### What the vertex constants hold (merged as cat 0fa905a, `openspec/changes/free-camera/spike.md` §5)
+### What the vertex constants hold (merged as cat 0fa905a, `openspec/changes/archive/2026-11-03-free-camera/spike.md` §5)
 - `c[100..103]`: **world×view** (W·V) of the model being drawn, a 4x4 whose last row is (0,0,0,1). `c[104..107]` is a copy.
 - `c[0..47]`: per-batch bone and matrix palettes. Whether they also carry the view is open (free-camera M0a).
 - `c[112]`: a view-space light or up vector.

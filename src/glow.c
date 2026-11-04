@@ -11,12 +11,20 @@
  * weight every frame from whatever the word holds (low byte, +-1 a frame,
  * replicated to R, G and B). A scaled value left behind would become the
  * fade's next starting point and compound frame after frame.
+ *
+ * Why atomics: the glow mod (glow_mod.c) reconfigures from the mod frame
+ * while the wrapper reads on the guest thread that draws; the factor is
+ * kept as its bits so each load is whole. The pair may tear for one call,
+ * which draws one frame with the old value (openspec change glow-mod, D3).
  */
 #include <math.h>
+#include <string.h>
 #include "glow.h"
 
 static int s_active;
-static double s_factor = 1.0;
+static uint64_t s_factor_bits = 0x3FF0000000000000ull;   /* 1.0 */
+static int s_off;               /* as configured, for the start line */
+static double s_k = 1.0;
 
 uint32_t glow_weight(uint32_t w, double k)
 {
@@ -38,16 +46,32 @@ uint32_t glow_weight(uint32_t w, double k)
 
 void glow_configure(int off, double k)
 {
-    s_factor = off ? 0.0 : k;
-    s_active = off || k != 1.0;
+    double f = off ? 0.0 : k;
+    uint64_t b;
+
+    s_off = off;
+    s_k = k;
+    memcpy(&b, &f, sizeof b);
+    __atomic_store_n(&s_factor_bits, b, __ATOMIC_RELAXED);
+    __atomic_store_n(&s_active, off || k != 1.0, __ATOMIC_RELAXED);
 }
 
 int glow_active(void)
 {
-    return s_active;
+    return __atomic_load_n(&s_active, __ATOMIC_RELAXED);
 }
 
 double glow_factor(void)
 {
-    return s_factor;
+    uint64_t b = __atomic_load_n(&s_factor_bits, __ATOMIC_RELAXED);
+    double f;
+
+    memcpy(&f, &b, sizeof f);
+    return f;
+}
+
+void glow_settings(int *off, double *k)
+{
+    *off = s_off;
+    *k = s_k;
 }

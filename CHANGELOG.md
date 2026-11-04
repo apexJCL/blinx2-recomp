@@ -10,6 +10,77 @@ No release contains game data: you build the game from your own disc.
 
 ## [Unreleased]
 
+## [2026.11.2] - 2026-11-04
+
+**Play in your language, bring your saves, and a menu you can read on the
+Deck.** This release also smooths stage 2 at 16:9 and tidies the
+widescreen HUD.
+
+- **Your language.** The menu's Game page now offers the six languages
+  BLiNX 2 ships in. Pick one and the game uses it from the next start;
+  English stays the default.
+- **Bring your saves.** `./blinx2 saves import --from PATH` brings saves
+  from a console copy, another install or a zip (the menu's Saves export
+  too) into your game, re-signed for your build. Your current saves are
+  backed up first. See "Bring your saves" in the README.
+- **A menu sized for your screen.** On the Steam Deck the menu is now
+  large enough to read, and on a high-DPI desktop it follows your scale.
+  Render scale and shaders no longer change its size, the Size setting
+  applies at once, and taps reach every button at render scale 2 and 3.
+- **Stage 2 at 16:9 no longer slows down.** Widescreen kept the game from
+  merging its draws, so it issued over twice the draws of 4:3; it merges
+  them again, with the same picture.
+- **Widescreen HUD:** the boss health bar and the boss stage's Team block
+  sit at the screen edges at 16:9, and a long health bar no longer splits
+  in two (GitHub #6).
+- **BLiNX 1 crystals, now named for what they do.** The crystals mod is
+  now "BLiNX 1 crystals" on the Mods page: turn it on to collect crystals
+  the BLiNX 1 way, in a row of four. Heart crystals now show in the row,
+  drawn with the heart above your heart gauge, and the hearts above the
+  gauge light up for them again. Your
+  `mods."crystals.enable"` setting and `RECOMP_CRYSTALS` keep working.
+- **Bloom on the Mods page.** The game's bloom, the project's first
+  tweak, is now a mod: turn it off or set its strength (0 to 2) from the
+  menu and see it at once. Your `[fx] glow` and `glow_intensity` settings
+  and the `RECOMP_GLOW` keys keep working as before.
+- **Free camera from the Deck's pad.** Hold Back then R3 for 0.4 s to
+  start and stop the free camera where Guide never reaches the game (Steam
+  on the Deck, the Game Bar on Windows), as Back+L3 opens the menu.
+- **See the stage's collision.** A new Collision mod on the Mods page
+  (F4) draws the stage's collision around you in the game itself,
+  coloured by slope, with x-ray and edge options. It is off by default
+  and only for the curious: it changes nothing in play.
+- **A clear warning for another release.** If your dump is another
+  region or revision than the one this port was made from, the wizard
+  says so and asks before building, instead of failing at the very end
+  with no reason.
+
+### For developers
+
+- **Pins:** xboxrecomp-cli v0.21.0 and toolkit blinx2-v0.14.0, up from
+  v0.20.0 and blinx2-v0.13.0. The bootstrap `blinx2.py` is unchanged.
+- **Keys that waited for the pin:** `[xbe] region`, `version` and `title`
+  record the reference release, so `fingerprint`, `doctor`, the wizard
+  and the build stamp (`release=`) name a dump of another release;
+  `[saves]` describes the save import; `[system] languages` lists the six
+  languages for `system.language` (`RECOMP_SYSTEM_LANGUAGE`). v0.20.0
+  refused all three.
+- **Readable gen names:** `[pipeline] symbols` points analyze at
+  `config/symbols.toml`, so 196 gen functions carry their reverse-
+  engineered names. Gen is otherwise identical to a stock regen.
+- **Mod API 8:** a 3D debug draw (`draw3d_*`) over the frame at the flip,
+  on D3D11 and Metal; the collision mod is its first user. The CPU
+  backend draws nothing yet.
+- **Texture dumps for packs:** `RECOMP_DEBUG=tex_dump=<dir>` writes each
+  texture once by the hash the pack loader looks up; the texture
+  inventory in `analysis/` sizes the upscale work.
+- **Toolkit groundwork, off by default:** the in-window game reset's stop
+  probe, statics scan and guest unwind (openspec `game-reset`), and
+  deterministic mode stepping its clock only at frame-wait loops (about
+  32 flips per virtual second, up from 8).
+- **`.gitattributes`:** JSON stays LF on Windows checkouts, so a
+  `core.autocrlf=true` clone never rewrites `hook_functions.json`.
+
 ## [2026.11.1] - 2026-11-03
 
 **The Windows build wizard works again, and your saves can travel.**
@@ -488,7 +559,8 @@ blinx2-v0.3.1.
 - The game crashed once in stage 5-1 on macOS, after about 90 seconds;
   this is being investigated.
 
-[Unreleased]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.11.1...HEAD
+[Unreleased]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.11.2...HEAD
+[2026.11.2]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.11.1...v2026.11.2
 [2026.11.1]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.11.0...v2026.11.1
 [2026.11.0]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.4...v2026.11.0
 [2026.10.4]: https://github.com/apexJCL/blinx2-recomp/compare/v2026.10.3...v2026.10.4

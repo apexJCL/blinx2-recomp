@@ -132,6 +132,29 @@ then install the new bundle as above.
 **A bundle is private.** It contains your copy of the game and code generated
 from it. Keep it on your own machines; never share, upload or publish it.
 
+### Bring your saves
+
+Saves from a console, another install or another PC import into the save
+folder of the table above:
+
+```sh
+./blinx2 saves list --from PATH          # what PATH holds, and what would import
+./blinx2 saves import --from PATH --dry-run
+./blinx2 saves import --from PATH        # add --replace to overwrite a save already there
+```
+
+`PATH` is a folder or a zip: another install's `hdd` folder, a console's
+`E:` copy (from a dashboard or FTP), a `UDATA` folder or one title folder
+(`4d530065`), or a zip of any of those, including the menu's Saves export.
+Saves need no console keys: each import re-signs `blinx2data.bin` for this
+build. Close the game first; the import refuses while it runs. Before the
+first write it zips the saves already there to
+`config/exports/save-backups/`, beside the menu's own Saves backups, and it
+never overwrites a save unless you pass `--replace`. Add
+`--to <data folder>/hdd` when the game is installed on another machine or
+in another place. Disc images (xemu qcow2, raw disks, memory units) come
+later; copy the saves out with xemu or a FATX tool until then.
+
 ### Controls
 
 A controller is player 1. The keyboard and the mouse are merged onto
@@ -178,8 +201,8 @@ takes `KEY=value` lines for any `RECOMP_*` variable.
 | Shader profile | `present.profile` | `RECOMP_PRESENT_PROFILE` | `"none"`, a profile name | A chain of up to 8 shaders with their settings, built and saved on the menu's Shaders page (*Add shader*, then Save) as `config/shader-profiles/<name>.toml`, for example `fsr` then `crt-lottes`. When set it wins over `present.shader`. |
 | Present surface | `present.surface` | `RECOMP_PRESENT_SURFACE` | `"auto"`, `"window"`, `"internal"` | `internal` hands the compositor the frame at its own size to scale (gamescope's FSR on a Deck needs it, at `scale = 1`); `window` draws at the window's size. `auto` picks `internal` under the SteamOS launcher in gamescope, `window` elsewhere. |
 | HUD texture pack | `textures.pack` | `RECOMP_TEXTURES_PACK` | none, a path | Your own 4x HUD and font pack, see [below](#hud-texture-pack). A relative path is taken from the executable's folder. |
-| Glow | `fx.glow`, `fx.glow_intensity` | `RECOMP_GLOW`, `RECOMP_GLOW_INTENSITY` | `"on"`/`"off"`; `1.0` (0.0 to 2.0) | Turns the game's screen glow pass off, or scales it. |
-| Free camera | `camera.free` and `camera.free_*` | `RECOMP_CAMERA_FREE` and `RECOMP_CAMERA_FREE_*` | `"off"`, `"on"` | F6 (or Guide+Y) starts and stops a camera you fly anywhere in the stage while Blinx stands still: left stick moves, right stick or mouse looks, RT/X up, LT/Y down, White fast, Black slow. F7 hides the HUD, End stops the world, Home goes back to the game's camera. Speed, look and mouse sensitivity, the fast and slow multipliers and both inverts are on the menu's Mods page and in `config.default.toml`; the keys are under `[input.actions]`. Metal and Direct3D 11; see [below](#free-camera). |
+| Bloom | `fx.glow`, `fx.glow_intensity` | `RECOMP_GLOW`, `RECOMP_GLOW_INTENSITY` | `"on"`/`"off"`; `1.0` (0.0 to 2.0) | Turns the game's bloom (screen glow) pass off, or scales it. |
+| Free camera | `camera.free` and `camera.free_*` | `RECOMP_CAMERA_FREE` and `RECOMP_CAMERA_FREE_*` | `"off"`, `"on"` | F6 (or Guide+Y, or Back+R3 held 0.4 s) starts and stops a camera you fly anywhere in the stage while Blinx stands still: left stick moves, right stick or mouse looks, RT/X up, LT/Y down, White fast, Black slow. F7 hides the HUD, End stops the world, Home goes back to the game's camera. Speed, look and mouse sensitivity, the fast and slow multipliers and both inverts are on the menu's Mods page and in `config.default.toml`; the keys are under `[input.actions]`. Metal and Direct3D 11; see [below](#free-camera). |
 | In-game menu | `menu.enabled` | `RECOMP_MENU` | `true`, `false` | On by default. F10 (or Guide+A, an Elite's P1, or Back+L3 held 0.4 s) opens a menu over the game to change these options while it runs, rebind the host actions and turn mods on or off; Save keeps only what you changed in `config/config.toml`. The game keeps running behind it and sees no input. |
 | Stats strip | `overlay.stats` | `RECOMP_OVERLAY_STATS` | `false`, `true` | fps, frame time, pacing, scale and backend in the window's corner; F3 (while the menu is on) or the menu's Stats page toggles it while you play. |
 | Window size | (none) | `RECOMP_WINDOW_SCALE` | `2` | Initial window size, 640x480 times this (the SDL window on macOS). |
@@ -223,14 +246,15 @@ aspect = "16:9"
 
 ### Free camera
 
-With `camera.free = "on"` (or Free camera on the menu's Mods page), F6 or
-Guide+Y detaches the camera from Blinx and lets you fly it anywhere in the
+With `camera.free = "on"` (or Free camera on the menu's Mods page), F6,
+Guide+Y or Back+R3 held 0.4 s (Back first; for pads whose Guide the game
+never sees, as on the Deck) detaches the camera from Blinx and lets you fly it anywhere in the
 stage; End stops the world and F7 hides the HUD, for a clean shot, and Home
 puts the camera back on the game's.
 
 | Control | Default |
 |---|---|
-| Toggle flight | F6, Guide+Y |
+| Toggle flight | F6, Guide+Y, Back+R3 held 0.4 s |
 | Toggle HUD, Freeze game, Reset camera | F7, End, Home (while flying) |
 | Move, look | left stick, right stick or the mouse |
 | Rise, sink | RT or X, LT or Y |

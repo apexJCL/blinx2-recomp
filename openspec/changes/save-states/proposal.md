@@ -1,9 +1,10 @@
 # Change: Save states (quick save and load of the full game state)
 
-The user asked on 2026-10-22 for save
-states: one quick save that restores the full game state. Players get quick
-save and quick load. Tests get fixtures for well-known scenarios, so a golden
-or a benchmark can start inside a scene instead of replaying the boot and the
+The tracker item (spike, spec only); parked since 2026-11-03 (see
+Status). The user asked on 2026-10-22 for save states: one quick save
+that restores the full game state. Players get quick save and quick load.
+Tests get fixtures for well-known scenarios, so a golden or a benchmark
+can start inside a scene instead of replaying the boot and the
 menus to reach it.
 
 ## Why
@@ -199,6 +200,8 @@ menus to reach it.
 - **Effort:** about 40-61 agent days, with a go/no-go after phase 0.
 
 ## Status
+
+**Parked** (the user, 2026-11-03): the change stays active as the plan, but nothing is filed or dispatched under it until the user un-parks it. The in-game Save states page that builds on it is the tracker item.
 
 Spec from the spike, 2026-10-22, revised after the review of
 2c87ab5 and the user's decisions of the same day. Nothing is implemented. The

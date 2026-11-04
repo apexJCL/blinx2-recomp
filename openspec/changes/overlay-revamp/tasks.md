@@ -236,7 +236,7 @@ collide).
 
 ## MC. cat: free camera descriptor (mod-settings C, run here per Q4), 1.5 days, wave 1
 
-- [x] MC.1 Carry out `openspec/changes/mod-settings/tasks.md` section C as
+- [x] MC.1 Carry out `openspec/changes/archive/2026-11-03-mod-settings/tasks.md` section C as
   written, with its gates. Tick its boxes there and reference this change
   in the commit body.
 
@@ -292,7 +292,7 @@ collide).
 
 ## MD. Toolkit and cat: captured controls (mod-settings D, run here per Q4), 2.5 days, wave 2, after MC
 
-- [x] MD.1 Carry out `openspec/changes/mod-settings/tasks.md` section D as
+- [x] MD.1 Carry out `openspec/changes/archive/2026-11-03-mod-settings/tasks.md` section D as
   written, with its gates. Tick its boxes there. Rebase on C if C merges
   first: both touch capture in `enhance_menu.c`.
   *Merged in toolkit d683d5de.*

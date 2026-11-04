@@ -29,6 +29,7 @@
 #include <stdint.h>
 #include "glow.h"       /* fx.glow: the sub_0005B7D0 wrapper below */
 #include "free_camera.h"  /* camera.free: the view builders, pad poll and freeze below */
+#include "collision_mod.h"  /* the collision overlay: the view builders below */
 #include "ent_api.h"      /* entities: the sub_000606F0 wrapper below */
 #include "ent_api_logic.h"  /* ENTL_SETUP_STAGE_START, ENTL_CONTIG_* */
 #include "nv2a_backend_common.h"  /* nv2a_host_opts: display.aspect, the sub_0003B180 wrapper */
@@ -840,12 +841,22 @@ static void cam_build(uint32_t va, void (*gen)(void), const char *who, uint32_t 
 void sub_000292A0(void)
 {
     uint32_t cam = g_ebx;
-    cam_build(0x000292A0u, sub_000292A0_gen, "build292A0", cam, cam == MEM32(0x4B271Cu), 1);
+    int game = cam == MEM32(0x4B271Cu);
+
+    cam_build(0x000292A0u, sub_000292A0_gen, "build292A0", cam, game, 1);
+    /* The game camera's view is this frame's now (a stage where
+     * sub_0021B1F0 does not run, M23, draws with it): the collision overlay
+     * takes it, and a later sub_0021B1F0 build replaces it. */
+    if (game)
+        collision_mod_view();
 }
 
 void sub_0021B1F0(void)
 {
     cam_build(0x0021B1F0u, sub_0021B1F0_gen, "build21B1F0", MEM32(0x4B271Cu), 1, 0);
+    /* The stage's view and projection are this frame's now: the collision
+     * overlay draws with them (a return while it is off). */
+    collision_mod_view();
 }
 
 /* ── Free camera: the pad poll, the event system and the stage start ──────

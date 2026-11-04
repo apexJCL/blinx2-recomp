@@ -17,23 +17,27 @@ The executor SHALL hand transform, combiner, texture, depth and draw state to a 
 - **THEN** the fence word is still written by the executor at each BACK_END_WRITE_SEMAPHORE_RELEASE, in stream order, as `pushbuffer-executor` requires
 
 ### Requirement: The CPU render path presents in the host window
-With the CPU render path, the executor (pushbuffer walker, CPU vertex-program interpreter, CPU rasteriser) SHALL render every frame into the guest framebuffer. The finished frame SHALL be presented in the host window (on POSIX the SDL2 window, `fb_present_sdl.c`: an accelerated `SDL_Renderer` and one `SDL_UpdateTexture` blit per shown frame; on Windows the Win32 GDI window) and, with `RECOMP_FB_DUMP`, written as BMP dumps. The window's GPU use is Present only and SHALL NOT be described as GPU rendering or as an "SDL2 render backend".
+With the CPU render path, the executor (pushbuffer walker, CPU vertex-program interpreter, CPU rasteriser) SHALL render every frame into the guest framebuffer. The finished frame SHALL be presented in the host window (on POSIX the SDL3 window, `fb_present_sdl.c`: an `SDL_Renderer` with vsync per `RECOMP_PRESENT_VSYNC`, a streaming texture whose scale mode is set to nearest explicitly because SDL3's default is linear, letterboxed by `SDL_SetRenderLogicalPresentation`, and one `SDL_UpdateTexture` blit per shown frame; on Windows the Win32 GDI window) and, with `RECOMP_FB_DUMP`, written as BMP dumps. The window's GPU use is Present only and SHALL NOT be described as GPU rendering or as an "SDL render backend". `RECOMP_WINDOW_SHOT` SHALL read the renderer back through `SDL_RenderReadPixels` and write the same BMP bytes as before the SDL3 move. The same renderer block serves Metal's readback present, which is how it is verified while the CPU backend stays out of the routine gates.
 
 #### Scenario: macOS CPU build
 - **WHEN** the macOS arm64 build runs with `RECOMP_PB_BACKEND` unset and `RECOMP_FB_DUMP=...`
 - **THEN** it produces the CPU path's dumps, and a `RECOMP_WINDOW_SHOT` taken at `RECOMP_WINDOW_SCALE=1` matches the dump of the flip it shows
 
+#### Scenario: Stock filter is nearest
+- **WHEN** a window shot is taken at `RECOMP_WINDOW_SCALE=2` in Metal readback mode with no enhancement filter set
+- **THEN** every 2x2 block of the shot is one dump pixel (no interpolated values), and with `present.filter=linear` it is not
+
 ### Requirement: Metal GPU render backend for macOS
-With `RECOMP_PB_BACKEND=metal` on macOS, the executor SHALL hand the Metal backend the same decoded state it hands the D3D11 backend, and the backend SHALL draw the game's 3D on the GPU through Metal and present it in the SDL2 window. The CPU render path SHALL remain selectable as the reference.
+With `RECOMP_PB_BACKEND=metal` on macOS, the executor SHALL hand the Metal backend the same decoded state it hands the D3D11 backend, and the backend SHALL draw the game's 3D on the GPU through Metal and present it in the SDL3 window. The CPU render path SHALL remain selectable as the reference.
 
 #### Scenario: Same frame on Metal and on D3D11
 - **WHEN** the attract or `@stage1` frames are rendered on macOS with `RECOMP_PB_BACKEND=metal`
 - **THEN** they match the Proton D3D11 golden frames within the golden tolerance, at about 30 flips/s
 
 ### Requirement: Metal frames reach the window without a CPU round trip
-When `RECOMP_PB_BACKEND=metal` runs with a window on macOS, the window SHALL show each published frame by drawing it from GPU memory: a blit of the present render target into a presenter slot texture, then a draw into a `CAMetalLayer` drawable on the window. No CPU readback or upload of the frame SHALL occur. The presenter SHALL own the Metal device and command queue and the backend SHALL adopt them, so the slot textures and the ordering of the blit and the draw are on one queue. The window SHALL keep the stock and enhancement present behaviour of the SDL presenter:
+When `RECOMP_PB_BACKEND=metal` runs with a window on macOS, the window SHALL show each published frame by drawing it from GPU memory: a blit of the present render target into a presenter slot texture, then a draw into a `CAMetalLayer` drawable on the window obtained through `SDL_Metal_CreateView` and `SDL_Metal_GetLayer`, sized from `SDL_GetWindowSizeInPixels`. No CPU readback or upload of the frame SHALL occur. The presenter SHALL own the Metal device and command queue and the backend SHALL adopt them, so the slot textures and the ordering of the blit and the draw are on one queue. The window SHALL keep the stock and enhancement present behaviour of the SDL presenter:
 - the nearest, linear and integer filters, with geometry from `nv2a_present_rect`;
-- letterboxing on resize, HiDPI and borderless fullscreen;
+- letterboxing on resize, HiDPI (`SDL_WINDOW_HIGH_PIXEL_DENSITY`, with `SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED` resizing the drawable) and borderless fullscreen;
 - vsync per `RECOMP_PRESENT_VSYNC`;
 - `RECOMP_WINDOW_SHOT`;
 - the title bar;
@@ -50,7 +54,7 @@ When `RECOMP_PB_BACKEND=metal` runs with a window on macOS, the window SHALL sho
 - **THEN** the frame rectangle matches within 1 pixel and the pixels match within the golden limits of that frame
 
 #### Scenario: Fallback
-- **WHEN** the CAMetalLayer view cannot be created (for instance under `SDL_VIDEODRIVER=dummy`)
+- **WHEN** the CAMetalLayer view cannot be created (for instance under `SDL_VIDEO_DRIVER=dummy`)
 - **THEN** the run continues with the SDL renderer window and the readback present, the `[PRESENT] window up:` line says so, and its `fb_dump_at` frames match the golden
 
 ### Requirement: Metal writes guest memory only when it is read
@@ -263,3 +267,19 @@ With `render.aniso = N` (2..16) set, the D3D11 and Metal samplers SHALL use anis
 #### Scenario: Off by default
 - **WHEN** no key is set
 - **THEN** no sampler on either backend is anisotropic and the `[ENHANCE]` line reads `render.aniso=0`
+
+### Requirement: Clip-plane texture stages kill pixels on every render path
+On a draw through the register combiners, a texture stage in mode 5 (CLIPPLANE) SHALL kill the pixel on the D3D11 and Metal backends exactly as on the CPU path (`stage_clip_kills`). On a draw without combiners, stage 0 in mode 5 SHALL kill the pixel on both backends by the same rule. Each of the four components of the stage's interpolated coordinate SHALL discard the pixel at `>= 0` or at `< 0`, as SET_SHADER_CLIP_PLANE_MODE (0x17F8) selects for that stage and component. The stage's register SHALL still read 0. A draw with no CLIPPLANE stage SHALL produce the same pixels as before.
+
+#### Scenario: Smoke scene on Metal
+- **WHEN** `nv2a_backend_smoke` draws a quad whose stage-0 coordinate crosses 0 along x, with stage 0 in CLIPPLANE mode, once for each sign setting
+- **THEN** the Metal frame equals the CPU path's frame: the half of the quad on the killed side is not drawn
+
+#### Scenario: Draw without combiners
+- **WHEN** `nv2a_backend_smoke` (Metal) and `d3d11_backend_smoke` draw the same quads with COMBINER_CONTROL 0 and stage 0 in CLIPPLANE mode, once for each sign setting
+- **THEN** the basic shader kills from `clip_mode.x` the way xemu does, and the four probes show the killed half missing on each quad
+- **AND** the CPU path is not the reference here: its no-combiner rasteriser kills only a textured stage 0, a gap recorded as a follow-up in TASKS.md
+
+#### Scenario: Goldens unchanged
+- **WHEN** the attract, stage1 and story goldens run on Metal and, under Proton, on D3D11
+- **THEN** every frame keeps its verdict, since no BLiNX 2 scene seen so far uses mode 5

@@ -114,6 +114,9 @@ analysis/enhancements/*
 # The texture-upscaler spike: names, hashes, sizes and timings,
 # no texels; the grids stay in runs/.
 !analysis/enhancements/texture-upscalers.md
+# Its dump half: counts per class and format, no texels; the
+# dumps stay local.
+!analysis/enhancements/texture-inventory.md
 # The developer's own options (the game reads config/config.toml from the
 # working directory over the build's config.default.toml); never committed.
 config/config.toml

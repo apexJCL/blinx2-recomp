@@ -90,6 +90,7 @@ set(GAME_SOURCES
     src/pad_slots.c
     src/save_seed.c
     src/glow.c
+    src/glow_mod.c
     src/free_cam_fly.c
     src/free_camera.c
     src/lod_table.c
@@ -102,8 +103,11 @@ set(GAME_SOURCES
     src/entities_mod.c
     src/crystals_logic.c
     src/crystals_mod.c
+    src/crystals_proof.c
     src/wall_logic.c
     src/walls_mod.c
+    src/collision_logic.c
+    src/collision_mod.c
     src/shop_api_logic.c
     src/shop_api.c
     src/shop_mod.c

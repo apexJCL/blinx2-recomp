@@ -340,6 +340,31 @@ def test_goal_message_and_counter_pieces():
         assert sites[ret]["group"] == "counter"
 
 
+def test_boss_bar_moves_right_as_one():
+    # the tracker item: the boss health bar ("Scissor Demon", debug stage 0x1c) is
+    # sub_00070A20's three adds and its one text call, upper right. Its
+    # frame and fill are wider than the fallback's size cap and no listed
+    # right group is drawn near it, so it needs rows. The rows also move
+    # the bar of the uncaptured panel sub_0016F660 (caller 0x1706C6); see
+    # the group's comment in hud.toml.
+    doc = load()
+    sites = {s["ret_va"]: s for s in doc["site"]}
+    kinds = {g["name"]: g["kind"] for g in doc["group"]}
+    assert kinds["boss_bar"] == "right"
+    for ret in (0x00070B75, 0x00070C9B, 0x00070D61, 0x00070E1A):
+        assert sites[ret]["group"] == "boss_bar"
+
+
+def test_team_block_moves_with_the_panel():
+    # the tracker item: in team stages the "Team:" label and the teammate bars sit
+    # under the stick panel. The fallback's join reached only the top bar
+    # and tore the column, so every call of the block is a panel row.
+    doc = load()
+    sites = {s["ret_va"]: s for s in doc["site"]}
+    for ret in (0x0006DECC, 0x0006FC10, 0x0006FD35, 0x0006FDDD, 0x0006FE2A):
+        assert sites[ret]["group"] == "panel"
+
+
 def test_item_counter_big_digit_moves():
     # the tracker item: the big count digit's five outline passes reach the digits
     # helper through sub_00018250's tail jump, from sub_0006B1F0 at stage
@@ -421,6 +446,25 @@ def test_heart_crystals_move_with_the_lives():
         assert sites[ret]["group"] == "panel"
 
 
+# sub_0006FF10's long-bar draws (GitHub #6). Past the default max
+# hp the panel grows: 0x70347 stretches a strip of the frame over the extra
+# length (drawn only when that length is above 0), and the pieces after it
+# move right by it. 0x70A0E is the bar's hit flash, a red quad at the
+# bar's end, drawn while the record's +0xAA timer runs. Unkeyed, both stayed
+# at 4:3 while the rest of the panel moved at 16:9: the strip as a dark block
+# past the end cap, and its gap under the bar's translucent green segments
+# as a faded copy of the bar.
+BAR_CALLS = (0x00070347, 0x00070A0E)
+PANEL_FN = 0x0006FF10
+PANEL_FN_END = 0x00070A16
+
+
+def test_long_bar_pieces_move_with_the_panel():
+    sites = {s["ret_va"]: s for s in load()["site"]}
+    for ret in BAR_CALLS:
+        assert sites[ret]["group"] == "panel"
+
+
 needs_analysis = pytest.mark.skipif(
     not os.path.isfile(os.path.join(DISASM, "xrefs.json")), reason="no analysis: run analyze"
 )
@@ -484,6 +528,25 @@ def test_hearts_are_every_add_of_the_heart_loop():
     assert base[0x0006D666].endswith("fstp dword ptr [esp + 0x18]")
     assert base[0x0006D6BE].endswith("fadd dword ptr [esp + 0x18]")
     assert base[0x0006D92F].endswith("fadd dword ptr [esp + 0x18]")
+
+
+@needs_analysis
+def test_panel_function_draws_only_in_panel():
+    # Every add in sub_0006FF10 (the name, the frame, the bar) is keyed in
+    # panel, so no piece that only a long bar or a hit draws stays behind.
+    # Its text goes through a wrapper, at the name rows. The analysis also
+    # lists tail-jump aliases that start inside it (0x6FF1D, ..., 0x7011D)
+    # and end with it, so the span is its bytes, not its innermost entry.
+    an = Analysis()
+    span = range(PANEL_FN, PANEL_FN_END)
+    sites = {s["ret_va"]: s for s in load()["site"]}
+    wrappers = {w["va"] for w in load()["wrapper"]}
+    calls = {r for r in an.returns_to({ADD} | wrappers) if r in span}
+    assert set(BAR_CALLS) <= calls
+    assert an.containing(PANEL_FN)[0] == PANEL_FN
+    for ret in calls:
+        assert ret in sites, "0x%08X: draw of the panel function unkeyed" % ret
+        assert sites[ret]["group"] == "panel", "0x%08X" % ret
 
 
 @needs_analysis
