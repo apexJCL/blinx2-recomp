@@ -283,3 +283,57 @@ On a draw through the register combiners, a texture stage in mode 5 (CLIPPLANE) 
 #### Scenario: Goldens unchanged
 - **WHEN** the attract, stage1 and story goldens run on Metal and, under Proton, on D3D11
 - **THEN** every frame keeps its verdict, since no BLiNX 2 scene seen so far uses mode 5
+
+### Requirement: A blit from a render target is copied on the GPU
+On Metal and D3D11, a SRCCOPY blit whose source is a live render target of the blit's pixel size, whose destination pitch holds the source's width (`dst_pitch >= w * bpp`; a whole copy into another pitch included), and which does not overlap it, SHALL be copied texture to texture. The destination SHALL become a render target with the source's guest size, pads, host size, render scale and format and the blit's destination pitch, marked `copy` until a draw or clear uses it, with the flip of the blit that filled it; one already there with that geometry SHALL be refilled. A blit across the whole guest width from x 0 to x 0 SHALL take the Hor+ pads with it; a narrower one SHALL copy its guest columns at the render scale. Targets over the destination other than that one SHALL be written back and retired first; when every slot is taken (`RT_MAX`, 16 on both backends), the least recently used target other than the source SHALL be written back and evicted for the twin. A target the title has rewritten from the CPU SHALL be dropped instead of written back, as everywhere else (`rt_drop_if_stale`).
+
+Any other blit SHALL run in guest memory: a guest source; a partial blit with no such target to land in; BLEND_AND. Both backends SHALL write a source target back first, so the guest copy holds the frame and not the bytes from before it was drawn, and SHALL write back and retire the targets over the destination, so a partial blit keeps the rest of what it lands in. Metal writes back through `rt_sync`, which it uses for every lazy write-back. D3D11, which writes nothing back anywhere else, SHALL do it in `blit_write_back`: one synchronous staging copy and Map per target, box-filtered down to guest pixels at a render scale above 1, packed to the target's format with its constant bits (`nv2a_surf_pack_row`: X 1 for O1R5G5B5, the fixed alpha of the X8R8G8B8 and X1A7R8G8B8 formats). Because D3D11 targets are not seeded from guest memory, D3D11 SHALL write back only bytes the target holds: the source's blit rectangle, and a target over the destination only when a clear covered the whole of it since it was made or grown (`full`); a target drawn in part SHALL be dropped with no write-back, as before. That stall SHALL happen only on this path, never on a twin copy. Metal's write-back SHALL pack the same constant bits. The texture cache SHALL rehash the destination before its next bind. Each backend SHALL count the two paths in its present summary (`2D blits N target copies, M in guest memory`), printed only once a blit has happened.
+
+The retire SHALL NOT be gated by `render.rt_alias_check`: it writes the target back first, so nothing is lost, and a target left over the destination would shadow what the blit wrote.
+
+#### Scenario: The frame copy stays on the GPU
+- **WHEN** Quantum Redshift runs to flip 7500 on Metal, and on D3D11 natively on Windows
+- **THEN** every blit is a target copy (`0 in guest memory`), the copy at 0x00A1C000 is bound as a render target by the raindrop draws, and the frame matches between the two backends
+
+#### Scenario: BLiNX 2's display-buffer copies
+- **WHEN** BLiNX 2 runs its golden scenarios, which blit the 640x480 A8R8G8B8 frame (fmt 0xA) from 0x03268000 or 0x0313C000 to 0x000E7040, the framebuffer AvSetDisplayMode set, at flips 764, 890, 892, 3959 and 3971 (runs/qrs-rain/b2-golden)
+- **THEN** each blit is a target copy into a twin at 0x000E7040, the present summary counts them (`2D blits 1 target copies, 0 in guest memory`), and the goldens are unchanged on Metal and on D3D11
+
+#### Scenario: Backend smoke cases
+- **WHEN** `nv2a_backend_smoke` (Metal) and `d3d11_backend_smoke` (native Windows) run their blit cases
+- **THEN** a whole blit makes a twin that samples the source's image and a second one refills it with no new target; the twin is a copy in its blit's flip only, and not once drawn into; with every slot taken the twin evicts the oldest target, written back; a target over the destination is written back and retired; a partial blit with no twin copies from the source written back, and over a target of another size keeps the rest of what it held; a target and a source drawn in part keep the guest bytes they never drew; an R5G6B5 twin is written back packed; a destination pitch wider than the source's stays on the GPU and is written back at its own pitch; and at render.scale 2 under 16:9 a whole blit copies the pads, a partial one its guest columns only
+
+### Requirement: Dot-product texture stages and cube maps are sampled on both GPU backends
+The D3D11 and Metal backends SHALL generate the NV2A texture shader's dot-product modes (8 to 0x12) with xemu's arithmetic, in the stages each mode may occupy (`nv2a_dot_mode_ok`). A mode outside those stages SHALL be sampled as 2D.
+
+- Each dot stage i SHALL compute `dot(T_i.xyz, map(input texel))`. The input stage SHALL come from `nv2a_stage_input`. `map` SHALL be the stage's field of `SET_DOT_RGBMAPPING` (0x1E74), which the executor keeps: with x the byte value, 1 is xemu's sign1 `(x - 128)/127`, 2 is sign2 `x >= 128 ? (x - 255.5)/127.5 : (x + 0.5)/127.5`, 3 is sign3 (two's complement over 127), and the other values pass the texel through.
+- DOTPRODUCT SHALL keep its mode when its stage is disabled, since it reads no texture. It, DOT_ZW, BRDF and DOT_RFLCT_SPEC_CONST SHALL read 0.
+- DOT_ST, DOT_STR_3D and DPNDNT_AR/GB SHALL read 2D, under the stage's `tex_scale`.
+- DOT_RFLCT_DIFF, DOT_RFLCT_SPEC (the eye vector from T1.w, T2.w, T3.w) and DOT_STR_CUBE SHALL read a cube.
+
+A stage whose mode reads a cube (CUBEMAP included), that is bound, and whose texture is a square `CUBEMAP_ENABLE` texture SHALL be decoded as six faces. Face f SHALL be decoded at `offset + f * nv2a_stage_face_stride`. Each backend SHALL cache it as one entry keyed as a cube, and SHALL bind it as a cube texture, but only for the combiners' shader. A batch on the basic shader SHALL read face 0 as 2D. A cube whose six-face span overlaps a live render target SHALL NOT be bound as a cube: its key, shader and bind SHALL take the 2D read on both backends, from the target where one starts at its offset. A cube-reading mode over a 2D texture SHALL read it at `remapCubeTo2D`.
+
+The key (`nv2a_ps_stage_key`) SHALL hold the modes, the input stages, the dot mappings and the cube bits in the same layout on both backends. The MSL and HLSL generators SHALL emit the same arithmetic. The text for every state without a dot mode or a bound cube SHALL be unchanged. The CPU rasteriser keeps sampling these modes as 2D, recorded as a gap.
+
+#### Scenario: Quantum Redshift's water
+- **WHEN** Quantum Redshift's track-2 water, stage program 0x64621 with `SET_DOT_RGBMAPPING` 0x111, is drawn on Metal
+- **THEN** the water is a translucent surface with ripples and reflections over the riverbed and the submerged ship, not one flat brown plane
+
+#### Scenario: Decode, key and text (ctest)
+- **WHEN** `tests/nv2a_dot` decodes the water's registers, with stage 1 disabled
+- **THEN** the shader modes are 1, 0x11, 0x11 and 0x0C, and only stage 3 binds a cube
+- **AND** the face stride is the 128-aligned span of the six DXT5 levels
+- **AND** the key holds mapping 1 for stages 1-3 and the stage-3 cube bit
+- **AND** the MSL and HLSL declare `tex3` as a cube, declare no `tex1` or `tex2`, and contain the three dots and the reflection vector
+- **AND** with no cube bound they read `tex3` through `nv2a_cube_2d`
+- **AND** the same modes without `bump_on` give the plain 2D text
+- **AND** with the cube's faces under a live render target, the key has no cube bit and CUBEMAP reads 2D
+- **AND** a DOT_RFLCT_DIFF stage 2 packs stage 3's input and mapping, and `nv2a_bump_sources` counts the dot and DPNDNT inputs
+
+#### Scenario: Dot states compile (ctest)
+- **WHEN** `d3d8_hlsl_split`, `d3d8_msl_split` and `d3dcompile_smoke` run the shared dot cases (`dot_cases.h`)
+- **THEN** the HLSL text declares cubes exactly where the state binds one and applies no `alpha_only` fix-up to a stage that reads no texture, the MSL compiles with Metal, and on Windows the HLSL compiles with D3DCompile
+
+#### Scenario: Environment cubes on a second title
+- **WHEN** BLiNX 2 runs its golden scenarios on Metal and on D3D11
+- **THEN** the verdicts pass within the golden limits

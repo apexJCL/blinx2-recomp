@@ -32,7 +32,7 @@ What helps, for every tool:
 
 | Setting | Where | Why |
 |---|---|---|
-| `present.pacing = "sleep"` | `config/config.toml` `[present]` (the default) | Keep the default. The frame wait sleeps instead of spinning, which frees the CPU core it would otherwise hold and leaves that headroom to the tool. The pacing itself is the same as with `"spin"`. |
+| `present.pacing = "sleep"` | `config/config.toml` `[present]` (the default on every non-Windows build (macOS); the Windows build defaults to `"spin"`) | The frame wait sleeps instead of spinning, which frees the CPU core it would otherwise hold and leaves that headroom to the tool. The pacing itself is the same as with `"spin"`, but on native Windows `sleep` stalled some file reads: set it there only if the tool needs the core. |
 | `present.fullscreen = true` | `config/config.toml` `[present]` | A borderless window over the display (the game never uses exclusive fullscreen). Lossless Scaling and the drivers need a borderless or windowed game. |
 | `RECOMP_PRESENT_VSYNC` unset | `config/launch.env` | On Direct3D 11 the game presents without waiting for the display (stock), and the tool does the syncing. `=1` stalls the game's own flip and fights the tool. |
 | `render.scale = 1` | `config/config.toml` `[render]` | Frame generation costs GPU time. On a Deck, keep the 3D at 1x so the real frames still make 30. |
@@ -41,8 +41,8 @@ What helps, for every tool:
 ## Lossless Scaling (Windows)
 
 - **Needs:** [Lossless Scaling](https://store.steampowered.com/app/993090/)
-  from Steam (paid), any recent GPU, Windows 10 or 11. The Windows build of
-  the game is untested on native Windows (see the README's Platforms).
+  from Steam (paid), any recent GPU, Windows 10 or 11 (the game's
+  platforms: [playing.md](playing.md#platforms)).
 - **Use:** start the game with `present.fullscreen = true`, start Lossless
   Scaling, pick LSFG as the frame generation with a 2x multiplier, press
   Scale and click the game window within the countdown.

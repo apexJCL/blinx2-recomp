@@ -10,6 +10,25 @@ No release contains game data: you build the game from your own disc.
 
 ## [Unreleased]
 
+- **Full Diagonal Movement**, a new mod: diagonals run up to 1.69x as fast
+  as straight, as in BLiNX 1. Pads and the keyboard need Controls >
+  Sticks > Square left stick. Off by default.
+- **Speed readout**, a debug mod: shows Blinx's run speed on screen, 1.00
+  straight, up to 1.69 on diagonals with Full Diagonal Movement. Off by
+  default.
+
+### For developers
+
+- **Pins:** xboxrecomp-cli v0.22.0 and toolkit blinx2-v0.15.0, up from
+  v0.21.0 and blinx2-v0.14.0.
+- **Present shaders come from the toolkit:** blinx2-v0.15.0 stages
+  librashader and the `shaders/` presets beside every exe that links the
+  enhancements layer, so the game's own `xboxrecomp_present_shaders` call
+  is gone.
+- **A key that waited for the pin:** `[enhance.textures]` describes the
+  whole-game texture pack for `blinx2 enhance textures`; v0.21.0 refused
+  the table.
+
 ## [2026.11.2] - 2026-11-04
 
 **Play in your language, bring your saves, and a menu you can read on the

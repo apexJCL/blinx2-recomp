@@ -143,7 +143,7 @@ treatment:
 | Class (kind) | How it is decided | Default scale | Default upscaler | Alpha | Edges | Mips | Encode |
 |---|---|---|---|---|---|---|---|
 | `font` (1) | `[enhance.hud] font_atlas`, or `[enhance.textures.classes] font` patterns | 4 | the atlas fit when the game names a font, else `xbr` (`alpha_edge`) | split | clamp | none | raw |
-| `text` (2) | a picked language's archives, `text` patterns | 2 | `xbr` | split | clamp | none | bc3 |
+| `text` (2) | only in one language's archives (see below), `text` patterns | 2 | `xbr` | split | clamp | none | bc3 |
 | `ui` (0) | `ui` patterns (cat: today's `[enhance.hud] textures`), or a dump fact: drawn only by pre-transformed (2D) batches | `clamp(R, 2, 4)` | `xbr` | split | clamp | none | raw |
 | `world` (3) | everything else that is packable | 2 with `lanczos`; `clamp(R, 2, 3)` with a CNN | `lanczos` built in; a CNN preset when the owner has one | split | the recorded wrap mode | full | auto (bc1 opaque, bc3 with alpha) |
 
@@ -155,9 +155,37 @@ Facts and what they do:
 | `normal` | bump/env formats (`LIN_G8B8`/`V8U8`, DSDT) or a stage sampled with a BUMPENVMAP mode in the dump | **skipped** by default (a CNN invents slopes; a resampled normal map must be renormalised, which `lanczos` + a renormalise step does when the owner opts a rule in) |
 | `data` | `min(w, h) == 1`, or `max(w, h) <= 8`, or sampled point-filtered with no mips at a footprint of 1 texel (D14) | skipped: ramps, lookup tables, gradients read as data |
 | `linear` | a linear (rect) format | skipped by default; a rule may include it (D3) |
-| `rt`, `volatile` | the dump (D1) | never packable; listed with the reason |
+| `volatile`, `cube` | the dump (D1) | never packable; listed with the reason |
+| `rt` | the dump (D1): a hash uploaded at an address and size a stage also sampled as a live target | **skipped** by default, since its texels may be the game's own rendering; a rule may include it (the fact is one sighting, and memory reused for a same-sized target is a false positive). The targets themselves have no hash and can't be entries |
 | `palette` | P8 | packable from the dump only; each palette variant is its own entry; the inventory says how many variants a base image has |
-| `grid` | a font atlas, or a `ui` texture the owner marks as a sprite sheet | `edges = cells` with the cell size: each cell is padded and upscaled on its own so no stroke crosses a cell border |
+| `grid` | a font atlas, or a `ui` texture the owner marks as a sprite sheet | `edges = cells` with the cell size, in the same table (a `cell` with any other `edges` is refused): each cell has its clear texels' colour extended, is padded and is upscaled on its own, so no stroke or colour crosses a cell border |
+
+**Text by language (stricter than the table's first draft).**
+An entry is `text` only when every origin it has is in one language's
+archive. A language archive also carries shared art, a stage's own
+textures copied per language, and that art is not text. On BLiNX 2,
+3,707 entries are in `lng_us` alone and are `text`; 1,822 are in
+`lng_us` and in another archive too and are not (1,589 `world`, 232
+`ui`, 1 `font`).
+
+**Dump facts (review).** Sidecars hold `bump`, `rt` and,
+once a draw showed it, `drawn_2d`, rewritten at each summary. `ui` comes
+from the patterns, then from `drawn_2d`, but a name the owner gave outranks
+what a run saw: a `classes.world` or `[enhance.hud] exclude` match stays
+`world` whatever was drawn. `normal` comes from the format, then from `bump`.
+2D is a pass-through batch or a program batch at one z and one w, that w a
+whole screen layer or, with the depth test off, a near layer (Burnout 3's
+menus at w 0.1). A fact that is no real bool reads as absent and is counted in
+the report. A stage bound to a render target has no hash, so a target is never
+an entry: it is listed in the dump's `render_targets.json`, and `rt` marks a
+hash uploaded at the address and size of a target a stage *sampled*, so a
+write-back only rendered to and read as a plain texture is not flagged. The
+CLI does not read `render_targets.json`, by design: a row has no hash, so no
+pack entry could match it, and what it can say about a texture the sidecar's
+`rt` already says; it stays a diagnostic of the run. Dumps from before the tracker item
+have none of the three, which reads as unknown. The limits of these facts
+(draw merging, software-transformed 3D, backends that differ) are in the
+toolkit's `docs/formats/texture-dump.md`.
 
 The defaults are the spike's to confirm (0.4): the table is what the
 GUI shows and the owner edits. The tracker item (2026-11-01, "Measured" below)
@@ -184,7 +212,9 @@ offering only once 1.2 lands.
 
 **Coverage presets** are a game's named sets over classes and rules
 (`game.toml [enhance.textures.presets]`): `hud` (= today's `[enhance.hud]`
-set, cap and no mips: byte-compatible with `enhance hud`), `ui` (every
+set, cap and no mips: the same entries, scale, encode and payload size as
+`enhance hud`, compared with a real pack in "Measured"; its byte equality is
+the build's, the test of D8), `ui` (every
 `ui`/`font`/`text` entry, no cap), `world` (`ui` plus `world` diffuse),
 `all` (everything packable), and `traced` (D14). The wizard offers them
 as one choice.
@@ -200,7 +230,15 @@ as one choice.
   `enhancements` spec's rect rule, so a replacement is read at guest
   rate anyway. A rule may include a linear texture; the runtime needs no
   change, and the preview's render-scale view (D15) shows that it gains
-  nothing when drawn 1:1.
+  nothing when drawn 1:1. The rule can only build what has texels: the
+  dump writes no `.xtd` for a linear texture (`texels: false`), so one
+  with no source named stays skipped as `no_texels`, rule or not, and
+  the estimate leaves it out. A linear texture with a source that a
+  feeder named can be built from that source.
+- **Cube maps.** D3D11's `tex_upload` and Metal's `tex_upload_body`
+  both return for a cube before `nv2a_tex_pack_find`, so an entry could
+  never be read: excluded as `cube`, and no rule brings one back. Six
+  dumps of BLiNX 2 hold none.
 - **Render targets.** Bound directly by `rt_texture`, never hashed, the
   content is the game's own frame: excluded, by construction.
 - **Dynamic and CPU-written textures.** The hash changes each frame, so
@@ -350,7 +388,8 @@ params) -> images` over `(w, h, rgba bytes)` tuples.
    nothing to install, the defaults. The `xbr` kernel is the CLI's own
    integer implementation of Hyllian's algorithm; xBRZ (GPL-3) and
    ScaleFX are not used.
-2. **Command** (`[upscaler.<name>] command = "..."`): a template over
+2. **Command** (`[upscaler.<name>] template = "..."`, a local-only key, D8;
+   a preset's template ships in the CLI and is chosen by name): a template over
    PNG files in a temporary directory, `{in}`/`{out}` per texture or
    `{in_dir}`/`{out_dir}` per batch, `{scale}`, `{model}`, `{tile}`,
    `{gpu}` (an ncnn tool's `-g` index: `0`, `1`, or `-1` for its CPU
@@ -364,14 +403,19 @@ params) -> images` over `(w, h, rgba bytes)` tuples.
    never binaries, for the local open-source tools the community uses
    (D16): Real-ESRGAN ncnn-vulkan (`-i -o -s -n -m -g -j -t -f`, MIT; the
    models `realesrgan-x4plus`, `realesrgan-x4plus-anime`,
-   `realesr-animevideov3`; scales 2-4), waifu2x ncnn-vulkan (`-i -o -n -s
+   `realesr-animevideov3`; the tool's own source names an output by scale only
+   for that last model, so the two x4plus models offer 4x alone and only
+   `realesr-animevideov3` offers 2-4), waifu2x ncnn-vulkan (`-i -o -n -s
    -t -m -g -j -x -f`, MIT; `-g -1` is its documented CPU mode; scales
    1/2/4/8+), Upscayl's `upscayl-bin` (AGPL-3.0, the same ncnn family; its bundled
    models, or an owner's ncnn model with `-m DIR -n NAME`, whose input
    blob must be named `data`), chaiNNer `chainner run chain.chn --override overrides.json`
    (experimental per its wiki; the owner exports a chain whose input and
    output directory nodes the template overrides), and Real-ESRGAN's
-   Python `inference_realesrgan.py -n -i -o -s -t` (BSD-3), Real-CUGAN
+   Python `inference_realesrgan.py -n -i -o -s -t --suffix "" --ext png` (BSD-3;
+   the script's source gives `<name>.png` for an empty suffix, it has no
+   shebang so `path` must be a wrapper, and no run confirmed it, so the preset
+   carries `flag = "unverified..."`), Real-CUGAN
    ncnn-vulkan (MIT; `-n -s -m models-se|models-pro`, native 2/3/4x; on
    macOS the preset runs **one file per process and pads a side under
    128 by the edge**, since the 20220728 build segfaults on wide thin
@@ -471,7 +515,7 @@ params) -> images` over `(w, h, rgba bytes)` tuples.
    - **Model loading.** `--model` takes `.safetensors` (preferred, no
      code in the file), `.pth` or `.ckpt`, loaded **only** through
      `spandrel.ModelLoader` (MIT), whose pickle path is its
-     `RestrictedUnpickle` (spandrel 0.4.2, checked), never a raw
+     `RestrictedUnpickle` (spandrel 0.4.1, checked), never a raw
      `torch.load`; core architectures only: `spandrel_extra_arches` is
      never installed, its architectures carry non-commercial licences.
      When a model preset names an expected sha256, the plugin hashes the
@@ -514,7 +558,15 @@ dump recorded (`wrap`: the opposite edge, never a mirror, which would
 seam a repeating tile; `mirror`: the guest's MIRROR mode, the edge
 reflected; `clamp`: the edge extended; `cells`: per cell, D2) and
 cropped after, so a tiled floor has no seam row and a sprite does not
-bleed into its neighbour. **Size limits**: an entry whose
+bleed into its neighbour. A recorded mode always wins, per axis. Scenes that
+recorded different modes merge per axis to the one that repeats (`wrap` over
+`mirror` over the clamps, a recorded mode over none), whatever the order of the
+dumps: a clamped pad on a tile shows at its seam, a repeating pad on a texture
+drawn once only touches its rim (BLiNX 2's six scenes disagree on none). With none,
+a `world` entry falls back to `wrap` (BLiNX 2's dumps: 415 wrap, 14 clamp_edge
+where a mode was seen, 4,649 world entries of the inventory unrecorded; clamp's mean seam step 23.8
+against wrap's 7.0) and every other class to `clamp`; the build's summary and
+the record's `wrap_defaulted` count the entries that fell back. **Size limits**: an entry whose
 side would exceed `NV2A_TEX_PACK_MAX_DIM` (16384) or the class's
 `max_side` is built at the largest scale that fits, and said.
 
@@ -525,10 +577,17 @@ Two files, so the tracked one never carries an owner's machine:
 - `config/enhance-textures.toml`, **tracked** in the game repo: the
   preset, the render scale, classes, rules, upscaler names and their
   numeric parameters, the font face, budgets. Names, numbers and hashes
-  only; no path, no URL, no texel.
+  only; no path, no URL, no texel, and nothing that says what runs:
+  `template`, `binary`, `model` and `overrides` are local-only, and a tracked
+  one is refused before anything runs, with a message naming the local file.
+  A cloned repo's config must not be able to run a program. A preset stays
+  selectable from here by name, since its template ships in the CLI.
 - `config/enhance-textures.local.toml`, **untracked** (gitignored by
-  `xbr new`'s template and cat's `.gitignore`; the export refuses it):
-  per upscaler the program `path`, model directory, service `url`,
+  `xbr new`'s template and each game's `.gitignore`, which `layout.report`
+  checks; cat has the lines, and the others gain them before their CLI pin
+  moves, tasks 3.9; the export refuses it):
+  per upscaler the `template`, `binary`, program `path`, `model`, model
+  directory, `overrides`, service `url`,
   `token_env`, `allow_plain_http`, `gpu` (ncnn), `device` (torch). The GUI writes the two files
   from one form and says which key goes where; `build` merges them
   (local over tracked) and records in `textures-pack.toml` only the
@@ -592,13 +651,12 @@ eq = 300000
 weights = [48, 7, 6, 48]
 alpha_edge = true
 
-[upscaler.esrgan]                   # a command preset; its path is in the local file
+[upscaler.esrgan]                   # a command preset; its path and model are in the local file
 preset = "realesrgan-ncnn-vulkan"
-model = "realesrgan-x4plus"
 tile = 0
 
-[upscaler.remote]                   # a service; its url is in the local file
-model = "realesr-general-x4v3"      # BSD-3; a CC-BY-NC* model works too, flagged in the GUI
+[upscaler.remote]                   # a service; its url and model are in the local file
+                                    # (realesr-general-x4v3, BSD-3; a CC-BY-NC* model works too, flagged in the GUI)
 
 [budget]                            # defaults from the phase 0 spike
 pack_mb = 0                         # 0: no warning
@@ -623,7 +681,8 @@ token_env = "XBR_UPSCALE_TOKEN"
 
 `xbr enhance textures build --config FILE` (default the tracked file
 when present, the local file beside it) applies, per entry: the class
-defaults, then the class table, then matching rules in order; records
+defaults, then the class table, then the trace's proposal (D14), then
+matching rules in order, with `max_side` clamping last; records
 the tracked config's path and sha256, each upscaler's identity (built-in
 name and CLI version; a command's sha256 and version line; a service's
 `info`), `reproducible = true` only when every upscaler used is built
@@ -675,6 +734,10 @@ POST bodies as JSON only (`Content-Type: application/json`, no form
 encoding, so a cross-site form cannot reach a route); and never follows
 a registered service URL except through the `http` backend's own
 allowlisted requests. The tests of 5.6 cover each refusal.
+The token is as strong as a shell: whoever holds it can make the page
+run the owner's local upscalers, a local `template` included, through
+the render route. So it goes only to the terminal and the URL the
+browser opens, and the page drops it from the address bar once read.
 
 ### D10. Where the preview's textures come from
 
@@ -813,7 +876,9 @@ only. Occluded fragments count (the depth test runs after the shader
 on this path), which over-estimates a texture behind a wall; the
 figure is an upper bound, and the page says so. The trace runs with
 no pack loaded, or the backend divides by the entry's scale when one
-is, so the figure is always source texels per screen pixel. At exit,
+is, so the figure is always source texels per screen pixel. The CLI drops a
+figure that is no number or past `traced.MAG_BOUND` (2048; `traced.sane_mag`),
+since a corrupt sidecar must not propose a scale. At exit,
 and into the dump's sidecars when the dump is also on, each hash gets
 `mag_max` (host pixels per source texel at that render scale) and
 `mag_scale1 = mag_max / render.scale`. The atomics cost is paid only
@@ -843,7 +908,11 @@ with a CNN gets 4 only here, where the trace shows a magnification above
 3; D2's class default for it stops at 3. The GUI shows the table (name, class,
 `mag` at 1x, the proposal at `R`, the bytes saved against the class
 default) and the owner overrides per entry; the result is written as
-rules, so the build stays declarative and the trace is advice. The
+rules, so the build stays declarative and the trace is advice. Since
+rules apply in order, `--write-rules` puts its block before the owner's
+first rule and leaves out any hash the owner rules, so a glob the owner
+wrote still beats a traced line. An owner's rule with a `scale` answers
+a proposal to skip (review). The
 trace covers what was played: the golden scenarios plus a playthrough;
 the `[TEXPACK] miss` import names what a later session found.
 
@@ -869,6 +938,8 @@ panel has two views:
   at 3") times R, through the guest's recorded filter (nearest or
   linear, with the chain's level the LOD picks for that footprint).
   Below the stock texture's own on-screen render for the same footprint.
+  Both views build their mip chains with the pack's box filter, so the
+  stock view's lower levels are not the dump's authored mips.
   This is a software resample of the result, not the game's frame, and
   the page says so; a texture drawn 1:1 at R = 1 shows no difference,
   which is the point.
@@ -972,6 +1043,51 @@ line and the run stays stock.
 From `analysis/enhancements/texture-upscalers.md` (cat; names, hashes,
 sizes and timings only).
 
+- **Inventory (archives and six dumps, 2026-11-06)**: `media`,
+  `lng_us` and `tank_tex` against `@attract`, `@stage1` and `@story` at scale
+  1 and 3: 9,082 entries, 349 joined, 8,593 not seen, 140 unnamed (P8 101,
+  G8B8 17, YUY2 12, DXT3 7, A8R8G8B8 3). **A DDS whose chain has a level with
+  a side under 4 cannot be joined by hash through that level**: of 5,803 such
+  files none joins at a prefix holding it (9 join at level 0 alone, bound with
+  no chain), while mipped MIX/XPR files join at 6-9 levels. Their
+  levels from 4x4 up decode to the file's within 1, the ones below differ by
+  up to 6, and no byte prefix of the file hashes to the dumped hash (53 of 53
+  tested): the game's load re-encodes those small levels. Such an entry is
+  `hash_guess`, skips as `needs_dump` (2,182 in this inventory, 2,178 of them
+  world, 60.8 M texels not packable from the archive alone), and a dump names
+  it by decoded content (83 joined that way). The world figures below count
+  them; a pack reaches them only through a dump, until the runtime has a key
+  that ignores those levels or the encoder is reproduced.
+  This is one game's load, so it sits behind `[enhance.textures]
+  reencodes_small_levels` (default false; cat sets it at task 2.6). The
+  switch covers chains: of the DXT candidates, chains with a level under
+  4 are 7,022 files, 128 hash-joined: 119 of 1,219 MIX and 9 of 5,803 DDS.
+  Chains with every level at 4 or more are 27 files, 0
+  joined; one level at 4 or more is 15,007 files, 1,317 joined. No file
+  has one level with a side under 4, so that case has no evidence and is
+  not flagged. No DXT file is NPOT either; one would be flagged in any
+  game, since no GPU takes it as it stands and the load has to resize it.
+  A content name is confirmed on level 0 after the probe level hits, so
+  one small level cannot name the wrong texture: the joined count stays
+  349 with the check on.
+- **Inventory after the review**: font 1 of 1 packable, text 3,703
+  of 3,707, ui 296 of 296, world 2,831 of 5,078; skipped `needs_dump` 2,182,
+  `volatile` 42, `normal` 17, `data` 6, `linear` 4; palettized 81 variants of
+  18 images. Estimates: `all` 1,226.1 MB, `world` 1,226.1, `ui` 1,037.5, `hud`
+  158.8. With the dump alone, `@stage1`: 297 entries, 270 packable, 16.1 MB.
+  A dump's bad `.xtd` is listed in `problems`; it
+  stays packable when a source was hash-joined, since the source is good,
+  and skips as `no_texels` otherwise. These dumps have none.
+- **`hud` preset against a real `enhance hud` pack (BLiNX 2, scale
+  4, font named, language us)**: 427 entries in both, none
+  only in one, none of 427 with another payload size. 158,769,152 B of
+  payload in both: art 140,353,536, font 4,194,304, text 14,221,312; the
+  file is 158,782,848 B, the rest being header and index, which the estimate
+  does not count. The first comparison was wrong by one entry,
+  `mis_sub_abxy` (128x32 DXT3, six mips): the runtime binds one level, and
+  `enhance hud` refuses a mipped file. The preset now leaves those out, so
+  the set agrees. This compares the set, scale, encode and size. Equal
+  texels are the build's to show (3.6's test).
 - **Inventory (archives only)**: 22,931 entries (22,056 DXT, 874
   non-DXT, 1 skipped archive), 8,926 unique DXT hashes; unique source texels world 158.5 M (5,481 hashes, 2,959
   mipped), text 161.4 M (3,048; an upper bound), ui 13.7 M (294), font
@@ -1044,6 +1160,37 @@ sizes and timings only).
   encoder timings (moved to 3.4) and the pure-Python built-in timings
   (moved to 3.1), and VRAM in 0.4 (the mipped world hashes need 1.2's
   sampler shift, fractional at 3x, before a pack can carry them).
+
+## Measured (phase 3, 2026-11-06)
+
+The whole-game pack from the BLiNX 2 archives and six dumped scenes, built-in
+upscalers only, `--preset all --jobs 8 --dump ...` for the six scenes, on the Mac.
+
+- 6,821 entries (296 art, 1 font, 3,703 text, 2,821 world; 2,088 BC1, 4,436
+  BC3, 297 raw), 1,227.5 MB. 10 entries are left out, each said by the build: no
+  source decoder here and no dump holding the texels (5 A4R4G4B4, 4 A8R8G8B8, 1
+  DXT1). Without `--dump` the same inventory leaves 95 out: those 85 textures are
+  in the dumps, and the earlier "no dump holds it" for them was wrong, since that
+  run passed none and the inventory had no `.dumps` file.
+- Reproducible: two builds on the final code give the same bytes (sha256
+  `c77d091ef026`, `cmp` clean) and the same `textures-pack.toml`. It replaces
+  `4c14a7189788` for two causes, and only those: the 85 entries the dumps add and
+  the wrap fallback of D7. Against the old pack, every art, font and text payload
+  is equal; of the 2,736 world entries in both, 2,420 changed and 316 did not.
+  2,466 of the pack's world entries fell back to wrap.
+- The review's later changes do not move that sha, shown and not rebuilt: per-cell
+  colour extension only differs under `edges = "cells"`, which no class row or cat
+  config uses; the wrap merge has nothing to merge, since no hash of the six
+  scenes' 490 disagrees or is recorded by only some of them. A rebuild of 103 real
+  textures (alpha, opaque, `ui`) matches this pack payload for payload.
+- 555 s on 8 jobs (3,393 s of CPU, 478 MB peak per process), and under a second
+  when nothing changed (0.75 s to "is current", hashing every input).
+- The toolkit's C reader (`nv2a_tex_pack.c`, 348ec96c) loads it as v3 and finds
+  and reads all 6,821 entries. `--preset hud`: 427 entries, every payload equal
+  to `enhance hud`'s v2 pack, which keeps its sha256 `8df7c673a31c`. That equality
+  is proven on BLiNX 2 only.
+- Not measured: an external upscaler (none on this Mac), the pack in a running
+  game (phase 7), `enhance serve` (phase 4).
 
 ## Decided (the user, 2026-10-18)
 

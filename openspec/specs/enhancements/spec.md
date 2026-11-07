@@ -349,6 +349,7 @@ With a wide aspect, each batch drawn into a padded target SHALL be classified by
 - a full-width 2D batch that samples an unpadded render target is centred;
 - a full-width 2D batch that samples only padded render targets or no texture, or whose guest texture is not a picture (`nv2a_aspect_picture`: at most a quarter of the frame's width), is stretched over the whole target;
 - a full-width 2D batch over a guest picture is a movie or still, and follows `display.movie`.
+- a 2D batch that would be centred and samples a frame copy is stretched over the whole target (`nv2a_aspect_place_copy`), full width or not. A frame copy is a padded render target a 2D-engine blit filled in this flip (`copy`, not drawn into since), sampled where the batch lies: over up to 32 of its vertices, `uv * size - xy` (size: the texture's for normalised coordinates, 1 for texel coordinates) varies by at most an eighth of the frame plus 2 pixels and is offset by at most a sixteenth of it on each axis (`nv2a_aspect_uv_tracks`). It is a lens effect over the frame, not HUD art; stretched, it reads the whole padded copy where it lies, so each such batch is `(w + 2 pad)/w` wider than at stock (1.33x at 16:9). A copy from an earlier flip, or a batch that maps a texture onto itself at another place or size, stays centred.
 
 **Sampling.** A centred batch sampling a padded render target SHALL read only its guest columns, and a stretched or covering one SHALL read it whole. `RECOMP_TRACE=aspect` SHALL print each distinct program, texture and placement once.
 
@@ -372,8 +373,16 @@ With a wide aspect, each batch drawn into a padded target SHALL be classified by
 - **WHEN** the title movie plays at 16:9 with no `display.movie` key
 - **THEN** its full-width quad (B2913952, a 1024x512 guest texture) is centred, with black 107-column bars on each side
 
+#### Scenario: Lens drops over a frame copy reach the wings
+- **WHEN** Quantum Redshift draws its lens raindrops at 16:9, narrow 2D batches sampling the blit copy of the back buffer at 0x00A1C000
+- **THEN** `RECOMP_TRACE=aspect` reports vs C8AF571F reading the copy as `tracks, stretched`, they are placed `stretch`, cover the wings as well as the 4:3 centre, and each refracts the part of the wide frame it lies over, on Metal and on D3D11
+
+#### Scenario: A copy from an earlier flip is not a lens
+- **WHEN** a 2D batch samples a padded blit copy that no blit refilled in this flip
+- **THEN** it is placed as any other 2D batch (centred unless full width)
+
 ### Requirement: HUD keeps its 4:3 layout
-With a wide aspect, every 2D batch that is not full width (the HUD, menus, text) SHALL be drawn centred on its 4:3 columns, unscaled and scissored to them, as at stock. There SHALL be no option to move or scale the HUD: the game draws triangles with no element identity, so no rule can keep a HUD element whole (design H6). A config key the layer doesn't read, `display.hud` included, SHALL get the generic `[ENHANCE] unused key <key>, <file>:<line>` warning and SHALL change nothing; it SHALL NOT fail the load.
+With a wide aspect, every 2D batch that is not full width (the HUD, menus, text) and samples no frame copy (Hor+ batch placement) SHALL be drawn centred on its 4:3 columns, unscaled and scissored to them, as at stock. There SHALL be no option to move or scale the HUD: the game draws triangles with no element identity, so no rule can keep a HUD element whole (design H6). A config key the layer doesn't read, `display.hud` included, SHALL get the generic `[ENHANCE] unused key <key>, <file>:<line>` warning and SHALL change nothing; it SHALL NOT fail the load.
 
 #### Scenario: Stage HUD on its 4:3 columns
 - **WHEN** `@stage1` runs at 16:10

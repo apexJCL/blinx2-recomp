@@ -15,14 +15,19 @@
    "0x00163160",
    "0x001636C0",
    "0x00165630",
-   "0x001A0260"
+   "0x001A0260",
+   "0x00176150",
+   "0x002D675C"
   ],
   "signatures": {},
-  "st0": [],
+  "st0": [
+   "0x002D675C"
+  ],
   "no_st0": [
    "0x0004E700",
    "0x0008BFD0",
-   "0x001A0260"
+   "0x001A0260",
+   "0x00176150"
   ]
  },
  "functions": [
@@ -150,6 +155,24 @@
    "signature": "",
    "ret_pop": 0,
    "x87": false,
+   "x87_from": "override"
+  },
+  {
+   "entry": "0x00176150",
+   "va": "0x00176150",
+   "name": "sub_00176150",
+   "signature": "",
+   "ret_pop": 0,
+   "x87": false,
+   "x87_from": "override"
+  },
+  {
+   "entry": "0x002D675C",
+   "va": "0x002D675C",
+   "name": "sub_002D675C",
+   "signature": "",
+   "ret_pop": 0,
+   "x87": true,
    "x87_from": "override"
   }
  ]

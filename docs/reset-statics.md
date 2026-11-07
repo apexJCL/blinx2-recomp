@@ -18,7 +18,7 @@ row the hook is `game` (cat's band 12 hook) or `mods` (the mod's D6a
 `on_reset`). Debug-harness state behind a DEBUG-tier key is keep: D7 rule 1
 refuses a reset while such a key is set.
 
-313 objects: 190 keep, 118 reset, 5 constant.
+322 objects: 194 keep, 123 reset, 5 constant.
 
 ## Findings that change the plan
 
@@ -231,6 +231,16 @@ refuses a reset while such a key is set.
 | src/entities_mod.c | - | s_area_changed | file_static | reset | mods | play and area trackers of the old boot; on_reset: zero (cheap, though only the proof reads most of them) |
 | src/entities_mod.c | - | s_proof_h | file_static | reset | mods | play and area trackers of the old boot; on_reset: zero (cheap, though only the proof reads most of them) |
 
+### src/fdm_mod.c
+
+| file | scope | name | kind | class | hook | why |
+|---|---|---|---|---|---|---|
+| src/fdm_mod.c | - | s_api | file_static | keep | - | the host API table, valid for the process; on_reset reuses it |
+| src/fdm_mod.c | - | s_on | file_static | keep | - | setting |
+| src/fdm_mod.c | - | s_scaled | file_static | reset | mods | whether the guest's speed table holds the scaled max; the reload puts the XBE's table back, so on_reset: 0 without writing the guest |
+| src/fdm_mod.c | - | s_base | file_static | reset | mods | the table's max before the scale (with s_scaled); on_reset: zero |
+| src/fdm_mod.c | - | s_last_g | file_static | reset | mods | the last walk's factor, shown by the menu; on_reset: 1000 |
+
 ### src/free_camera.c
 
 | file | scope | name | kind | class | hook | why |
@@ -428,6 +438,15 @@ refuses a reset while such a key is set.
 | src/shop_mod.c | - | s_play | file_static | reset | mods | play trackers; on_reset: 0 |
 | src/shop_mod.c | - | s_playing | file_static | reset | mods | play trackers; on_reset: 0 |
 | src/shop_mod.c | - | s_fired | file_static | reset | mods | play trackers; on_reset: 0 |
+
+### src/speed_mod.c
+
+| file | scope | name | kind | class | hook | why |
+|---|---|---|---|---|---|---|
+| src/speed_mod.c | - | s_api | file_static | keep | - | the host API table, valid for the process; on_reset reuses it |
+| src/speed_mod.c | - | s_on | file_static | keep | - | setting |
+| src/speed_mod.c | - | s_st | file_static | reset | mods | the learned reference and the peak's frames of the old boot; on_reset: zero |
+| src/speed_mod.c | - | s_shown | file_static | reset | mods | the card's last text; on_reset: "" so the next frame sets it again |
 
 ### src/walls_mod.c
 

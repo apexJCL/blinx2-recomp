@@ -67,6 +67,8 @@
 #include "debug_menu.h"
 #include "crystals_mod.h"
 #include "walls_mod.h"
+#include "fdm_mod.h"
+#include "speed_mod.h"
 #include "collision_mod.h"
 #include "entities_mod.h"
 #include "shop_mod.h"
@@ -1219,10 +1221,12 @@ static int host_main(void)
      * mac-one-cpu). The stage loader and its loader thread add lights to
      * one global pool with an unlocked read-modify-write (sub_00037CE0); run
      * on two host cores they lost entries and the terrain baked black (dark
-     * water). The one-core pin (RECOMP_GUEST_CPUS) narrows that where
-     * the host has thread affinity; macOS has none, and the lock closes it
-     * everywhere. An explicit RECOMP_GUEST_LOCK in the environment still
-     * wins (=0 is the A/B). */
+     * water). The lock closes it on every host, so the game no longer
+     * pins its threads to one core (RECOMP_GUEST_CPUS=one is the A/B): on
+     * native Windows the pin starved the movie-audio workers. An
+     * explicit RECOMP_GUEST_LOCK in the environment still wins (=0 is the
+     * A/B; the threads are unpinned there too now, so the light-pool race
+     * of the tracker item can come back in it). */
     if (!recomp_env(RENV_GUEST_LOCK))
         recomp_env_set(RENV_GUEST_LOCK, "1");
 
@@ -1408,7 +1412,8 @@ static BOOL load_xbe(const char *path, void **out_data, size_t *out_size)
  *
  * glow (glow_mod.c), camera.free (free_camera.c), lod (lod_scale.c), debug_menu
  * (debug_menu.c), crystals (crystals_mod.c), hud (hud_mod.c), entities
- * (entities_mod.c), shop (shop_mod.c) and walls (walls_mod.c) are mods:
+ * (entities_mod.c), shop (shop_mod.c), walls (walls_mod.c), collision
+ * (collision_mod.c), fdm (fdm_mod.c) and speed (speed_mod.c) are mods:
  * their table goes to the layer before xbox_enhance_init, which runs their
  * inits last and so reads their keys there.
  *
@@ -1422,7 +1427,7 @@ static void host_enhance_init(void)
     int fps, glow_off;
     double glow_k;
 #ifdef CAT_HAVE_MODS
-    static const struct xbox_mod *mods[12];
+    static const struct xbox_mod *mods[13];   /* twelve and the NULL */
     int nm = 0;
 
     /* A NULL entry ends the table, so each mod is added only when built
@@ -1451,6 +1456,10 @@ static void host_enhance_init(void)
         mods[nm++] = walls_mod();
     if (collision_mod())
         mods[nm++] = collision_mod();
+    if (fdm_mod())
+        mods[nm++] = fdm_mod();
+    if (speed_mod())
+        mods[nm++] = speed_mod();
     xbox_mod_register_table(mods);
 #else
     /* The golden check reads camera.free from the [ENHANCE] line, as with
@@ -1463,6 +1472,18 @@ static void host_enhance_init(void)
     /* The menu's line under the Game tab; the page shows once the game
      * adds an item there. */
     enhance_menu_page_intro("Game", "BLiNX 2's own options.");
+#endif
+#ifdef _WIN32
+    /* present.pacing defaults to spin in the Windows build, under Proton
+     * too, and to sleep elsewhere (the toolkit's default). On native
+     * Windows 11, sleep let some NtReadFile calls take 100-675 ms (4 of 6
+     * runs; none past 34 ms at spin) and one froze stage 1 for 424 ms;
+     * under Proton and on Metal sleep measured as spin (openspec
+     * guest-cpus-every-core). It is the code default: the environment,
+     * config/config.toml and config.default.toml still win (so
+     * config.default.toml leaves the key out), and the menu takes it as
+     * the stock value. */
+    enhance_cfg_set_code_default("present.pacing", "spin");
 #endif
     xbox_enhance_init(".", NULL);
     enhance_cfg_bind_env("fps.mode", RENV_FPS_MODE);

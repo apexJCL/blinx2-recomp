@@ -336,12 +336,20 @@ that says so, and an in-game Save will write there too. A
 `config/enhance.toml` from an earlier version is renamed to `config.toml`
 on the first launch, and the old `config/enhance.toml.default` copy is
 deleted. Environment variables win over both files (docs/env.md).
-The bundle's frame pacing defaults to `sleep` (the game's frame wait
-sleeps until the next vblank, which saves CPU and battery); `spin` is the
-console-original timing, where the wait holds a CPU core as on the Xbox. To
-get it, put `[present]` and `pacing = "spin"` in `config/config.toml`, or
-`RECOMP_PRESENT_PACING=spin` in `config/launch.env`; the bundle's README.txt
-says the same, and `blinx2 package` prints it as a note.
+The bundle's frame pacing depends on the build. Every non-Windows
+build (the macOS app) defaults to `sleep` (the game's frame wait sleeps until the next vblank,
+which saves CPU and battery); the Windows exe, and so the SteamOS bundle
+under Proton, defaults to `spin`, the console-original timing, where the
+wait holds a CPU core as on the Xbox (native Windows stalled some file reads
+at `sleep`). `config.default.toml` leaves the key out so that default
+applies. Either value works on every build: put `[present]` and
+`pacing = "spin"` (or `"sleep"`) in `config/config.toml`, or
+`RECOMP_PRESENT_PACING=` in `config/launch.env`. With the key out of the
+defaults file, `blinx2 package` no longer adds its pacing paragraph to
+README.txt nor prints the note (the CLI's `pacing_sleeps` reads only the
+defaults file). That is right for the Windows and SteamOS bundles, which
+spin; the macOS app's README loses its sleep paragraph until the CLI
+learns the per-target default (a TASKS.md follow-up).
 External frame-generation tools for a 60 fps look are unsupported;
 [frame-generation.md](frame-generation.md) has the settings that help them.
 `config/launch.env` holds your own
@@ -401,6 +409,33 @@ Metal and D3D11
 draw the pack; the CPU renderer ignores it. The pack is made from your
 game files, like the bundle: keep it private, and never commit it (`*.pack`
 is gitignored). `golden` runs never use one.
+
+### Your whole-game texture pack
+
+`blinx2 enhance textures` makes a pack of the whole game's textures, not only
+the HUD, from your game files and from dumps of your own runs. It and
+`package --texture-pack` need CLI 0.22 or later, the next `[cli]` pin move;
+the pinned 0.21.0 has neither.
+
+To dump a scene, put `RECOMP_DEBUG=tex_dump=DIR` in `config/launch.env` in
+the data folder, start the game the usual way and play the scene, with one
+directory per scene. Then:
+
+```sh
+./blinx2 enhance textures inventory --dump DIR --dump DIR2
+./blinx2 enhance textures estimate --preset all
+./blinx2 enhance textures build --preset all
+```
+
+It holds up to about 1.3 GB with the built-in upscalers, and takes about ten
+minutes. Point `textures.pack` at `dist/enhance/textures/textures.pack`, or
+pass `--texture-pack` to `package`. `world = "off"` under `[textures]` draws
+the game's own 3D textures and keeps the pack's HUD. The same privacy
+rules apply: `*.pack`, `*.xtd`, `textures-pack.toml` and
+`config/enhance-textures.local.toml` are gitignored. The steps and the config
+are in the CLI's `docs/texture-pack.md`. To recolour a texture by hand, see
+`enhance textures export` and `enhance hud --import` there and in the CLI's
+`docs/commands.md`.
 
 ## 7. Troubleshooting
 

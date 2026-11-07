@@ -1,6 +1,9 @@
-# BLiNX 2 options: every key at its default. Each enhancement default is the
-# stock behaviour except four: present.pacing sleeps (the frames and pace
-# are the same as the console's spin and it frees a CPU core), the
+# BLiNX 2 options: every key at its default, except present.pacing, whose
+# default is set per build and so is not written here (see the present
+# table below). Each enhancement default is the stock behaviour except four:
+# present.pacing sleeps on every non-Windows build (macOS: the frames and
+# pace are the same as the console's spin and it frees a CPU core; the
+# Windows build spins), the
 # in-game menu is on (closed, it changes no frame; the game loses only the
 # presses of the chords that open it, Guide+A and Back+L3), the cache
 # partition lives in memory (storage.ram_cache: the game sees the same
@@ -39,10 +42,17 @@ hud_margin = 0            # with the hud mod (on by default): guest px the edge 
 [present]
 filter = "nearest"        # "nearest" (stock), "linear", "integer"
 fullscreen = false        # true: borderless fullscreen at start
-pacing = "sleep"          # "sleep": the frame wait sleeps until the next vblank,
-                          # which saves CPU and battery; the frames are the
-                          # same. "spin" is the console-original timing: the
-                          # wait holds a CPU core, as on the Xbox
+# pacing                  # not set here: the default is per build.
+                          # Every non-Windows build (macOS): "sleep", the
+                          # frame wait sleeps until the next vblank, which
+                          # saves CPU and battery; the frames are the same.
+                          # The Windows build (on a Deck under Proton too):
+                          # "spin", the console-original timing, where the
+                          # wait holds a CPU core as on the Xbox; native
+                          # Windows stalled file reads at sleep.
+                          # Either value works on every build: put
+                          # pacing = "spin" or pacing = "sleep" under
+                          # [present] in config/config.toml
 surface = "auto"          # "auto": the frame-sized surface goes to gamescope for
                           # it to scale when the SteamOS launcher says it runs
                           # there (Steam's FSR needs scale = 1 on a Deck);
@@ -173,6 +183,10 @@ free_reminder = "brief"   # its controls lines: "brief" (10 s after flight
 #                           # off, put pack = "none" under [textures] in
 #                           # config/config.toml. On macOS the path is
 #                           # ../Resources/enhance/hud.pack
+# pack = "enhance/textures.pack" # or your whole-game pack, made by
+#                           # `blinx2 enhance textures build` (CLI 0.22 or
+#                           # later); one pack at a time
+# world = "off"             # with such a pack, draw the game's own 3D textures
 
 [input]
 # The keyboard and mouse are player 1 (port 0), merged onto a controller

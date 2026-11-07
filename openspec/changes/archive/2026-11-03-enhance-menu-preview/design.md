@@ -497,6 +497,8 @@ signature (`nv2a_tex_pack_set_enabled(int)` is written as `(pack 0)`).
 
 ### D12. The preview tool: `xbr enhance preview`, a local web UI (CLI)
 
+Moved to texture-upscale D9, D10 and D15 (the preview serves the whole pack).
+
 Where it lives was weighed three ways:
 
 | Option | Fit |
@@ -581,8 +583,9 @@ Where it lives was weighed three ways:
   Tracking/kerning are not offered and the page says why: the game lays
   text out from its own table, so the atlas can only change what a glyph
   looks like inside its box.
-- **Save** writes `enhance-hud.toml` (D13) and shows the `enhance hud`
-  command that consumes it. **Build** is not in the tool: the pack build
+- **Save** writes `enhance-textures.toml` (D13) and shows the `enhance hud`
+  command that consumes it. (As built in texture-upscale, Save prints
+  `enhance textures build`, the command that reads the file.) **Build** is not in the tool: the pack build
   stays the CLI command, so the two never disagree.
 
 The server is single-process, serves only `127.0.0.1`, random port
@@ -594,7 +597,13 @@ Python, so the browser's font stack cannot alter what is shown).
 
 ### D13. The config `enhance hud` consumes
 
-`enhance-hud.toml` (default `config/enhance-hud.toml` in the game tree,
+Moved to texture-upscale D8: the config is `config/enhance-textures.toml`.
+The schema below is this change's draft, kept as history: the file's
+real keys (`render_scale`, `preset`, `[class.*]`, `[rule."..."]`,
+`[upscaler.*]`, `[budget]`, `[coverage]`, `[font]`) and their checks are
+texture-upscale D8's, which refuses `[upscale]`, `[text]` and `[override]`.
+
+`enhance-textures.toml` (default `config/enhance-textures.toml` in the game tree,
 tracked: it names fonts, filters and numbers, never game bytes):
 
 ```toml
@@ -647,6 +656,8 @@ copy is unchanged.
 
 ### D14. External upscalers, and what the 2026-10-06 rule meant
 
+Moved to texture-upscale D7 (the pluggable upscaler interface) and D16.
+
 The user clarified on 2026-10-11 that the 2026-10-06 "never a CNN" rule
 was about cost: nothing bundled or default may call an API or a service
 that can incur a charge. Any upscaler is allowed; **open-source, locally
@@ -676,8 +687,10 @@ own opt-in, used at their own responsibility. The design is therefore:
 
 ### D15. Legal boundaries in code
 
+Moved to texture-upscale D9 and D16 (the preview's hardening, the licences).
+
 - The preview server binds `127.0.0.1` only and never writes a decoded
-  image to disk; PNGs live in memory for the response. `enhance-hud.toml`
+  image to disk; PNGs live in memory for the response. `enhance-textures.toml`
   is the only file Save writes, and `audit-public.sh` already flags
   `*.pack`; it gains nothing new because the config holds no game data.
 - Fonts: the curated list is OFL 1.1 only, each entry with its licence

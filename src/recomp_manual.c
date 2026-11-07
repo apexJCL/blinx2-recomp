@@ -618,6 +618,7 @@ void sub_0005B7D0(void)
 
 extern void sub_000292A0_gen(void);
 extern void sub_0021B1F0_gen(void);
+extern void sub_00042E50_gen(void);
 
 /* The camera fields a build reads or writes: +0x00..+0x1C (p, angles;
  * +0x20 is saved with them), +0x2C..+0x34 (eye), +0x38..+0x40 (o). */
@@ -803,7 +804,9 @@ static void cam_swap_out(uint32_t cam, const float *saved, const float *f, int e
     }
 }
 
-/* One build of camera cam (the game's when game is set) by gen. */
+/* One build of camera cam (the game's when game is set) by gen. who is
+ * NULL for a reader of the camera that is not a build (sub_00042E50): it
+ * gets the same swap but is not counted or logged as a build. */
 static void cam_build(uint32_t va, void (*gen)(void), const char *who, uint32_t cam,
                       int game, int eye_from_p)
 {
@@ -818,7 +821,8 @@ static void cam_build(uint32_t va, void (*gen)(void), const char *who, uint32_t 
         return;
     }
     ret = MEM32(g_esp);
-    s_cam_calls++;
+    if (who)
+        s_cam_calls++;
     if (!game)
         cam_note_other(cam, ret);
     if (game && cam && s_cam_depth == 0) {
@@ -834,7 +838,7 @@ static void cam_build(uint32_t va, void (*gen)(void), const char *who, uint32_t 
     s_cam_depth--;
     if (swap)
         cam_swap_out(cam, saved, f, eye_from_p);
-    if (s_cam_log_every && (s_cam_calls % s_cam_log_every) == 0)
+    if (who && s_cam_log_every && (s_cam_calls % s_cam_log_every) == 0)
         cam_log(who, cam, ret);
 }
 
@@ -857,6 +861,101 @@ void sub_0021B1F0(void)
     /* The stage's view and projection are this frame's now: the collision
      * overlay draws with them (a return while it is off). */
     collision_mod_view();
+}
+
+/* sub_00042E50 writes c[116..119], the screen projection: the camera's
+ * angles (+0x0C..+0x14) and eye (+0x2C..+0x34) with the projection block
+ * [0xADA030] and a 0.5 bias, which maps a vertex to its place in a
+ * screen-sized texture. The ground's shadows are drawn that way: their
+ * buffer is drawn with the view, then laid on the ground through c[116].
+ * sub_00042AE0 calls it inside each build, but stage_render (0x685C7),
+ * sub_000348A0, the HUD queue drain and other passes call it again between
+ * builds, when the struct holds the game's fields again. The buffer then
+ * came from the free view and was laid with the game's, so the shadows
+ * stayed where the game camera put them on screen as the free camera moved
+ *. It gets the same swap; inside a build the depth counter
+ * leaves it the build's. */
+void sub_00042E50(void)
+{
+    cam_build(0x00042E50u, sub_00042E50_gen, NULL, MEM32(0x4B271Cu), 1, 0);
+}
+
+extern void sub_000E58D0_gen(void);
+extern void sub_001F73C0_gen(void);
+extern void sub_000DAEC0_gen(void);
+extern void sub_0004D740_gen(void);
+extern void sub_001A6E00_gen(void);
+extern void sub_0015BC40_gen(void);
+
+/* Draws that read the camera struct outside the view builds. Each
+ * one draws relative to the camera, so with the free camera it gets the same
+ * swap as sub_00042E50; inside a build, or inside another of these, the
+ * depth counter makes it a plain call. Readers that are left alone, and why,
+ * are in the free-camera-screen-projection change (D3).
+ *
+ * sub_000E58D0 is the stage pass gfx_stage_pass_e58d0 (config/symbols.toml).
+ * Gen no longer has a function by that name: with this wrapper, the CLI's
+ * exclude_manual rename emits the body as sub_000E58D0_gen. sub_00068E70
+ * calls it at 0x69055 between builds. In split screen ([0xAF0EE0], the view
+ * count, above 1) it translates the sky dome to the eye on some stages
+ * (0xE5A06: eye.x, -3000, eye.z, scaled by cam_far), and its callees draw
+ * from the eye too: sub_000E61A0's billboards through sub_000DAE80 and
+ * sub_000E6FA0's eye-relative models through sub_001D72E0. Without the swap
+ * that dome stayed around the game camera. Its own builds nest under the
+ * swap. The effect step under it (sub_0015CE70 spawns, sub_0015BAA0 steps)
+ * draws from rand_002D4FF2, but how many draws it makes is set by emitter
+ * timers and particle ages, never by the camera, so the swap leaves the
+ * game's random sequence alone (D3). */
+void sub_000E58D0(void)
+{
+    cam_build(0x000E58D0u, sub_000E58D0_gen, NULL, MEM32(0x4B271Cu), 1, 0);
+}
+
+/* sub_001F73C0 builds quads that face the eye (sub_001F7FB0(eye, pos)) for
+ * sub_00068E70, after the builds (0x69B24). */
+void sub_001F73C0(void)
+{
+    cam_build(0x001F73C0u, sub_001F73C0_gen, NULL, MEM32(0x4B271Cu), 1, 0);
+}
+
+/* sub_000DAEC0 turns its sprite by the camera's angles (+0x0C..+0x1C) so it
+ * faces the view. Of its two callers, sub_000DAE80 runs inside the stage pass
+ * and sub_000DAE50 is only reached through a pointer, so the swap sits here,
+ * on the callee both share. It also stores the camera pitch (+0x0C) into the
+ * entity it draws, at +0x44 (0xDB13A), for the 16-bit types 0x6B, 0x16B and
+ * 0x26B. Only sub_000DAE80 passes those: it runs on stage 0x1C and matches
+ * the type's low byte, 0x6B. sub_000DAE50 passes 0x36B, 0x46B and 0x56B,
+ * which skip the store. So on stage 0x1C that field takes the free camera's
+ * pitch (D3, an open gap in docs/known-gaps.md). */
+void sub_000DAEC0(void)
+{
+    cam_build(0x000DAEC0u, sub_000DAEC0_gen, NULL, MEM32(0x4B271Cu), 1, 0);
+}
+
+/* sub_0004D740 is the camera-facing billboard matrix (angles +0x0C..+0x1C)
+ * that the enemy and effect draws in 0x21DC70..0x27F220 call (14 call
+ * sites, some reached again through bodies at overlapping entries). */
+void sub_0004D740(void)
+{
+    cam_build(0x0004D740u, sub_0004D740_gen, NULL, MEM32(0x4B271Cu), 1, 0);
+}
+
+/* sub_001A6E00 is the radar (stage_render, 0x6860E): it turns the dots by
+ * -yaw. The radar follows the free camera, as the user asked (2026-10-18). */
+void sub_001A6E00(void)
+{
+    cam_build(0x001A6E00u, sub_001A6E00_gen, NULL, MEM32(0x4B271Cu), 1, 0);
+}
+
+/* sub_0015BC40 is the effect draw pass (sub_00068E70, 0x69BDE, after the
+ * builds). It copies the camera's eye and pitch, yaw and roll into
+ * 0xF2A6FC..0xF2A71C, with the pitch and yaw negated at 0xF2A700/704, and
+ * sub_0015CE30 and sub_0015C4A0 turn the particles to face the view from
+ * those copies. The effect step under the stage pass writes the same copies
+ * from the free camera, so without the swap here one frame mixed the two. */
+void sub_0015BC40(void)
+{
+    cam_build(0x0015BC40u, sub_0015BC40_gen, NULL, MEM32(0x4B271Cu), 1, 0);
 }
 
 /* ── Free camera: the pad poll, the event system and the stage start ──────

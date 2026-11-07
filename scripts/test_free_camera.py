@@ -989,5 +989,49 @@ def test_golden_knows_the_stock_value():
     assert "camera.free=%s" not in text
 
 
+def test_screen_projection_gets_the_swap():
+    # the tracker item: the shadows' screen projection reads the camera outside the
+    # builds too, so it takes the same swap, but who=NULL keeps it out of
+    # the build count that cam_log=n and cam_fix=hold:n use.
+    manual = _read("src", "recomp_manual.c")
+    body = re.search(r"\nvoid sub_00042E50\(void\)\n\{(.*?)\n\}", manual, re.S)
+    assert body, "sub_00042E50 wrapper"
+    assert re.search(
+        r"cam_build\(0x00042E50u, sub_00042E50_gen, NULL, MEM32\(0x4B271Cu\), 1, 0\);",
+        body.group(1),
+    )
+    assert "extern void sub_00042E50_gen(void);" in manual
+    build = re.search(r"\nstatic void cam_build\(.*?\n\}", manual, re.S).group(0)
+    assert re.search(r"if \(who\)\s*s_cam_calls\+\+;", build)
+    assert "if (who && s_cam_log_every" in build
+
+
+@pytest.mark.parametrize(
+    "va",
+    [
+        # the tracker item: the stage pass (its eye-relative callees, and the sky
+        # dome it centres on the eye at 0xE5A06, which runs only in split
+        # screen), the eye-facing quads, the two billboards and the radar
+        # draw relative to the camera outside the builds, and the effect
+        # draw pass copies the camera for its particles.
+        "000E58D0",
+        "001F73C0",
+        "000DAEC0",
+        "0004D740",
+        "001A6E00",
+        "0015BC40",
+    ],
+)
+def test_render_pass_readers_get_the_swap(va):
+    manual = _read("src", "recomp_manual.c")
+    body = re.search(rf"\nvoid sub_{va}\(void\)\n\{{(.*?)\n\}}", manual, re.S)
+    assert body, f"sub_{va} wrapper"
+    assert re.search(
+        rf"cam_build\(0x{va}u, sub_{va}_gen, NULL, MEM32\(0x4B271Cu\), 1, 0\);",
+        body.group(1),
+    )
+    assert f"\nextern void sub_{va}_gen(void);" in manual
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

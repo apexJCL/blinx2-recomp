@@ -70,6 +70,8 @@
     X(ENTITIES_KILL_KEY, CONFIG, "RECOMP_ENTITIES_KILL_KEY", NULL, "enhancements: [input.actions] entities.kill, the bindings that defeat the nearest enemy (unbound)") \
     X(CRYSTALS,          CONFIG, "RECOMP_CRYSTALS",          NULL, "enhancements: mods.crystals.enable, off|on (the BLiNX 1 crystals mod: BLiNX 1-style crystal sets in Sweepers stages)") \
     X(WALLS,             CONFIG, "RECOMP_WALLS",             NULL, "enhancements: mods.walls.enable, off|on (the player's sphere no longer slides through walls thinner than twice its radius)") \
+    X(FDM,               CONFIG, "RECOMP_FDM",               NULL, "enhancements: mods.fdm.enable, off|on (Full Diagonal Movement: the walk's target speed follows the stick's full length, so a full diagonal runs 1.69 times a straight line, as in BLiNX 1)") \
+    X(SPEED_READOUT,     CONFIG, "RECOMP_SPEED_READOUT",     NULL, "enhancements: mods.speed.enable, off|on (Speed readout: a debug card with the player's run speed over a full straight push's, and its peak over the last second)") \
     X(COLLISION,         CONFIG, "RECOMP_COLLISION",         NULL, "enhancements: mods.collision.enable, off|on (the stage's collision triangles around the player, drawn in the game's view)") \
     X(COLLISION_KEY,     CONFIG, "RECOMP_COLLISION_KEY",     NULL, "enhancements: [input.actions] collision.toggle, the bindings that show and hide the collision overlay (F4)") \
     X(SHOP,              CONFIG, "RECOMP_SHOP",              NULL, "enhancements: mods.shop.enable, off|on (the shop API and the menu's price and gun stat percents)") \
@@ -98,12 +100,12 @@
 /* Defaults this game gives toolkit keys, D(ID, "value"): used when neither
  * the key nor its old variable is set.
  *
- * GUEST_CPUS=one: every guest thread on one host core, as on the console.
- * The stage loader and the main thread add lights to one global pool with
- * "slot = count; fill; count = slot + 1"; on two cores the loops ran at
- * once, lost each other's entries and the terrain baked black (dark water,
- * 2026-10-07). The toolkit's default since v0.16 is every core, as
- * upstream's. RECOMP_GUEST_CPUS=all is the A/B.
+ * GUEST_CPUS is left at the toolkit's default, every core. The game used
+ * to set "one" for the light-pool race (dark water), which the
+ * guest CPU lock (src/main.c) now closes on every host. On native Windows
+ * the pin, together with spin pacing, starved the CRI movie-audio workers
+ * on the one core: the VP replayed stale laps of the movie's ring and the
+ * player heard crackling. RECOMP_GUEST_CPUS=one is the A/B.
  *
  * DISPATCH_GATE=1: the one-CPU DISPATCH gate. Device interrupts run at the
  * gate holder's safe points and queued DPCs on the guest thread, so D3D's
@@ -165,7 +167,6 @@
 #endif
 #ifdef RECOMP_ENV_HAVE_RUMBLE_ROW
 #define RECOMP_ENV_GAME_DEFAULTS(D) \
-    D(GUEST_CPUS,    "one") \
     D(DISPATCH_GATE, "1") \
     D(FLIP_PACING,   "1") \
     D(CPUID_NO_SIMD, "1") \

@@ -2,7 +2,7 @@
 """Tests for the shader profile key (present.profile, openspec change
 shader-profiles, task 6.1): the golden check knows its stock value, the
 shipped defaults leave it commented out (stock), and docs/env.md and the
-README list it.
+options table in docs/playing.md (moved from the README) list it.
 
   python3 scripts/test_shader_profile_keys.py
   uv run pytest scripts/test_shader_profile_keys.py
@@ -55,7 +55,7 @@ def test_env_doc_row():
 
 
 def test_readme_row():
-    rows = [ln for ln in read("README.md").splitlines() if "`RECOMP_PRESENT_PROFILE`" in ln]
+    rows = [ln for ln in read("docs/playing.md").splitlines() if "`RECOMP_PRESENT_PROFILE`" in ln]
     assert len(rows) == 1 and "`present.profile`" in rows[0]
 
 

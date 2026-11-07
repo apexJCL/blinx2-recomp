@@ -1,0 +1,14 @@
+# The tracked half of this game's texture-pack config: names, numbers and
+# hashes only (CLI docs/texture-pack.md). The machine's own half, paths to
+# any upscaler you installed, is enhance-textures.local.toml, never tracked.
+schema = 1
+
+# Shadows (openspec change texture-upscale): the stage shadow maps
+# kage_r* (the two a dump recorded draw clamp) and boss05's two silhouette
+# sprites p_b2_boss05_kage1/2 (no dump has them yet). A world texture no
+# dump recorded pads as wrap, which on a shadow bleeds its far edge into the
+# near one. Matched by the file's name: dds/kage_r01s01.dds and
+# mix/r01s01.mix/kage_r01s01 are one map. In the whole-game inventory this
+# pattern names those 16 hashes and nothing else.
+[rule."*kage*"]
+edges = "clamp"

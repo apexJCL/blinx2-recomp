@@ -106,6 +106,8 @@ set(GAME_SOURCES
     src/crystals_proof.c
     src/wall_logic.c
     src/walls_mod.c
+    src/fdm_mod.c
+    src/speed_mod.c
     src/collision_logic.c
     src/collision_mod.c
     src/shop_api_logic.c
@@ -156,12 +158,6 @@ add_custom_command(
 add_custom_target(cat_config_default ALL
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/config.default.toml)
 add_dependencies(${PROJECT_NAME} cat_config_default)
-
-# present.shader: the toolkit's CRT presets (shaders/) and librashader beside
-# the executable. Guarded so a toolkit without it still builds the game.
-if(COMMAND xboxrecomp_present_shaders)
-    xboxrecomp_present_shaders(${PROJECT_NAME})
-endif()
 
 # Link against the xboxrecomp umbrella target (all 6 runtime libraries)
 target_link_libraries(${PROJECT_NAME} PRIVATE xboxrecomp)

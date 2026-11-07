@@ -1,0 +1,173 @@
+name: Bug report
+description: The build failed, or the game crashes, looks wrong or sounds wrong.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing BLiNX 2. Each answer below saves a round of
+        questions. **Never attach your game files, a disc image, a save
+        file or a built bundle:** they hold the game, and posting them here
+        makes them public. Logs and screenshots are fine.
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: What went wrong?
+      options:
+        - The build (the wizard or the command line stopped)
+        - Installing the bundle
+        - The game does not start, or crashes
+        - The game runs, but something looks, sounds or plays wrong
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: Where it happened (a stage, a menu, a movie, a wizard page) and what you saw. A screenshot or a short clip helps.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: From starting the game (or the wizard). Say whether it happens every time.
+      placeholder: |
+        1. Load the save at ...
+        2. Go to ...
+        3. ...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: release
+    attributes:
+      label: Your copy of the game
+      description: |
+        This port supports one release of BLiNX 2 (title ID 0x4D530065, region-free, version 1). The README's
+        "Supported game version" box has the details. The wizard checks your copy on its Dump page;
+        by hand, `./blinx2 fingerprint /path/to/your/disc.iso` says the same.
+      options:
+        - The supported release (the wizard or fingerprint said nothing, or "known")
+        - Another release (the wizard or fingerprint warned "another release")
+        - A modded copy (the warning said "data" or "code")
+        - I do not know
+    validations:
+      required: true
+
+  - type: textarea
+    id: fingerprint
+    attributes:
+      label: Fingerprint
+      description: |
+        The output of `./blinx2 fingerprint` in your build folder (wizard users: the build folder's `src`
+        folder), or the `[BOOT] build xbe:` line from the game's log. It is a checksum: it holds no game data.
+      render: text
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Build version
+      description: The release you built (the wizard's file name, e.g. `blinx2-wizard-v2026.11.1-...`), or the bundle's name in the output folder.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: how
+    attributes:
+      label: How did you build it?
+      options:
+        - The build wizard
+        - "By hand: ./blinx2 on the command line"
+        - Someone else built it
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where do you play?
+      options:
+        - Windows
+        - macOS
+        - Steam Deck
+        - Linux (Proton)
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Graphics backend
+      description: Unless you changed it, Windows, the Steam Deck and Linux use Direct3D 11 and macOS uses Metal.
+      options:
+        - Direct3D 11
+        - Metal
+        - CPU renderer
+        - I do not know
+    validations:
+      required: true
+
+  - type: input
+    id: system
+    attributes:
+      label: System
+      description: OS version, CPU, GPU and GPU driver version. On the Deck or Linux, also the Proton version.
+      placeholder: Windows 11 24H2, Ryzen 7 5800X, RTX 3070 driver 572.16
+    validations:
+      required: true
+
+  - type: textarea
+    id: save
+    attributes:
+      label: Your save
+      description: |
+        How far in the game the save is (stage, story point), whether it came from a console or
+        another install (`saves import`), and whether a new game shows the same problem.
+        Describe it; do not attach the save file.
+    validations:
+      required: false
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Your settings
+      description: |
+        What you changed in the in-game menu, as it shows it (page, option, value: "Render > Aspect
+        ratio > 16:9"), or the options you picked in the wizard. "Stock" is an answer too. The
+        menu's Files page says where the settings file is, if you would rather attach it.
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Drag the files in here. The game's logs are in the data folder's `logs` folder:
+        `%LOCALAPPDATA%\BLiNX2\logs` on Windows, `~/Library/Application Support/BLiNX2/logs` on macOS,
+        `~/Games/BLiNX2/logs` on the Steam Deck and Linux. Attach the newest `game-*.log` and
+        `xbox_kernel.log` (copy it before starting the game again: it is rewritten on every launch),
+        and `umu.log` on the Deck. For a build failure, attach `wizard.log` (`%APPDATA%\blinx2-wizard`,
+        `~/Library/Application Support/blinx2-wizard` or `~/.config/blinx2-wizard`) and the log the
+        error names under the build folder's `src/build-logs/`.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: legal
+    attributes:
+      label: Before you send
+      options:
+        - label: I did not attach game files, a disc image, a save file or a built bundle.
+          required: true
+        - label: I searched the open issues and the README's known issues for this problem.
+          required: false

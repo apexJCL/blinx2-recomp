@@ -24,7 +24,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DATA_EXT = (
     "xbe iso xiso bmp png wav sav pack xpr xwb adx sfd ipk xsv xmv rws awd ppm raw "
-    "dmg exe pdb nsi tar ico icns"
+    "dmg exe pdb nsi tar ico icns xtd"
 ).split()
 
 # The game.toml values the samples are built from, with the CLI's defaults.
@@ -67,6 +67,8 @@ SAMPLES = (
     "game.toml.bak",
     "game.toml.bak-20261016",
     "a/hud-pack.toml",
+    "a/textures-pack.toml",
+    "config/enhance-textures.local.toml",
     "a/CACHE/x",
     ".claude/settings.local.json",
     "CLAUDE.local.md",

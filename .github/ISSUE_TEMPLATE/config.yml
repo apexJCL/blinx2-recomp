@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Build and install help
+    url: https://github.com/apexJCL/blinx2-recomp/blob/main/docs/playing.md#troubleshooting
+    about: The fixes for the usual build and install problems, before you file a bug.

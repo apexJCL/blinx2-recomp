@@ -5,6 +5,8 @@
  *
  * The camera module owns the state; recomp_manual.c's wrappers ask it:
  *   sub_000292A0, sub_0021B1F0  free_cam_view: the fields to swap in
+ *   sub_00042E50 (screen proj)  free_cam_view: the same swap, outside
+ *                               the builds too
  *   sub_0005C930 (pad poll)     free_cam_frame: the mod frame
  *   sub_000EEB40 (events)       free_cam_events_pre/post: the game's flag
  *                               in for the event system, read back after
